@@ -1,4 +1,4 @@
-.PHONY: test syntax install install-dry-run groq-test mcp-build build-claude-plugin build-codex-skill build-packages verify-packages verify-generated-clean ci-local
+.PHONY: test syntax doctor install install-dry-run groq-test mcp-build build-claude-plugin build-codex-skill build-packages verify-packages verify-generated-clean ci-local
 
 AUDIO ?=
 PYTHON ?= python3
@@ -9,6 +9,9 @@ test:
 syntax:
 	python3 -m py_compile packages/watch-video/scripts/*.py
 	bash -n scripts/*.sh
+
+doctor:
+	$(PYTHON) packages/watch-video/scripts/doctor.py
 
 install:
 	./scripts/install-all.sh

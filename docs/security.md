@@ -2,13 +2,13 @@
 
 Security rules for this repo:
 
-- Never commit real API keys.
+- Never commit real API keys, including Groq or OpenAI keys.
 - Use environment variables or gitignored `.env.local` for local secrets.
 - `.env.local` must remain ignored and untracked.
 - Do not echo full keys.
 - Do not print secrets in logs, reports, commit messages, or issue comments.
 - CI must not require secrets.
-- Live Groq verification may source `.env.local` only inside a subshell.
+- Live Groq/OpenAI verification may source `.env.local` only inside a subshell.
 - Generated artifacts under `.watch-video/` stay ignored.
 
 ## Safe Key Shape Checks

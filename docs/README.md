@@ -22,6 +22,7 @@ Recommended reading order for broader work:
 Reference audits:
 
 - `reference-audit-claude-video.md`
+- `reference-audit-video-tools.md`
 
 Keep these docs current when architecture, workflow, install behavior, security
 practice, or package scope changes. A future agent should not need prior chat

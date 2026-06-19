@@ -8,6 +8,16 @@ allowed-tools: [Bash, Read]
 
 Use `watch-video` on the tutorial source: $ARGUMENTS
 
+Prefer:
+
+```sh
+python3 scripts/watch.py "<source>" --mode tutorial --frame-mode auto
+```
+
+For tutorials longer than 10 minutes, ask for a focused section first unless the
+user clearly wants a broad skim. Review transcript/captions before extracting
+many frames.
+
 Focus on practical extraction:
 
 - tools, services, libraries, and versions mentioned

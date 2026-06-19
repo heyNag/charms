@@ -14,6 +14,8 @@ Rules for future AI agents working in this repo:
   asks for a generated-output-only change.
 - Use `make verify-generated-clean` to confirm committed public outputs match
   package source and manifests.
+- Use `make doctor` before live `watch-video` debugging when local dependencies
+  or API key shape are uncertain.
 - Prefer small, testable changes.
 - Do not over-engineer or add frameworks without a clear need.
 - Do not commit generated `.watch-video/` artifacts.
@@ -31,6 +33,7 @@ Rules for future AI agents working in this repo:
 Run:
 
 ```sh
+make doctor
 make test
 make syntax
 make mcp-build

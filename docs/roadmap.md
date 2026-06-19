@@ -5,12 +5,16 @@ This roadmap is directional. It is not a commitment to overbuild the repo.
 ## Phase 1: Local Watch Video
 
 Maintain `packages/watch-video` as a useful local skill/commands/scripts package
-for video analysis. Keep it easy to install into Claude and Codex.
+for video analysis. Keep it easy to install into Claude and Codex. Current
+baseline includes preflight checks, focused URL downloads, caption-first
+transcripts, bounded auto frame extraction, report modes, and Groq fallback.
 
 ## Phase 2: Better Reports And Fallbacks
 
 Improve report readability, caption cleanup, transcript previews, and fallback
-behavior when native captions are incomplete or unavailable.
+behavior when native captions are incomplete or unavailable. Future work can add
+better visual report summaries, configurable transcript provider preferences,
+and richer caption diagnostics.
 
 ## Phase 3: Richer Claude/Codex Ergonomics
 
@@ -26,8 +30,9 @@ Public packages should follow this shape:
 ## Phase 4: Real MCP Tools
 
 When the local package surface is stable, add real tools under
-`mcp/watch-video`. Start small: status, metadata inspection, and safe local job
-launching are more useful than a large API surface.
+`mcp/watch-video`. Start small with tools such as `video_info`,
+`video_analyze`, `video_watch`, and `video_detail`. Metadata inspection and safe
+local job launching are more useful than a large API surface.
 
 ## Phase 5: Optional Deployment
 

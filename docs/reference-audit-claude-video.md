@@ -49,8 +49,9 @@ workspace:
 - `packages/watch-video/SKILL.md` describes a tool-neutral skill for YouTube
   URLs, local videos, screen recordings, tutorials, demos, and UI bug videos.
 - `watch.py` accepts URL or local path sources, `--start`, `--end`,
-  `--duration`, `--out-dir`, `--transcriber groq|none`, `--frames`,
-  `--frame-interval`, `--max-frames`, and `--frame-width`.
+  `--duration`, `--out-dir`, `--transcriber groq|openai|none`, `--frames`,
+  auto or interval frame modes, report modes, cleanup options, and multiple
+  frame formats.
 - URL handling uses `yt-dlp` with native and auto captions, metadata capture,
   and `--` before the URL.
 - Local videos are handled without requiring network access.
@@ -71,14 +72,11 @@ workspace:
 
 ## Changes Applied During This Audit
 
-Two small hardening changes were made because they are simple, testable, and
-directly useful:
-
-- Lowered the hard frame cap from 200 to 100. This keeps visual extraction closer
-  to a safe agent context budget while preserving the default 80-frame behavior.
-- Fixed caption selection so English VTT files are preferred when multiple VTT
-  files exist. Non-English captions still work as fallback when no English VTT
-  file is present.
+The initial audit applied small hardening changes around frame caps and English
+caption preference. Later public-readiness work expanded this with a doctor
+preflight, auto frame budgeting, focused URL download sections, richer caption
+provenance, retry-aware transcription fallback, report modes, cleanup options,
+and generated public package outputs.
 
 These changes were implemented independently; no substantial reference code was
 copied.
@@ -87,16 +85,8 @@ copied.
 
 The following gaps are worth considering as future improvements:
 
-- Setup and preflight ergonomics. The reference setup script provides a smooth
-  first-run path and dependency diagnostics. `agent-tools` currently relies on
-  README instructions, Make targets, and clear runtime errors.
-- Duration-aware frame budgeting. `watch-video` currently uses a fixed frame
-  interval plus a max-frame cap. The reference's adaptive budget is better for
-  both short dense clips and long sparse scans.
-- Groq retry handling. `groq_transcribe.py` has clear errors but does not yet
-  retry transient HTTP, network, or 429 failures.
-- Caption fallback richness. `watch-video` prefers captions before Groq, but
-  language fallback and subtitle failure reporting could be more expressive.
+- Caption fallback richness can still improve, especially around subtitle
+  download diagnostics and unusual language/format edge cases.
 - Report quality. The current report is readable and artifact-oriented, but it
   could eventually include richer visual summaries, key frames, or more explicit
   "what to inspect next" sections.
@@ -111,8 +101,9 @@ These reference features should not be copied into `agent-tools` right now:
 - A Claude-specific setup wizard that writes API keys into a new config location.
   This repo's current security model favors environment variables and gitignored
   `.env.local` for local live tests.
-- OpenAI Whisper fallback. Groq `whisper-large-v3-turbo` is the current default
-  decision; other providers can be added later if needed.
+- Broad provider abstraction. Groq remains the default, and OpenAI is available
+  as an explicit `--transcriber openai` option, but richer provider
+  configuration is deferred.
 - Session hooks that run on every Claude startup. They may be useful later, but
   install behavior should stay predictable and tool-neutral for now.
 - Any MCP gateway. Real MCP tools can be added under `mcp/watch-video` later,
@@ -141,15 +132,8 @@ P0: correctness and safety
 
 P1: usability
 
-- Add an optional `watch-video doctor` or `scripts/setup` style preflight that
-  checks `yt-dlp`, `ffmpeg`, `ffprobe`, and `GROQ_API_KEY` without printing
-  secrets.
-- Consider adaptive frame budgeting for short, medium, long, and focused clips.
-- Add retry and rate-limit handling to Groq transcription.
 - Improve caption diagnostics so reports distinguish "no captions", "caption
   download warning", and "caption parse failed".
-- Add a concise report section optimized for tutorial extraction and UI bug
-  evidence.
 
 P2: nice-to-have
 

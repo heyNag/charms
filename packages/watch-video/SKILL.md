@@ -21,33 +21,48 @@ where visible UI/actions and spoken content matter.
 - Prefer native captions/transcripts when available.
 - Use `yt-dlp` for URL metadata, captions, and downloading source media.
 - Use `ffmpeg`/`ffprobe` for focused audio clips and frame extraction.
-- Use Groq Whisper only as a fallback when captions are missing or unavailable.
+- Use Groq Whisper as the default fallback when captions are missing,
+  unavailable, or obviously incomplete.
+- Use OpenAI transcription only when explicitly requested with
+  `--transcriber openai`.
 - Default Groq model: `whisper-large-v3-turbo`.
+- Default OpenAI transcription model: `whisper-1`, because verbose JSON segment
+  timestamps are needed.
 - Support focused ranges with `--start` and `--end`; use `--duration` when the
   user gives a start plus length.
 - Do not paste the full transcript unless the user explicitly asks for it.
 - Do not print or expose `GROQ_API_KEY`.
-- For long videos, prefer a focused range over a sparse full-video scan.
+- For videos longer than 10 minutes, ask for or infer a focused range before
+  doing frame-heavy extraction.
+- For videos longer than 30 seconds, review captions/transcript before expanding
+  frame extraction.
+- For screen recordings or UI text, prefer higher resolution and PNG frames:
+  `--frame-format png --resolution 1280`.
 
 ## Invocation
 
 From this skill directory:
 
 ```sh
-python3 scripts/watch.py "<source>" --frames
+python3 scripts/watch.py "<source>" --frames --frame-mode auto
 ```
 
 Useful options:
 
 ```sh
+python3 scripts/doctor.py
 python3 scripts/watch.py "<source>" --start 01:15 --end 02:00 --frames
-python3 scripts/watch.py "<source>" --duration 30 --frame-interval 5
+python3 scripts/watch.py "<source>" --duration 30 --frame-mode auto --max-frames 8
+python3 scripts/watch.py "<source>" --mode tutorial --transcriber groq
+python3 scripts/watch.py "<source>" --mode ui-bug --frame-format png
 python3 scripts/watch.py "<source>" --transcriber none --frames
 ```
 
 The script writes a run directory under `.watch-video/runs/<run-id>/` and prints
-the final `report.md` path. Quote URLs in zsh and other shells where `?` may be
-treated as a glob.
+the final `report.md` path. For finite URL ranges, it asks `yt-dlp` for a
+focused download section so short tests do not download whole long videos when
+the service supports section downloads. Quote URLs in zsh and other shells where
+`?` may be treated as a glob.
 
 ## Evidence To Use
 
@@ -73,10 +88,15 @@ setup steps, decisions, and a compact implementation checklist.
 
 ## Failure Handling
 
+- First run: use `python3 scripts/doctor.py` for dependency and safe key-shape
+  checks.
 - Missing `yt-dlp`: tell the user to run `brew install yt-dlp`.
 - Missing `ffmpeg` or `ffprobe`: tell the user to run `brew install ffmpeg`.
 - Missing `GROQ_API_KEY`: continue with captions/frames if available and say
   Groq fallback needs `export GROQ_API_KEY=...`.
+- Missing `OPENAI_API_KEY` with `--transcriber openai`: continue with
+  captions/frames if available and say OpenAI fallback needs
+  `export OPENAI_API_KEY=...`.
 - Groq API failure: do not retry indefinitely; report the error category and use
   available captions/frames.
 - Login-required, private, or region-locked URL: say `yt-dlp` cannot fetch it

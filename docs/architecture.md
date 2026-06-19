@@ -1,6 +1,6 @@
 # Architecture
 
-`agent-tools` is a personal agent tooling workspace for local skills, commands,
+`agent-tools` is a public agent tooling workspace for local skills, commands,
 plugins, helper scripts, and future MCP servers.
 
 The current shape is intentionally small:
@@ -27,7 +27,9 @@ packages/watch-video
 ```
 
 `packages/watch-video` owns the local `watch-video` skill, commands, plugin
-metadata, Python scripts, and tests. Edit source files there first.
+metadata, Python scripts, docs, and tests. Its script surface includes local
+preflight, video watching, frame extraction, and transcription helpers. Edit
+source files there first.
 
 Each public package should declare its distribution targets in:
 
@@ -80,6 +82,11 @@ mcp/watch-video
 
 It is a minimal TypeScript MCP server skeleton. It currently exposes a status
 tool only. It does not wrap video processing yet.
+
+Future `watch-video` MCP work should add real tools only after the local package
+surface is stable. Candidate tools include `video_info`, `video_analyze`,
+`video_watch`, and `video_detail`. Keep them inside `mcp/watch-video`; do not
+introduce a gateway.
 
 ## No Gateway
 

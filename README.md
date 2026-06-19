@@ -46,7 +46,13 @@ cd agent-tools
 brew install yt-dlp ffmpeg jq
 ```
 
-Groq is optional but useful when captions are missing:
+Check local readiness:
+
+```sh
+python3 packages/watch-video/scripts/doctor.py
+```
+
+Groq is optional but recommended when captions are missing or incomplete:
 
 ```sh
 export GROQ_API_KEY="..."
@@ -54,6 +60,9 @@ export GROQ_MODEL="whisper-large-v3-turbo"
 ```
 
 Default Groq model: `whisper-large-v3-turbo`.
+OpenAI transcription is also available with `--transcriber openai` and
+`OPENAI_API_KEY`; the default OpenAI model is `whisper-1` so segment timestamps
+work with the current verbose JSON response.
 
 ## Quick Test
 
@@ -61,9 +70,15 @@ Default Groq model: `whisper-large-v3-turbo`.
 python3 packages/watch-video/scripts/watch.py \
   "https://www.youtube.com/watch?v=DTCyvo6cC54" \
   --duration 30 \
-  --frames \
-  --frame-interval 10 \
-  --max-frames 4
+  --transcriber none \
+  --frame-mode auto \
+  --max-frames 8
+```
+
+For UI-heavy recordings, prefer PNG frames:
+
+```sh
+python3 packages/watch-video/scripts/watch.py ./bug.mov --mode ui-bug --frame-format png
 ```
 
 ## Repo Structure

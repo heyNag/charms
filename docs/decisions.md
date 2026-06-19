@@ -63,3 +63,30 @@ status, install targets, and MCP presence.
 Reason: A small manifest keeps build and verification scripts generic without
 adding a package framework. New packages can follow the same shape when they are
 ready for public distribution.
+
+## 2026-06-19: Auto Frame Budgeting With Hard Caps
+
+Decision: Use automatic frame budgeting by default while keeping manual interval
+mode available.
+
+Reason: Short focused clips need denser coverage, while long videos need sparse
+bounded extraction. The hard limits of 100 frames and 2 fps keep local agent
+runs practical and predictable.
+
+## 2026-06-19: Caption-First Transcription
+
+Decision: Prefer native captions, especially manual English captions, before
+using paid transcription fallback.
+
+Reason: Native captions are faster, cheaper, and often higher quality for
+YouTube sources. Groq or OpenAI fallback should be used when captions are
+missing or suspiciously incomplete.
+
+## 2026-06-19: OpenAI Fallback Uses Whisper-1
+
+Decision: Keep Groq as the default fallback and support optional OpenAI
+transcription with `whisper-1` as the default model.
+
+Reason: `watch-video` needs verbose JSON segment timestamps. `whisper-1` is the
+compatible OpenAI default for that response shape, while newer transcription
+models can be selected manually if the API response shape supports the workflow.

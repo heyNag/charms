@@ -51,23 +51,43 @@ Local development install from source:
 ./scripts/install-all.sh
 ```
 
+Preflight:
+
+```sh
+python3 packages/watch-video/scripts/doctor.py
+```
+
 ## Current Design
 
 The `watch.py` flow is:
 
 1. Accept a source URL or local path.
-2. Extract metadata with `yt-dlp` for URLs and `ffprobe` for media details.
-3. Extract a focused audio clip with `ffmpeg`.
-4. Prefer native captions when available.
-5. Use Groq Whisper fallback when captions are missing.
-6. Extract frames with `ffmpeg` when frames are enabled.
-7. Generate transcript files and a Markdown report.
+2. Parse focused range options early.
+3. For finite URL ranges, pass `--download-sections` to `yt-dlp` where possible.
+4. Extract metadata with `yt-dlp` for URLs and `ffprobe` for media details.
+5. Prefer native captions, with manual English before auto English and fallback
+   to other languages when needed.
+6. Track caption provenance, language, coverage seconds, and coverage ratio.
+7. Extract a focused audio clip with `ffmpeg`.
+8. Use Groq Whisper fallback when captions are missing or suspiciously short.
+9. Optionally use OpenAI transcription with `--transcriber openai`.
+10. Extract frames with `ffmpeg` using automatic frame budgeting by default.
+11. Generate transcript files and a Markdown report.
 
 Default Groq model:
 
 ```text
 whisper-large-v3-turbo
 ```
+
+Default OpenAI transcription model:
+
+```text
+whisper-1
+```
+
+`whisper-1` is used for OpenAI because the current script needs verbose JSON
+with segment timestamps.
 
 ## Outputs
 
@@ -99,22 +119,43 @@ Example:
 python3 packages/watch-video/scripts/watch.py \
   "https://www.youtube.com/watch?v=DTCyvo6cC54" \
   --duration 30 \
-  --transcriber groq \
-  --frames \
-  --frame-interval 10 \
-  --max-frames 4
+  --transcriber none \
+  --frame-mode auto \
+  --max-frames 8
 ```
 
 If `GROQ_API_KEY` is only in `.env.local`, source it only inside the live command
 subshell:
 
 ```sh
-bash -lc 'set -a; source .env.local >/dev/null 2>&1; set +a; python3 packages/watch-video/scripts/watch.py "https://www.youtube.com/watch?v=DTCyvo6cC54" --duration 30 --transcriber groq --frames --frame-interval 10 --max-frames 4'
+bash -lc 'set -a; source .env.local >/dev/null 2>&1; set +a; python3 packages/watch-video/scripts/watch.py "https://www.youtube.com/watch?v=DTCyvo6cC54" --duration 30 --transcriber groq --frame-mode auto --max-frames 8'
 ```
+
+## Modes And Frames
+
+Report modes:
+
+```text
+general
+tutorial
+ui-bug
+notes
+```
+
+Frame extraction defaults to `--frame-mode auto`, capped at 100 frames and 2 fps.
+Use `--frame-mode interval --frame-interval 10` when you need a predictable
+interval. Use `--frame-format png --resolution 1280` for UI text. JPEG is the
+default, PNG is best for sharp screen recordings, and WebP is optional depending
+on the local `ffmpeg` build.
+
+Use `--cleanup` to remove downloaded media and audio after the report is written.
+Add `--cleanup-frames` only when frame files should also be removed.
 
 ## Future Improvements
 
 - Better visual report summaries.
-- Configurable transcript providers.
+- More transcript provider configuration.
 - More robust caption fallback and language handling.
-- Real MCP tools later under `mcp/watch-video`.
+- Real MCP tools later under `mcp/watch-video`, such as `video_info`,
+  `video_analyze`, `video_watch`, and `video_detail`.
+- No MCP gateway.

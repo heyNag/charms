@@ -8,6 +8,16 @@ allowed-tools: [Bash, Read]
 
 Use `watch-video` on the UI bug recording: $ARGUMENTS
 
+Prefer:
+
+```sh
+python3 scripts/watch.py "<source>" --mode ui-bug --frame-mode auto --frame-format png --resolution 1280
+```
+
+For recordings longer than 10 minutes, ask for or infer the relevant repro
+window first. For videos longer than 30 seconds, inspect transcript/captions
+before extracting a dense frame set.
+
 Inspect frames closely and align them with the transcript if audio is present.
 Return:
 
