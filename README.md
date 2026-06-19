@@ -1,27 +1,18 @@
 # agent-tools
 
-Personal agent tooling for local skills, commands, plugins, and future MCP
-servers.
+`agent-tools` is a personal agent tooling workspace for skills, commands,
+plugins, helper scripts, and MCP experiments.
 
-This repository is intentionally practical and file-first. Local packages live
-under `packages/` and are the source of truth for skills, commands, plugin
-metadata, and helper scripts. MCP projects live under `mcp/` as deployable
-server shapes that can be developed later without turning this repository into
-an MCP gateway.
+This repo is intentionally practical and file-first. Local agent packages live
+under `packages/`; deployable MCP server shapes live under `mcp/`; helper
+scripts live under `scripts/`. There is no MCP gateway for now.
 
-## Current Package
+## Current Contents
 
-### watch-video
-
-`watch-video` helps Claude, Codex, and other local agents inspect videos:
-
-- YouTube and other `yt-dlp` supported URLs
-- local videos and screen recordings
-- tutorials, product demos, and UI bug videos
-- native captions when available
-- Groq Whisper fallback when captions are missing
-- focused ranges with `--start`, `--end`, or `--duration`
-- optional frame extraction with `ffmpeg`
+- `packages/watch-video` - local video analysis skill, commands, plugin
+  metadata, Python scripts, and tests.
+- `mcp/watch-video` - minimal TypeScript MCP placeholder with a status tool and
+  deployable folder shape for later.
 
 ## Quickstart
 
@@ -38,116 +29,49 @@ export GROQ_API_KEY="..."
 export GROQ_MODEL="whisper-large-v3-turbo"
 ```
 
-Run a 30-second YouTube scan. Quote URLs in zsh so `?` is not treated as a glob:
+Run a 30-second `watch-video` test:
 
 ```sh
 python3 packages/watch-video/scripts/watch.py \
-  "https://www.youtube.com/watch?v=dQw4w9WgXcQ" \
+  "https://www.youtube.com/watch?v=DTCyvo6cC54" \
   --duration 30 \
   --frames \
-  --frame-interval 5
+  --frame-interval 10 \
+  --max-frames 4
 ```
 
-Install into Claude and Codex:
+Install local copies into Claude and Codex:
 
 ```sh
 ./scripts/install-all.sh
-```
-
-The run artifacts are written under `.watch-video/runs/<run-id>/`, including
-`metadata.json`, `audio.mp3`, transcript files, extracted frames, and
-`report.md`.
-
-The helper scripts never print the API key. CI does not require `GROQ_API_KEY`.
-
-## Requirements
-
-Python 3.11+ is recommended. Node.js is only needed for the placeholder MCP
-server under `mcp/watch-video`.
-
-## Install Locally
-
-Preview the install without writing to local agent folders:
-
-```sh
-DRY_RUN=1 ./scripts/install-all.sh
-```
-
-Install into Claude local folders:
-
-```sh
-./scripts/install-claude.sh
-```
-
-Install into Codex local folders:
-
-```sh
-./scripts/install-codex.sh
-```
-
-Install both:
-
-```sh
-./scripts/install-all.sh
-```
-
-These scripts are idempotent. The repo remains the source of truth; installed
-files are copies for local agent runtimes. Installers only replace files or
-directories marked as `agent-tools` managed; set `FORCE=1` only after inspecting
-any existing unmanaged target.
-
-## Groq Smoke Test
-
-```sh
-./scripts/test-groq.sh path/to/audio.mp3
-```
-
-This checks `GROQ_API_KEY`, calls Groq Whisper with
-`whisper-large-v3-turbo` by default, and pretty prints with `jq` when available.
-
-## Common Commands
-
-```sh
-make test
-make install
-make install-dry-run
-make groq-test AUDIO=path/to/audio.mp3
-make mcp-build
 ```
 
 ## Repo Structure
 
 ```text
-packages/
-  watch-video/
-    SKILL.md              # local skill contract
-    commands/             # agent command prompts
-    scripts/              # Python helpers
-    plugin/               # future Claude Code plugin metadata
-    tests/                # Python tests
-
-mcp/
-  watch-video/
-    src/index.ts          # minimal MCP server skeleton
-    Dockerfile            # deployable later
-
-scripts/
-  install-claude.sh
-  install-codex.sh
-  install-all.sh
-  test-groq.sh
+packages/             local skills, commands, plugins, and package tests
+mcp/                  deployable MCP server shapes, one folder per MCP
+scripts/              install, test, and helper scripts
+docs/                 orientation and project memory
+.github/workflows/    CI
 ```
 
-## Future MCP Path
+## Docs
 
-`mcp/watch-video` currently exposes a small `watch_video_status` tool. It is a
-deployable placeholder for a future MCP server that can wrap the local
-`watch-video` scripts. It is not a gateway and does not integrate video
-processing yet.
+Start with [docs/README.md](docs/README.md).
 
-## Next Roadmap
+Future agents should read `docs/README.md`, `docs/architecture.md`, and
+`docs/agent-guidelines.md` before making structural changes.
 
-- Better transcript/caption fallback and language selection.
-- Prettier reports with clearer visual evidence tables.
-- Real MCP tools for status, metadata inspection, and safe local job launching.
-- Optional deployment to Railway later, once the MCP API surface is real.
+## Security
+
+Do not commit real API keys, `.env.local`, or `.watch-video/` artifacts. Keep CI
+offline and no-secret. See [docs/security.md](docs/security.md).
+
+## Checks
+
+```sh
+make test
+make syntax
+make mcp-build
+```
