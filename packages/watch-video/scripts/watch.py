@@ -102,7 +102,7 @@ def pick_caption(media_dir: Path) -> Path | None:
     captions = sorted(media_dir.glob("video*.vtt"))
     if not captions:
         return None
-    preferred = [path for path in captions if ".en" in path.name or path.name.endswith(".vtt")]
+    preferred = [path for path in captions if ".en" in path.name]
     return preferred[0] if preferred else captions[0]
 
 

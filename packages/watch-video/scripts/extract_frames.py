@@ -13,7 +13,7 @@ from pathlib import Path
 
 DEFAULT_INTERVAL_SECONDS = 5.0
 DEFAULT_MAX_FRAMES = 80
-HARD_MAX_FRAMES = 200
+HARD_MAX_FRAMES = 100
 
 
 def parse_time(value: str | int | float | None) -> float | None:

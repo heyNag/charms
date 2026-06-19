@@ -19,6 +19,10 @@ Recommended reading order for broader work:
 5. `roadmap.md`
 6. `decisions.md`
 
+Reference audits:
+
+- `reference-audit-claude-video.md`
+
 Keep these docs current when architecture, workflow, install behavior, security
 practice, or package scope changes. A future agent should not need prior chat
 history to understand why the repo is shaped this way.

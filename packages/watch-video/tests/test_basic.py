@@ -41,7 +41,7 @@ def test_expected_frame_count_is_capped() -> None:
     extract_frames = importlib.import_module("extract_frames")
 
     assert extract_frames.expected_frame_count(60, frame_interval=5, max_frames=80) == 13
-    assert extract_frames.expected_frame_count(10_000, frame_interval=1, max_frames=500) == 200
+    assert extract_frames.expected_frame_count(10_000, frame_interval=1, max_frames=500) == 100
     with pytest.raises(ValueError, match="frame-interval"):
         extract_frames.expected_frame_count(60, frame_interval=0)
 
@@ -66,6 +66,14 @@ def test_create_run_dir_does_not_overwrite(tmp_path, monkeypatch) -> None:
     assert second.name == "fixed-run-01"
     assert first.exists()
     assert second.exists()
+
+
+def test_pick_caption_prefers_english(tmp_path) -> None:
+    watch = importlib.import_module("watch")
+    (tmp_path / "video.fr.vtt").write_text("WEBVTT\n", encoding="utf-8")
+    (tmp_path / "video.en.vtt").write_text("WEBVTT\n", encoding="utf-8")
+
+    assert watch.pick_caption(tmp_path).name == "video.en.vtt"
 
 
 def test_segments_from_response_offsets() -> None:
