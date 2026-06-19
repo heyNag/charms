@@ -2,7 +2,9 @@
   "name": "watch-video",
   "version": "0.1.0",
   "description": "Inspect short video clips using transcripts, timestamps, frames, and Groq Whisper fallback.",
-  "author": "Nagarjuna Boddu",
+  "author": {
+    "name": "Nagarjuna Boddu"
+  },
   "repository": "https://github.com/heyNag/agent-tools",
   "license": "MIT"
 }

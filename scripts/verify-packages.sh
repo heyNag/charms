@@ -20,6 +20,93 @@ valid_json() {
   python3 -m json.tool "$1" >/dev/null || fail "invalid JSON: ${1#$ROOT/}"
 }
 
+validate_marketplace() {
+  python3 - "$ROOT/.claude-plugin/marketplace.json" "$ROOT" <<'PY'
+import json
+import pathlib
+import sys
+
+marketplace_path = pathlib.Path(sys.argv[1])
+root = pathlib.Path(sys.argv[2])
+data = json.loads(marketplace_path.read_text(encoding="utf-8"))
+
+errors = []
+if not isinstance(data.get("name"), str) or not data["name"]:
+    errors.append("marketplace name must be a non-empty string")
+owner = data.get("owner")
+if not isinstance(owner, dict) or not isinstance(owner.get("name"), str) or not owner["name"]:
+    errors.append("marketplace owner.name must be present")
+plugins = data.get("plugins")
+if not isinstance(plugins, list) or not plugins:
+    errors.append("marketplace plugins must be a non-empty array")
+
+seen = set()
+for index, plugin in enumerate(plugins or []):
+    if not isinstance(plugin, dict):
+        errors.append(f"plugins[{index}] must be an object")
+        continue
+    name = plugin.get("name")
+    if not isinstance(name, str) or not name:
+        errors.append(f"plugins[{index}].name must be present")
+        continue
+    if name in seen:
+        errors.append(f"duplicate plugin name: {name}")
+    seen.add(name)
+
+    source = plugin.get("source")
+    if not isinstance(source, str) or not source.startswith("./"):
+        errors.append(f"plugins[{index}].source must be a relative ./ path")
+    if "path" in plugin:
+        errors.append(f"plugins[{index}].path is redundant; use source only")
+
+    author = plugin.get("author")
+    if not isinstance(author, dict) or not isinstance(author.get("name"), str) or not author["name"]:
+        errors.append(f"plugins[{index}].author.name must be present")
+
+    for field in ("description", "version", "repository", "license"):
+        if not isinstance(plugin.get(field), str) or not plugin[field]:
+            errors.append(f"plugins[{index}].{field} must be a non-empty string")
+
+    if isinstance(source, str) and source.startswith("./"):
+        plugin_json = root / source[2:] / ".claude-plugin" / "plugin.json"
+        if plugin_json.exists():
+            manifest = json.loads(plugin_json.read_text(encoding="utf-8"))
+            if manifest.get("name") != name:
+                errors.append(f"plugins[{index}].name does not match {plugin_json}")
+            if manifest.get("version") != plugin.get("version"):
+                errors.append(f"plugins[{index}].version does not match {plugin_json}")
+
+if errors:
+    for error in errors:
+        print(f"error: {error}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
+validate_plugin_manifest() {
+  python3 - "$1" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+errors = []
+if not isinstance(data.get("name"), str) or not data["name"]:
+    errors.append("plugin name must be a non-empty string")
+author = data.get("author")
+if not isinstance(author, dict) or not isinstance(author.get("name"), str) or not author["name"]:
+    errors.append("plugin author.name must be present")
+for field in ("version", "description", "repository", "license"):
+    if not isinstance(data.get(field), str) or not data[field]:
+        errors.append(f"plugin {field} must be a non-empty string")
+if errors:
+    for error in errors:
+        print(f"error: {path}: {error}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
 json_public() {
   python3 - "$1" <<'PY'
 import json
@@ -93,6 +180,7 @@ scan_output() {
 
 check_file "$ROOT/.claude-plugin/marketplace.json"
 valid_json "$ROOT/.claude-plugin/marketplace.json"
+validate_marketplace
 
 found=0
 shopt -s nullglob
@@ -114,6 +202,7 @@ for tool_json in "$ROOT"/packages/*/tool.json; do
     check_file "$plugin_dir/README.md"
     check_file "$plugin_dir/LICENSE"
     valid_json "$plugin_dir/.claude-plugin/plugin.json"
+    validate_plugin_manifest "$plugin_dir/.claude-plugin/plugin.json"
 
     if [[ -d "$package_dir/scripts" ]]; then
       check_dir "$plugin_dir/skills/$package/scripts"
