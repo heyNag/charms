@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 package_dir="${repo_root}/packages/watch-video"
 skill_target="${HOME}/.codex/skills/watch-video"
+legacy_skill_target="${HOME}/.codex/skills/watch-video"
 marker_name=".agent-tools-managed"
 
 run() {
@@ -32,6 +33,10 @@ Refusing to replace existing unmanaged directory:
 fix: inspect that directory, move it aside, or rerun with FORCE=1 if you really want to replace it.
 EOF
   exit 2
+fi
+
+if [[ "${legacy_skill_target}" != "${skill_target}" && -f "${legacy_skill_target}/${marker_name}" ]]; then
+  run rm -rf "${legacy_skill_target}"
 fi
 
 tmp_target="${skill_target}.tmp.$$"

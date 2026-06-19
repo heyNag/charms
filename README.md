@@ -16,7 +16,7 @@ short clips, tutorials, demos, screen recordings, and UI bug videos.
 After installing, try:
 
 ```text
-/watch-video:watch-video <video-url-or-path>
+/watch-video:watch <video-url-or-path>
 ```
 
 If your Claude Code version shows a different command name, run `/plugin list`
@@ -128,9 +128,10 @@ Future agents should read `docs/README.md`, `docs/architecture.md`, and
 
 ## Security
 
-Do not commit real API keys, `.env.local`, `.watch-video/` artifacts, media
-files, transcripts, frames, caches, or local build outputs. Keep CI no-secret and
-free of live Groq/video/Claude requirements. See [docs/security.md](docs/security.md).
+Do not commit real API keys, `.env.local`, `.watch-video/` artifacts, legacy
+`.watch-video/` artifacts, media files, transcripts, frames, caches, or local
+build outputs. Keep CI no-secret and free of live Groq/video/Claude
+requirements. See [docs/security.md](docs/security.md).
 
 ## Checks
 

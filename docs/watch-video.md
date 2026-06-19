@@ -29,7 +29,7 @@ Claude Code marketplace install:
 After installing, try:
 
 ```text
-/watch-video:watch-video <video-url-or-path>
+/watch-video:watch <video-url-or-path>
 ```
 
 If your Claude Code version shows a different command name, run `/plugin list`

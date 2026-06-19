@@ -4,9 +4,11 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 package_dir="${repo_root}/packages/watch-video"
 skill_target="${HOME}/.claude/skills/watch-video"
+legacy_skill_target="${HOME}/.claude/skills/watch-video"
 commands_target="${HOME}/.claude/commands"
 marker_name=".agent-tools-managed"
 command_marker="agent-tools-managed: watch-video command"
+legacy_command_marker="agent-tools-managed: watch-video command"
 
 run() {
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
@@ -55,6 +57,9 @@ ensure_managed_file() {
   if grep -Fq "${command_marker}" "${target}" 2>/dev/null; then
     return
   fi
+  if grep -Fq "${legacy_command_marker}" "${target}" 2>/dev/null; then
+    return
+  fi
   if [[ "${FORCE:-0}" == "1" ]]; then
     return
   fi
@@ -81,6 +86,15 @@ copy_skill() {
   run mv "${tmp_target}" "${skill_target}"
 }
 
+remove_legacy_skill() {
+  if [[ "${legacy_skill_target}" == "${skill_target}" ]]; then
+    return
+  fi
+  if [[ -f "${legacy_skill_target}/${marker_name}" ]]; then
+    run rm -rf "${legacy_skill_target}"
+  fi
+}
+
 copy_commands() {
   run mkdir -p "${commands_target}"
   for command_file in "${package_dir}"/commands/*.md; do
@@ -89,6 +103,7 @@ copy_commands() {
   done
 }
 
+remove_legacy_skill
 copy_skill
 copy_commands
 

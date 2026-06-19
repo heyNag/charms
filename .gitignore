@@ -2,6 +2,7 @@
 .env
 .env.local
 .watch-video/
+.watch-video/
 
 # Watch Video run artifacts when custom output dirs are placed in the repo.
 **/audio.mp3

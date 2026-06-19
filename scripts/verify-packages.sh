@@ -163,6 +163,7 @@ scan_output() {
         -name ".env" -o \
         -name ".env.local" -o \
         -name ".watch-video" -o \
+        -name ".watch-video" -o \
         -name "__pycache__" -o \
         -name ".pytest_cache" -o \
         -name ".mypy_cache" -o \
