@@ -22,3 +22,18 @@ Recommended reading order for broader work:
 Keep these docs current when architecture, workflow, install behavior, security
 practice, or package scope changes. A future agent should not need prior chat
 history to understand why the repo is shaped this way.
+
+For source/generated ownership, start with `architecture.md`. In short, edit
+`packages/watch-video` for the current tool, then rebuild the committed public
+outputs under `generated/` and `.claude-plugin/`.
+
+When generated files need to change, use the clean rebuild path:
+
+```sh
+make rebuild-generated
+make audit-generated
+make verify-generated-clean
+```
+
+That removes `.claude-plugin/` and `generated/` and recreates them from
+`packages/`; generated outputs should not be moved or edited by hand.

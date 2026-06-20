@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # BEGIN GENERATED FROM SOURCE: packages/watch-video/scripts/groq_transcribe.py
-# Do not edit directly; edit the source path and run make build-packages.
+# Do not edit directly; edit the source path and run make rebuild-generated.
 # END GENERATED FROM SOURCE
 
 """Whisper transcription helper using only the Python standard library."""

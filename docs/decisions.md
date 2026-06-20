@@ -48,12 +48,13 @@ server shapes. A gateway would add architecture before there is a clear need.
 
 ## 2026-06-19: Committed Public Package Outputs
 
-Decision: Commit generated public package outputs under `plugins/` and `codex/`.
+Decision: Commit generated public package outputs under `generated/` and
+`.claude-plugin/`.
 
 Reason: Users and future agents should be able to install Claude Code plugins
 and Codex/generic skills without learning the internal source layout. Source
-still lives under `packages/`; generated outputs are rebuilt with
-`make build-packages` and checked with `make verify-packages`.
+still lives under `packages/`; generated outputs are rebuilt from scratch with
+`make rebuild-generated` and checked with `make verify-packages`.
 
 ## 2026-06-19: Package Manifests Declare Targets
 

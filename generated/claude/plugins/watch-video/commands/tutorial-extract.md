@@ -4,7 +4,7 @@ argument-hint: <video-url-or-path> [focus]
 allowed-tools: [Bash, Read]
 ---
 <!-- BEGIN GENERATED FROM SOURCE: packages/watch-video/commands/tutorial-extract.md -->
-<!-- Do not edit directly; edit the source path and run make build-packages. -->
+<!-- Do not edit directly; edit the source path and run make rebuild-generated. -->
 <!-- END GENERATED FROM SOURCE -->
 
 

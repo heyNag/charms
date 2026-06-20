@@ -5,7 +5,7 @@ PACKAGE="${1:-watch-video}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$ROOT/packages/$PACKAGE"
 TOOL_JSON="$SRC/tool.json"
-OUT="$ROOT/codex/$PACKAGE"
+OUT="$ROOT/generated/codex/skills/$PACKAGE"
 
 fail() {
   echo "error: $*" >&2
@@ -128,27 +128,28 @@ packages/$PACKAGE
 
 Do not edit this directory directly during normal development.
 
-Edit these source paths instead:
+Edit the source paths on the left; the generated outputs on the right are
+rewritten by \`make rebuild-generated\`.
 
 ~~~text
-codex/$PACKAGE/README.md      <- packages/$PACKAGE/README.md
-codex/$PACKAGE/SKILL.md       <- packages/$PACKAGE/SKILL.md
-codex/$PACKAGE/scripts/       <- packages/$PACKAGE/scripts/
-codex/$PACKAGE/LICENSE        <- LICENSE
+packages/$PACKAGE/README.md      -> generated/codex/skills/$PACKAGE/README.md
+packages/$PACKAGE/SKILL.md       -> generated/codex/skills/$PACKAGE/SKILL.md
+packages/$PACKAGE/scripts/       -> generated/codex/skills/$PACKAGE/scripts/
+LICENSE                          -> generated/codex/skills/$PACKAGE/LICENSE
 ~~~
 
 After editing source:
 
 1. Edit \`packages/$PACKAGE\`.
-2. Run \`make build-packages\`.
+2. Run \`make rebuild-generated\`.
 3. Run \`make verify-generated-clean\`.
 4. Commit both source and regenerated output changes.
 EOF
 prune_generated "$OUT"
 python3 "$ROOT/scripts/add-generated-headers.py" \
   --root "$ROOT" \
-  --map "codex/$PACKAGE/README.md=packages/$PACKAGE/README.md" \
-  --map "codex/$PACKAGE/SKILL.md=packages/$PACKAGE/SKILL.md" \
-  --map "codex/$PACKAGE/scripts=packages/$PACKAGE/scripts"
+  --map "generated/codex/skills/$PACKAGE/README.md=packages/$PACKAGE/README.md" \
+  --map "generated/codex/skills/$PACKAGE/SKILL.md=packages/$PACKAGE/SKILL.md" \
+  --map "generated/codex/skills/$PACKAGE/scripts=packages/$PACKAGE/scripts"
 
-echo "built Codex skill: codex/$PACKAGE"
+echo "built Codex skill: generated/codex/skills/$PACKAGE"

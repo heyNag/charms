@@ -15,15 +15,19 @@ This source package has a `SOURCE.md` marker.
 Public install targets:
 
 ```text
-plugins/watch-video
-codex/watch-video
+generated/claude/plugins/watch-video
+generated/codex/skills/watch-video
 ```
 
 These public install targets are generated from `packages/watch-video` and have
 `GENERATED.md` markers. Edit the source package first, then run
-`make build-packages`. The generated markers list exact source paths, such as
-`plugins/watch-video/skills/watch-video/scripts/` mapping back to
-`packages/watch-video/scripts/`.
+`make rebuild-generated`. The generated markers list exact source paths, such as
+`packages/watch-video/scripts/` producing
+`generated/claude/plugins/watch-video/skills/watch-video/scripts/`.
+
+When generator wording or public package paths change, always remove and
+regenerate outputs with `make rebuild-generated`; do not move generated files or
+edit them in place.
 
 ## Install
 
@@ -50,7 +54,7 @@ git clone https://github.com/heyNag/agent-tools.git
 cd agent-tools
 mkdir -p ~/.codex/skills
 rm -rf ~/.codex/skills/watch-video
-cp -R codex/watch-video ~/.codex/skills/watch-video
+cp -R generated/codex/skills/watch-video ~/.codex/skills/watch-video
 ```
 
 Local development install from source:

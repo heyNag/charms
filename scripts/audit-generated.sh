@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PACKAGE="${1:-watch-video}"
 SRC="$ROOT/packages/$PACKAGE"
-PLUGIN="$ROOT/plugins/$PACKAGE"
-CODEX="$ROOT/codex/$PACKAGE"
+PLUGIN="$ROOT/generated/claude/plugins/$PACKAGE"
+CODEX="$ROOT/generated/codex/skills/$PACKAGE"
 
 fail() {
   echo "error: $*" >&2
@@ -206,7 +206,7 @@ check_same_file "$SRC/README.md" "$CODEX/README.md" || status=1
 check_same_file "$SRC/SKILL.md" "$CODEX/SKILL.md" || status=1
 check_same_dir "$SRC/scripts" "$CODEX/scripts" || status=1
 [[ -f "$CODEX/GENERATED.md" ]] || {
-  echo "missing generated marker: codex/$PACKAGE/GENERATED.md" >&2
+  echo "missing generated marker: generated/codex/skills/$PACKAGE/GENERATED.md" >&2
   status=1
 }
 
@@ -216,12 +216,12 @@ check_same_file "$SRC/plugin/plugin.json" "$PLUGIN/.claude-plugin/plugin.json" |
 check_same_dir "$SRC/scripts" "$PLUGIN/skills/$PACKAGE/scripts" || status=1
 check_same_dir "$SRC/commands" "$PLUGIN/commands" || status=1
 [[ -f "$PLUGIN/GENERATED.md" ]] || {
-  echo "missing generated marker: plugins/$PACKAGE/GENERATED.md" >&2
+  echo "missing generated marker: generated/claude/plugins/$PACKAGE/GENERATED.md" >&2
   status=1
 }
 
 if [[ "$status" -ne 0 ]]; then
-  echo "generated outputs are out of sync; run make build-packages" >&2
+  echo "generated outputs are out of sync; run make rebuild-generated" >&2
   exit "$status"
 fi
 

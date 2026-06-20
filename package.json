@@ -4,10 +4,11 @@
   "private": true,
   "description": "Public agent tooling workspace for skills, commands, plugins, and future MCP servers.",
   "scripts": {
-    "test": "python3 -m unittest discover -s packages/watch-video/tests -p 'test_*.py'",
-    "syntax": "python3 -m py_compile packages/watch-video/scripts/*.py && python3 -m py_compile codex/watch-video/scripts/*.py && python3 -m py_compile plugins/watch-video/skills/watch-video/scripts/*.py && python3 -m py_compile scripts/*.py && bash -n scripts/*.sh",
+    "test": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s packages/watch-video/tests -p 'test_*.py'",
+    "syntax": "PYTHONDONTWRITEBYTECODE=1 python3 scripts/check-python-syntax.py packages/watch-video/scripts/*.py && PYTHONDONTWRITEBYTECODE=1 python3 scripts/check-python-syntax.py generated/codex/skills/watch-video/scripts/*.py && PYTHONDONTWRITEBYTECODE=1 python3 scripts/check-python-syntax.py generated/claude/plugins/watch-video/skills/watch-video/scripts/*.py && PYTHONDONTWRITEBYTECODE=1 python3 scripts/check-python-syntax.py scripts/*.py && bash -n scripts/*.sh",
     "build:mcp": "npm --prefix mcp/watch-video run build",
     "build:packages": "./scripts/build-packages.sh",
+    "rebuild:generated": "make rebuild-generated",
     "verify:packages": "./scripts/verify-packages.sh",
     "verify:generated": "make verify-generated-clean",
     "install:dry-run": "DRY_RUN=1 ./scripts/install-all.sh"

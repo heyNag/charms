@@ -5,7 +5,7 @@ PACKAGE="${1:-watch-video}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$ROOT/packages/$PACKAGE"
 TOOL_JSON="$SRC/tool.json"
-OUT="$ROOT/plugins/$PACKAGE"
+OUT="$ROOT/generated/claude/plugins/$PACKAGE"
 
 fail() {
   echo "error: $*" >&2
@@ -160,30 +160,31 @@ packages/$PACKAGE
 
 Do not edit this directory directly during normal development.
 
-Edit these source paths instead:
+Edit the source paths on the left; the generated outputs on the right are
+rewritten by \`make rebuild-generated\`.
 
 ~~~text
-plugins/$PACKAGE/README.md                         <- packages/$PACKAGE/README.md
-plugins/$PACKAGE/.claude-plugin/plugin.json        <- packages/$PACKAGE/plugin/plugin.json
-plugins/$PACKAGE/skills/$PACKAGE/SKILL.md          <- packages/$PACKAGE/SKILL.md
-plugins/$PACKAGE/skills/$PACKAGE/scripts/          <- packages/$PACKAGE/scripts/
-plugins/$PACKAGE/commands/                         <- packages/$PACKAGE/commands/
-plugins/$PACKAGE/LICENSE                           <- LICENSE
+packages/$PACKAGE/README.md              -> generated/claude/plugins/$PACKAGE/README.md
+packages/$PACKAGE/plugin/plugin.json     -> generated/claude/plugins/$PACKAGE/.claude-plugin/plugin.json
+packages/$PACKAGE/SKILL.md               -> generated/claude/plugins/$PACKAGE/skills/$PACKAGE/SKILL.md
+packages/$PACKAGE/scripts/               -> generated/claude/plugins/$PACKAGE/skills/$PACKAGE/scripts/
+packages/$PACKAGE/commands/              -> generated/claude/plugins/$PACKAGE/commands/
+LICENSE                                  -> generated/claude/plugins/$PACKAGE/LICENSE
 ~~~
 
 After editing source:
 
 1. Edit \`packages/$PACKAGE\`.
-2. Run \`make build-packages\`.
+2. Run \`make rebuild-generated\`.
 3. Run \`make verify-generated-clean\`.
 4. Commit both source and regenerated output changes.
 EOF
 prune_generated "$OUT"
 python3 "$ROOT/scripts/add-generated-headers.py" \
   --root "$ROOT" \
-  --map "plugins/$PACKAGE/README.md=packages/$PACKAGE/README.md" \
-  --map "plugins/$PACKAGE/skills/$PACKAGE/SKILL.md=packages/$PACKAGE/SKILL.md" \
-  --map "plugins/$PACKAGE/skills/$PACKAGE/scripts=packages/$PACKAGE/scripts" \
-  --map "plugins/$PACKAGE/commands=packages/$PACKAGE/commands"
+  --map "generated/claude/plugins/$PACKAGE/README.md=packages/$PACKAGE/README.md" \
+  --map "generated/claude/plugins/$PACKAGE/skills/$PACKAGE/SKILL.md=packages/$PACKAGE/SKILL.md" \
+  --map "generated/claude/plugins/$PACKAGE/skills/$PACKAGE/scripts=packages/$PACKAGE/scripts" \
+  --map "generated/claude/plugins/$PACKAGE/commands=packages/$PACKAGE/commands"
 
-echo "built Claude plugin: plugins/$PACKAGE"
+echo "built Claude plugin: generated/claude/plugins/$PACKAGE"

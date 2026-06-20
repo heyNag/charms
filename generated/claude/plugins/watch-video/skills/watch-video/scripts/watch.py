@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # BEGIN GENERATED FROM SOURCE: packages/watch-video/scripts/watch.py
-# Do not edit directly; edit the source path and run make build-packages.
+# Do not edit directly; edit the source path and run make rebuild-generated.
 # END GENERATED FROM SOURCE
 
 """Watch Video CLI entrypoint."""

@@ -9,7 +9,10 @@ Security rules for this repo:
 - Do not print secrets in logs, reports, commit messages, or issue comments.
 - CI must not require secrets.
 - Live Groq/OpenAI verification may source `.env.local` only inside a subshell.
-- Generated artifacts under `.watch-video/` stay ignored.
+- Runtime artifacts under `.watch-video/` stay ignored.
+- Committed generated package outputs live under `generated/` and
+  `.claude-plugin/`; they are rebuilt from `packages/` and must not contain
+  secrets or runtime artifacts.
 
 ## Safe Key Shape Checks
 

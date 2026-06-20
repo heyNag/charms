@@ -71,8 +71,8 @@ for index, plugin in enumerate(plugins or []):
     if isinstance(source, str):
         if ".." in pathlib.PurePosixPath(source).parts:
             errors.append(f"plugins[{index}].source must not contain '..'")
-        if source != f"./plugins/{name}":
-            errors.append(f"plugins[{index}].source should be ./plugins/{name}")
+        if source != f"./generated/claude/plugins/{name}":
+            errors.append(f"plugins[{index}].source should be ./generated/claude/plugins/{name}")
         source_dir = root / source.removeprefix("./")
         if not source_dir.is_dir():
             errors.append(f"plugins[{index}].source directory is missing: {source}")
@@ -262,7 +262,7 @@ for tool_json in "$ROOT"/packages/*/tool.json; do
   fi
 
   if [[ "$(json_has_target "$tool_json" claude)" == "true" ]]; then
-    plugin_dir="$ROOT/plugins/$package"
+    plugin_dir="$ROOT/generated/claude/plugins/$package"
     check_file "$plugin_dir/.claude-plugin/plugin.json"
     check_file "$plugin_dir/GENERATED.md"
     check_file "$plugin_dir/skills/$package/SKILL.md"
@@ -291,7 +291,7 @@ for tool_json in "$ROOT"/packages/*/tool.json; do
   fi
 
   if [[ "$(json_has_target "$tool_json" codex)" == "true" ]]; then
-    codex_dir="$ROOT/codex/$package"
+    codex_dir="$ROOT/generated/codex/skills/$package"
     check_file "$codex_dir/GENERATED.md"
     check_file "$codex_dir/SKILL.md"
     check_file "$codex_dir/README.md"

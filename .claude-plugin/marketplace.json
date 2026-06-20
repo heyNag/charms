@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "watch-video",
-      "source": "./plugins/watch-video",
+      "source": "./generated/claude/plugins/watch-video",
       "description": "Inspect short video clips using transcripts, timestamps, frames, and Groq Whisper fallback.",
       "version": "0.1.0",
       "author": {

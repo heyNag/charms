@@ -28,7 +28,7 @@ jobs:
         run: make mcp-build
 
       - name: Build public packages
-        run: make build-packages
+        run: make rebuild-generated
 
       - name: Verify public packages
         run: make verify-packages

@@ -12,12 +12,12 @@ local video into a small bundle of evidence:
 It is designed for local use by Claude, Codex, and similar tools.
 
 In the `agent-tools` repo, source lives under `packages/watch-video`. Public
-install targets are generated from that source into `plugins/watch-video` and
-`codex/watch-video`.
+install targets are generated from that source into
+`generated/claude/plugins/watch-video` and `generated/codex/skills/watch-video`.
 
-Claude Code users install from the marketplace package in `plugins/watch-video`.
-Codex and generic skill users can copy `codex/watch-video` into their local
-skills directory.
+Claude Code users install from the marketplace package in
+`generated/claude/plugins/watch-video`. Codex and generic skill users can copy
+`generated/codex/skills/watch-video` into their local skills directory.
 
 ## Requirements
 

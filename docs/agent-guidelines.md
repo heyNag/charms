@@ -9,13 +9,17 @@ Rules for future AI agents working in this repo:
 - Keep `mcp/watch-video` as a minimal deployable MCP placeholder until real MCP
   tools are explicitly requested.
 - Do not create MCP gateways unless explicitly requested.
-- Edit `packages/` first, then run `make build-packages`.
-- Do not manually edit `plugins/` or `codex/` outputs unless the user explicitly
-  asks for a generated-output-only change.
+- Edit `packages/` first, then run `make rebuild-generated` when generated
+  public outputs need to change.
+- Do not manually edit `generated/` or `.claude-plugin/` outputs unless the
+  user explicitly asks for a generated-output-only change.
 - Treat `packages/watch-video/SOURCE.md` and generated `GENERATED.md` files as
   the ownership markers.
 - Use `make verify-generated-clean` to confirm committed public outputs match
   package source and manifests.
+- Never move old generated files into a new location as the final step. Remove
+  `.claude-plugin/` and `generated/` with `make rebuild-generated` so the
+  generated markers and headers are produced by the current scripts.
 - Use `make doctor` before live `watch-video` debugging when local dependencies
   or API key shape are uncertain.
 - Prefer small, testable changes.
@@ -39,7 +43,7 @@ make doctor
 make test
 make syntax
 make mcp-build
-make build-packages
+make rebuild-generated
 make verify-packages
 make audit-generated
 make verify-generated-clean

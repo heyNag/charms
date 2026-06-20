@@ -52,7 +52,7 @@ for tool_path in sorted((ROOT / "packages").glob("*/tool.json")):
     plugins.append(
         {
             "name": name,
-            "source": f"./plugins/{name}",
+            "source": f"./generated/claude/plugins/{name}",
             "description": plugin.get("description")
             or tool.get("description")
             or f"{name} Claude Code plugin.",
@@ -82,16 +82,17 @@ This directory contains generated Claude Code marketplace metadata.
 
 Do not edit this directory directly during normal development.
 
-Edit these source paths instead:
+Edit the source paths on the left; the generated output on the right is
+rewritten by `make rebuild-generated`.
 
 ```text
-.claude-plugin/marketplace.json <- packages/*/tool.json and packages/*/plugin/plugin.json
+packages/*/tool.json and packages/*/plugin/plugin.json -> .claude-plugin/marketplace.json
 ```
 
 After editing source:
 
 1. Edit package manifests under `packages/`.
-2. Run `make build-packages`.
+2. Run `make rebuild-generated`.
 3. Run `make verify-generated-clean`.
 4. Commit both source and regenerated output changes.
 EOF

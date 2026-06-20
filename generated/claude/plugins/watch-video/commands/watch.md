@@ -4,7 +4,7 @@ argument-hint: <video-url-or-path> [question]
 allowed-tools: [Bash, Read]
 ---
 <!-- BEGIN GENERATED FROM SOURCE: packages/watch-video/commands/watch.md -->
-<!-- Do not edit directly; edit the source path and run make build-packages. -->
+<!-- Do not edit directly; edit the source path and run make rebuild-generated. -->
 <!-- END GENERATED FROM SOURCE -->
 
 

@@ -15,12 +15,16 @@ Edit files here first:
 After changing package source, run:
 
 ```sh
-make build-packages
+make rebuild-generated
 make verify-generated-clean
 ```
 
-The public install copies under `plugins/watch-video` and `codex/watch-video`
-are generated from this directory.
+This source directory generates these public install copies:
+
+```text
+packages/watch-video -> generated/claude/plugins/watch-video
+packages/watch-video -> generated/codex/skills/watch-video
+```
 
 Generated Markdown and Python files include in-file notices that point back to
 the source paths in this package. Generated JSON and LICENSE files are covered

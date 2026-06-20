@@ -7,8 +7,8 @@ The current shape is intentionally small:
 
 ```text
 packages/             local skills, commands, and Claude/Codex-facing packages
-plugins/              generated Claude Code plugin packages, committed for public install
-codex/                generated Codex/generic skill packages, committed for public install
+generated/            generated Claude/Codex packages, committed for public install
+.claude-plugin/       generated Claude Code marketplace catalog
 mcp/                  deployable MCP server shapes, one folder per MCP server
 scripts/              install, test, sync, and helper scripts
 .github/workflows/    CI
@@ -41,32 +41,37 @@ For now, the only public package is `watch-video`.
 
 ## Public Distribution
 
-`plugins/` and `codex/` are generated from `packages/`, but they are committed as
-public install targets so users and agents do not need to understand the source
-workspace layout.
+`generated/` and `.claude-plugin/` are generated from `packages/`, but they are
+committed as public install targets so users and agents do not need to understand
+the source workspace layout.
 
 ```text
-.claude-plugin/marketplace.json  generated Claude Code marketplace catalog
-plugins/<name>        Claude Code plugin package
-codex/<name>          Codex/generic skill package
+.claude-plugin/marketplace.json       generated Claude Code marketplace catalog
+generated/claude/plugins/<name>       Claude Code plugin package
+generated/codex/skills/<name>         Codex/generic skill package
 ```
 
 Do not manually edit generated public outputs during normal development. Edit
-`packages/<name>` first, then run:
+`packages/<name>` first, then rebuild generated outputs from source:
 
 ```sh
-make build-packages
+make rebuild-generated
 make verify-packages
 make audit-generated
 make verify-generated-clean
 ```
 
+`make rebuild-generated` removes only the committed generated output roots
+`.claude-plugin/` and `generated/`, then recreates them from `packages/`. Use it
+whenever package source, generator templates, generated notices, or public
+distribution paths change. Do not move generated files into place manually.
+
 Future packages should follow the same manifest pattern:
 
 - `packages/<name>/tool.json` declares `public`, `targets`, and whether an MCP
   placeholder exists.
-- `plugins/<name>` exists only when the package targets Claude Code.
-- `codex/<name>` exists only when the package targets Codex or generic skills.
+- `generated/claude/plugins/<name>` exists only when the package targets Claude Code.
+- `generated/codex/skills/<name>` exists only when the package targets Codex or generic skills.
 - `mcp/<name>` exists only when the package needs an MCP server shape.
 
 ## MCP
@@ -100,7 +105,7 @@ understandable and deployable.
 Repo source paths are authoritative:
 
 - Edit packages under `packages/`.
-- Regenerate public outputs under `plugins/` and `codex/` from packages.
+- Regenerate public outputs under `generated/` and `.claude-plugin/` from packages.
 - Edit MCP server source under `mcp/`.
 - Edit install and test helpers under `scripts/`.
 - Edit project memory under `docs/`.
@@ -112,16 +117,17 @@ script instead.
 
 ## Edit Map
 
-Use this map when deciding where a change belongs:
+Use this map when deciding where a change belongs. The left side is the source
+to edit; the right side is generated or installed from that source.
 
 ```text
 Edit: packages/watch-video/             source package
 Edit: mcp/watch-video/                  MCP placeholder source
 Edit: scripts/                          build, install, and verification helpers
 Edit: docs/                             project memory and guidance
-Generated: plugins/watch-video/         from packages/watch-video/
-Generated: codex/watch-video/           from packages/watch-video/
-Generated: .claude-plugin/              from packages/*/tool.json and plugin metadata
+Source: packages/watch-video/                              -> generated/claude/plugins/watch-video/
+Source: packages/watch-video/                              -> generated/codex/skills/watch-video/
+Source: packages/*/tool.json and packages/*/plugin/        -> .claude-plugin/
 ```
 
 Generated directories are committed for public installation, but they are

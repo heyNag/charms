@@ -29,7 +29,7 @@ git clone https://github.com/heyNag/agent-tools.git
 cd agent-tools
 mkdir -p ~/.codex/skills
 rm -rf ~/.codex/skills/watch-video
-cp -R codex/watch-video ~/.codex/skills/watch-video
+cp -R generated/codex/skills/watch-video ~/.codex/skills/watch-video
 ```
 
 ## Local Development Install
@@ -90,16 +90,16 @@ general|tutorial|ui-bug|notes`, `--frame-mode auto|interval`, `--fps`,
 
 ```text
 packages/             source of truth for tools
-plugins/              Claude Code publishable plugins
-codex/                Codex and generic skill packages
+generated/            generated Claude/Codex public install packages
+.claude-plugin/       generated Claude Code marketplace catalog
 mcp/                  future deployable MCP servers
 docs/                 project memory and agent orientation
 scripts/              build, install, test, and helper scripts
 .github/workflows/    CI
 ```
 
-`plugins/` and `codex/` are generated from `packages/`, but they are committed as
-public install targets.
+`generated/` and `.claude-plugin/` are generated from `packages/`, but they are
+committed as public install targets.
 
 ## What To Edit
 
@@ -115,9 +115,9 @@ docs/
 Do not edit generated public install copies directly:
 
 ```text
-plugins/watch-video/              generated from packages/watch-video/
-codex/watch-video/                generated from packages/watch-video/
-.claude-plugin/marketplace.json   generated from packages/*/tool.json and plugin metadata
+packages/watch-video/                                -> generated/claude/plugins/watch-video/
+packages/watch-video/                                -> generated/codex/skills/watch-video/
+packages/*/tool.json and packages/*/plugin/plugin.json -> .claude-plugin/marketplace.json
 ```
 
 Generated directories include `GENERATED.md` files with exact source-path
@@ -125,19 +125,24 @@ mappings. Generated Markdown and Python files also include an in-file generated
 notice when the format allows comments. JSON and LICENSE files are covered by
 the nearest `GENERATED.md` marker.
 
-After changing `packages/watch-video`, run:
+After changing `packages/watch-video`, rebuild generated outputs from scratch:
 
 ```sh
-make build-packages
+make rebuild-generated
 make audit-generated
 make verify-generated-clean
 ```
 
+`make rebuild-generated` deletes only `.claude-plugin/` and `generated/`, then
+recreates them from `packages/`. Use that flow when source files, generator
+templates, generated headers, or public package paths change. Do not move or
+patch generated files by hand.
+
 Future tools should follow this pattern:
 
 - `packages/<name>/tool.json`
-- `plugins/<name>` when the tool targets Claude Code
-- `codex/<name>` when the tool targets Codex or generic skills
+- `generated/claude/plugins/<name>` when the tool targets Claude Code
+- `generated/codex/skills/<name>` when the tool targets Codex or generic skills
 - `mcp/<name>` only when an MCP server is needed
 
 There is no MCP gateway for now.
@@ -148,7 +153,7 @@ If marketplace install fails, run these from the repo root:
 
 ```sh
 claude plugin validate .
-claude plugin validate plugins/watch-video
+claude plugin validate generated/claude/plugins/watch-video
 ```
 
 ## Docs
@@ -170,7 +175,7 @@ free of live Groq/video/Claude requirements. See [docs/security.md](docs/securit
 make test
 make syntax
 make mcp-build
-make build-packages
+make rebuild-generated
 make verify-packages
 make audit-generated
 make verify-generated-clean

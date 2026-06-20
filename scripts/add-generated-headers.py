@@ -20,7 +20,7 @@ def repo_relative(path: Path, root: Path) -> str:
 def markdown_notice(source: str) -> str:
     return (
         f"<!-- {BEGIN}: {source} -->\n"
-        "<!-- Do not edit directly; edit the source path and run make build-packages. -->\n"
+        "<!-- Do not edit directly; edit the source path and run make rebuild-generated. -->\n"
         f"<!-- {END} -->\n\n"
     )
 
@@ -28,7 +28,7 @@ def markdown_notice(source: str) -> str:
 def python_notice(source: str) -> str:
     return (
         f"# {BEGIN}: {source}\n"
-        "# Do not edit directly; edit the source path and run make build-packages.\n"
+        "# Do not edit directly; edit the source path and run make rebuild-generated.\n"
         f"# {END}\n\n"
     )
 
