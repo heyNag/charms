@@ -145,5 +145,10 @@ After editing source:
 4. Commit both source and regenerated output changes.
 EOF
 prune_generated "$OUT"
+python3 "$ROOT/scripts/add-generated-headers.py" \
+  --root "$ROOT" \
+  --map "codex/$PACKAGE/README.md=packages/$PACKAGE/README.md" \
+  --map "codex/$PACKAGE/SKILL.md=packages/$PACKAGE/SKILL.md" \
+  --map "codex/$PACKAGE/scripts=packages/$PACKAGE/scripts"
 
 echo "built Codex skill: codex/$PACKAGE"

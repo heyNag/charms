@@ -8,6 +8,9 @@ test:
 
 syntax:
 	python3 -m py_compile packages/watch-video/scripts/*.py
+	python3 -m py_compile codex/watch-video/scripts/*.py
+	python3 -m py_compile plugins/watch-video/skills/watch-video/scripts/*.py
+	python3 -m py_compile scripts/*.py
 	bash -n scripts/*.sh
 
 doctor:
@@ -46,12 +49,12 @@ audit-generated:
 
 verify-generated-clean:
 	@$(MAKE) build-packages >/dev/null
-	@if ! git diff --exit-code -- .claude-plugin/marketplace.json plugins codex; then \
+	@if ! git diff --exit-code -- .claude-plugin plugins codex; then \
 		echo "generated package outputs are stale; run make build-packages and commit the results" >&2; \
 		exit 1; \
 	fi
-	@if [ -n "$$(git ls-files --others --exclude-standard -- .claude-plugin/marketplace.json plugins codex)" ]; then \
-		git ls-files --others --exclude-standard -- .claude-plugin/marketplace.json plugins codex >&2; \
+	@if [ -n "$$(git ls-files --others --exclude-standard -- .claude-plugin plugins codex)" ]; then \
+		git ls-files --others --exclude-standard -- .claude-plugin plugins codex >&2; \
 		echo "generated package outputs are stale; run make build-packages and commit the results" >&2; \
 		exit 1; \
 	fi

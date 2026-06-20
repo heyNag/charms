@@ -120,6 +120,11 @@ codex/watch-video/                generated from packages/watch-video/
 .claude-plugin/marketplace.json   generated from packages/*/tool.json and plugin metadata
 ```
 
+Generated directories include `GENERATED.md` files with exact source-path
+mappings. Generated Markdown and Python files also include an in-file generated
+notice when the format allows comments. JSON and LICENSE files are covered by
+the nearest `GENERATED.md` marker.
+
 After changing `packages/watch-video`, run:
 
 ```sh

@@ -126,5 +126,8 @@ Generated: .claude-plugin/              from packages/*/tool.json and plugin met
 
 Generated directories are committed for public installation, but they are
 downstream copies. Each generated package contains a `GENERATED.md` marker.
-The source package contains `SOURCE.md`. Generated markers list the exact source
-paths to edit for each generated file or directory.
+Generated Markdown and Python files also include in-file generated notices when
+comments are safe. JSON and LICENSE files cannot safely carry comments, so they
+are covered by the nearest `GENERATED.md` marker. The source package contains
+`SOURCE.md`. Generated markers list the exact source paths to edit for each
+generated file or directory.

@@ -244,6 +244,7 @@ PY
 }
 
 check_file "$ROOT/.claude-plugin/marketplace.json"
+check_file "$ROOT/.claude-plugin/GENERATED.md"
 valid_json "$ROOT/.claude-plugin/marketplace.json"
 validate_marketplace
 

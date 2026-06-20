@@ -179,5 +179,11 @@ After editing source:
 4. Commit both source and regenerated output changes.
 EOF
 prune_generated "$OUT"
+python3 "$ROOT/scripts/add-generated-headers.py" \
+  --root "$ROOT" \
+  --map "plugins/$PACKAGE/README.md=packages/$PACKAGE/README.md" \
+  --map "plugins/$PACKAGE/skills/$PACKAGE/SKILL.md=packages/$PACKAGE/SKILL.md" \
+  --map "plugins/$PACKAGE/skills/$PACKAGE/scripts=packages/$PACKAGE/scripts" \
+  --map "plugins/$PACKAGE/commands=packages/$PACKAGE/commands"
 
 echo "built Claude plugin: plugins/$PACKAGE"

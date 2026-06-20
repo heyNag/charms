@@ -1,3 +1,7 @@
+<!-- BEGIN GENERATED FROM SOURCE: packages/watch-video/README.md -->
+<!-- Do not edit directly; edit the source path and run make build-packages. -->
+<!-- END GENERATED FROM SOURCE -->
+
 # watch-video
 
 `watch-video` is a local video inspection package for agents. It turns a URL or

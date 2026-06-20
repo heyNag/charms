@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# BEGIN GENERATED FROM SOURCE: packages/watch-video/scripts/extract_frames.py
+# Do not edit directly; edit the source path and run make build-packages.
+# END GENERATED FROM SOURCE
+
 """Extract timestamped preview frames from a video with ffmpeg."""
 
 from __future__ import annotations

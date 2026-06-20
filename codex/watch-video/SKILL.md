@@ -9,6 +9,10 @@ author: Nagarjuna Boddu
 license: MIT
 user-invocable: true
 ---
+<!-- BEGIN GENERATED FROM SOURCE: packages/watch-video/SKILL.md -->
+<!-- Do not edit directly; edit the source path and run make build-packages. -->
+<!-- END GENERATED FROM SOURCE -->
+
 
 # watch-video
 

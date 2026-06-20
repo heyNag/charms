@@ -3,6 +3,10 @@ description: Analyze a UI bug or screen recording with timestamped visual eviden
 argument-hint: <video-url-or-path> [expected behavior]
 allowed-tools: [Bash, Read]
 ---
+<!-- BEGIN GENERATED FROM SOURCE: packages/watch-video/commands/ui-bug-video.md -->
+<!-- Do not edit directly; edit the source path and run make build-packages. -->
+<!-- END GENERATED FROM SOURCE -->
+
 
 <!-- agent-tools-managed: watch-video command -->
 

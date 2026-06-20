@@ -21,3 +21,8 @@ make verify-generated-clean
 
 The public install copies under `plugins/watch-video` and `codex/watch-video`
 are generated from this directory.
+
+Generated Markdown and Python files include in-file notices that point back to
+the source paths in this package. Generated JSON and LICENSE files are covered
+by the nearest `GENERATED.md` marker because those file formats should not carry
+extra comments.
