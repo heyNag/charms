@@ -9,6 +9,7 @@ Edit packages/<name>/ only.
 Declare targets once in packages/<name>/tool.json.
 Run make rebuild-generated.
 Validate generated outputs.
+Add the package name to the Release Skill workflow.
 Commit source and generated outputs together.
 ```
 
@@ -34,7 +35,7 @@ Use this target set for a normal agent-agnostic skill:
 
 ```json
 {
-  "name": "my-skill",
+  "name": "awesome-skill",
   "description": "One sentence describing what the skill does.",
   "targets": ["claude", "codex", "generic"],
   "surfaces": ["claude-code", "claude-desktop", "codex", "opencode"],
@@ -45,6 +46,9 @@ Use this target set for a normal agent-agnostic skill:
 ```
 
 With those targets, `make rebuild-generated` builds every target listed above.
+Adding the package name to `.github/workflows/release-skill.yml` also makes it
+available to the manual release/update workflow described in
+[`updating-a-skill.md`](updating-a-skill.md).
 
 ## Package Shape
 
@@ -82,7 +86,7 @@ Use a short lowercase hyphenated name:
 watch-video
 codex-reset-credit
 x-bookmarks
-my-new-skill
+awesome-skill
 ```
 
 Rules:
@@ -98,33 +102,33 @@ Rules:
 Create only the source package:
 
 ```sh
-mkdir -p packages/my-skill/{agents,commands,plugin,references,scripts,tests}
+mkdir -p packages/awesome-skill/{agents,commands,plugin,references,scripts,tests}
 ```
 
 For instruction-only skills, omit folders you do not need:
 
 ```sh
-mkdir -p packages/my-skill/{agents,plugin,tests}
+mkdir -p packages/awesome-skill/{agents,plugin,tests}
 ```
 
 Do not create these manually:
 
 ```text
-generated/claude/plugins/my-skill
-generated/claude/custom-skills/my-skill
-generated/codex/skills/my-skill
-generated/agent-skills/my-skill
+generated/claude/plugins/awesome-skill
+generated/claude/custom-skills/awesome-skill
+generated/codex/skills/awesome-skill
+generated/agent-skills/awesome-skill
 ```
 
 The build scripts create them.
 
 ## Step 3: Add `tool.json`
 
-Create `packages/my-skill/tool.json`:
+Create `packages/awesome-skill/tool.json`:
 
 ```json
 {
-  "name": "my-skill",
+  "name": "awesome-skill",
   "description": "Describe the skill in one public-facing sentence.",
   "targets": ["claude", "codex", "generic"],
   "surfaces": ["claude-code", "claude-desktop", "codex", "opencode"],
@@ -147,11 +151,11 @@ of the package plan. Do not add an MCP gateway.
 
 ## Step 4: Add Claude Plugin Metadata
 
-Create `packages/my-skill/plugin/plugin.json`:
+Create `packages/awesome-skill/plugin/plugin.json`:
 
 ```json
 {
-  "name": "my-skill",
+  "name": "awesome-skill",
   "version": "0.1.0",
   "description": "Describe the skill in one public-facing sentence.",
   "author": {
@@ -162,19 +166,23 @@ Create `packages/my-skill/plugin/plugin.json`:
 }
 ```
 
+`0.1.0` is a bootstrap version for the add-skill commit. The first public
+release should use the manual `Release Skill` workflow, which replaces it with
+the UTC date version described in `docs/updating-a-skill.md`.
+
 The marketplace generator uses this file for the Claude Code plugin entry. If
 the file is missing, the builder creates basic defaults from `tool.json`, but
 explicit metadata is clearer.
 
 ## Step 5: Add Agent UI Metadata
 
-Create `packages/my-skill/agents/openai.yaml`:
+Create `packages/awesome-skill/agents/openai.yaml`:
 
 ```yaml
 interface:
-  display_name: "My Skill"
-  short_description: "Do the useful thing"
-  default_prompt: "Use $my-skill to do the useful thing."
+  display_name: "Awesome Skill"
+  short_description: "Do the awesome thing"
+  default_prompt: "Use $awesome-skill to do the awesome thing."
 
 policy:
   allow_implicit_invocation: true
@@ -185,11 +193,11 @@ hyphenated.
 
 ## Step 6: Write `SKILL.md`
 
-Create `packages/my-skill/SKILL.md`:
+Create `packages/awesome-skill/SKILL.md`:
 
 ~~~markdown
 ---
-name: my-skill
+name: awesome-skill
 description: Describe what the skill does and when agents should use it. Include trigger phrases and task contexts here.
 argument-hint: "[optional args]"
 allowed-tools: Bash, Read
@@ -200,7 +208,7 @@ license: MIT
 user-invocable: true
 ---
 
-# my-skill
+# awesome-skill
 
 Use this skill when ...
 
@@ -242,22 +250,22 @@ Guidelines:
 
 ## Step 7: Add `README.md`
 
-Create `packages/my-skill/README.md` for humans browsing the repo:
+Create `packages/awesome-skill/README.md` for humans browsing the repo:
 
 ~~~markdown
-# my-skill
+# awesome-skill
 
-`my-skill` does ...
+`awesome-skill` does ...
 
-Source lives under `packages/my-skill`.
+Source lives under `packages/awesome-skill`.
 
 Generated install targets:
 
 ```text
-generated/claude/plugins/my-skill
-generated/claude/custom-skills/my-skill
-generated/codex/skills/my-skill
-generated/agent-skills/my-skill
+generated/claude/plugins/awesome-skill
+generated/claude/custom-skills/awesome-skill
+generated/codex/skills/awesome-skill
+generated/agent-skills/awesome-skill
 ```
 
 Edit source first, then run:
@@ -275,12 +283,12 @@ folders as source.
 
 ## Step 8: Add `SOURCE.md`
 
-Create `packages/my-skill/SOURCE.md`:
+Create `packages/awesome-skill/SOURCE.md`:
 
 ~~~markdown
 # Source Package
 
-This directory is the source of truth for `my-skill`.
+This directory is the source of truth for `awesome-skill`.
 
 Edit files here first:
 
@@ -306,10 +314,10 @@ make verify-generated-clean
 This source directory generates these public install copies:
 
 ```text
-packages/my-skill -> generated/claude/plugins/my-skill
-packages/my-skill -> generated/claude/custom-skills/my-skill
-packages/my-skill -> generated/codex/skills/my-skill
-packages/my-skill -> generated/agent-skills/my-skill
+packages/awesome-skill -> generated/claude/plugins/awesome-skill
+packages/awesome-skill -> generated/claude/custom-skills/awesome-skill
+packages/awesome-skill -> generated/codex/skills/awesome-skill
+packages/awesome-skill -> generated/agent-skills/awesome-skill
 ```
 
 Generated Markdown, Python, shell, and YAML files include in-file notices that
@@ -321,24 +329,24 @@ Remove optional folders from the list if the package does not have them.
 
 ## Step 9: Add Optional Commands
 
-Claude Code commands live in `packages/my-skill/commands/` and are copied only
-into the generated Claude Code plugin target.
+Claude Code commands live in `packages/awesome-skill/commands/` and are copied
+only into the generated Claude Code plugin target.
 
-Example `packages/my-skill/commands/my-skill.md`:
+Example `packages/awesome-skill/commands/awesome-skill.md`:
 
 ```markdown
 ---
-description: Run my-skill.
+description: Run awesome-skill.
 argument-hint: "[args]"
 allowed-tools: [Bash, Read]
 ---
 
-<!-- agent-tools-managed: my-skill command -->
+<!-- agent-tools-managed: awesome-skill command -->
 
-Use the `my-skill` skill with the user's arguments: $ARGUMENTS
+Use the `awesome-skill` skill with the user's arguments: $ARGUMENTS
 
-Run scripts from the installed `my-skill` skill, or
-`packages/my-skill/scripts/` when working from this repository.
+Run scripts from the installed `awesome-skill` skill, or
+`packages/awesome-skill/scripts/` when working from this repository.
 ```
 
 Commands are optional. Do not add commands for other targets by hand.
@@ -348,15 +356,15 @@ Commands are optional. Do not add commands for other targets by hand.
 Use `scripts/` for deterministic helpers:
 
 ```text
-packages/my-skill/scripts/example.py
-packages/my-skill/scripts/example.sh
+packages/awesome-skill/scripts/example.py
+packages/awesome-skill/scripts/example.sh
 ```
 
 Use `references/` for detail the agent should load only when needed:
 
 ```text
-packages/my-skill/references/backend.md
-packages/my-skill/references/api.md
+packages/awesome-skill/references/backend.md
+packages/awesome-skill/references/api.md
 ```
 
 Rules:
@@ -368,7 +376,7 @@ Rules:
 
 ## Step 11: Add Offline Tests
 
-Create `packages/my-skill/tests/test_basic.py`.
+Create `packages/awesome-skill/tests/test_basic.py`.
 
 Good tests:
 
@@ -402,13 +410,13 @@ generated/
 
 It then rebuilds every public package from `packages/*/tool.json`.
 
-Expected new outputs for `my-skill`:
+Expected new outputs for `awesome-skill`:
 
 ```text
-generated/claude/plugins/my-skill
-generated/claude/custom-skills/my-skill
-generated/codex/skills/my-skill
-generated/agent-skills/my-skill
+generated/claude/plugins/awesome-skill
+generated/claude/custom-skills/awesome-skill
+generated/codex/skills/awesome-skill
+generated/agent-skills/awesome-skill
 ```
 
 Do not patch generated output if something is wrong. Fix the source package or
@@ -448,10 +456,35 @@ If Claude CLI is available, also run:
 
 ```sh
 claude plugin validate .
-claude plugin validate generated/claude/plugins/my-skill
+claude plugin validate generated/claude/plugins/awesome-skill
 ```
 
-## Step 14: Update Docs
+## Step 14: Add To The Release Workflow
+
+Add the package name to the manual release workflow dropdown:
+
+```yaml
+# .github/workflows/release-skill.yml
+workflow_dispatch:
+  inputs:
+    skill:
+      options:
+        - watch-video
+        - codex-reset-credit
+        - x-bookmarks
+        - awesome-skill
+```
+
+This is the only manual release-path wiring for a new public skill. After this
+step, the `Release Skill` workflow can bump `awesome-skill` to the next UTC
+date version, rebuild all four generated targets, verify, commit, and push the
+release.
+
+If GitHub Actions later supports dynamic package choices for this repo, this
+manual dropdown step can be removed. For now, keep the explicit list so the
+release button is typo-resistant.
+
+## Step 15: Update Docs
 
 Update docs when adding a public skill:
 
@@ -464,11 +497,13 @@ Update docs when adding a public skill:
 - `docs/roadmap.md`: mention the package only if it changes direction or scope.
 - `docs/security.md`: add any package-specific secret or artifact rules.
 - `docs/<name>.md`: add a package-specific docs page for public tools.
+- `docs/updating-a-skill.md`: update only if the release/update process itself
+  changes.
 
 Keep docs latest-state only. Avoid origin notes, migration notes, or old
 package names.
 
-## Step 15: Commit
+## Step 16: Commit
 
 Before committing:
 
@@ -481,6 +516,7 @@ Confirm:
 
 - Source files under `packages/<name>/` are staged.
 - Generated outputs under `generated/` and `.claude-plugin/` are staged.
+- `.github/workflows/release-skill.yml` includes the new package name.
 - Docs are staged.
 - No `.env.local`, secrets, local auth state, generated run artifacts, media,
   caches, `node_modules/`, `dist/`, or `.venv/` files are staged.
@@ -488,7 +524,7 @@ Confirm:
 Then commit:
 
 ```sh
-git commit -m "Add my-skill package"
+git commit -m "Add awesome-skill package"
 git push
 ```
 
@@ -550,8 +586,11 @@ Do not add an MCP gateway.
 - `packages/<name>/SOURCE.md` points future edits to source paths.
 - Optional `scripts/`, `references/`, and `commands/` are useful and tested.
 - Package-specific docs and security notes are updated.
+- `.github/workflows/release-skill.yml` includes the package in the `Release
+  Skill` dropdown.
 - `make rebuild-generated` creates every target.
 - `make verify-packages`, `make audit-generated`, and
   `make verify-generated-clean` pass.
 - Generated files are committed with source changes.
+- The package can be released through the manual `Release Skill` workflow.
 - No secrets or local artifacts are committed.
