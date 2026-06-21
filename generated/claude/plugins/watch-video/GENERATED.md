@@ -17,6 +17,7 @@ packages/watch-video/plugin/plugin.json     -> generated/claude/plugins/watch-vi
 packages/watch-video/SKILL.md               -> generated/claude/plugins/watch-video/skills/watch-video/SKILL.md
 packages/watch-video/scripts/               -> generated/claude/plugins/watch-video/skills/watch-video/scripts/
 packages/watch-video/commands/              -> generated/claude/plugins/watch-video/commands/
+
 LICENSE                                  -> generated/claude/plugins/watch-video/LICENSE
 ~~~
 

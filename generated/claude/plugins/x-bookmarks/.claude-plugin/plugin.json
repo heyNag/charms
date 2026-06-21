@@ -1,0 +1,10 @@
+{
+  "name": "x-bookmarks",
+  "version": "0.1.0",
+  "description": "Fetch, search, and digest X/Twitter bookmarks using Bird cookie auth or optional X API v2.",
+  "author": {
+    "name": "Nagarjuna Boddu"
+  },
+  "repository": "https://github.com/heyNag/agent-tools",
+  "license": "MIT"
+}

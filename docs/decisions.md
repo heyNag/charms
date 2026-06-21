@@ -67,3 +67,11 @@ bounded with automatic budgeting and hard caps.
 `codex-reset-credit` is read-only. It may inspect local Codex auth/session state
 and the reset-credit endpoint, but it must not redeem credits, modify Codex
 state, print secrets, or expose raw account/auth data.
+
+## X Bookmarks Backends
+
+`x-bookmarks` prefers Bird cookie auth because it uses the user's local browser
+session and avoids paid X API credits. X API v2 remains an optional official
+path for users who explicitly want API-backed bookmark fetches or folder
+behavior. Both backends must keep tokens, cookies, bookmark exports, and search
+indexes out of the repo and out of generated install packages.

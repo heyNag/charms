@@ -17,6 +17,7 @@ packages/codex-reset-credit/plugin/plugin.json     -> generated/claude/plugins/c
 packages/codex-reset-credit/SKILL.md               -> generated/claude/plugins/codex-reset-credit/skills/codex-reset-credit/SKILL.md
 packages/codex-reset-credit/scripts/               -> generated/claude/plugins/codex-reset-credit/skills/codex-reset-credit/scripts/
 packages/codex-reset-credit/commands/              -> generated/claude/plugins/codex-reset-credit/commands/
+
 LICENSE                                  -> generated/claude/plugins/codex-reset-credit/LICENSE
 ~~~
 

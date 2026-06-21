@@ -56,6 +56,7 @@ prune_generated() {
       -name ".env" -o \
       -name ".env.local" -o \
       -name ".watch-video" -o \
+      -name ".x-bookmarks" -o \
       -name ".codex" -o \
       -name "__pycache__" -o \
       -name ".pytest_cache" -o \
@@ -75,6 +76,15 @@ prune_generated() {
       -name "transcript.md" -o \
       -name "report.md" -o \
       -name "groq_transcript.raw.json" -o \
+      -name "tokens.json" -o \
+      -name "state.json" -o \
+      -name "bookmarks.json" -o \
+      -name "bookmarks.jsonl" -o \
+      -name "bookmarks.ndjson" -o \
+      -name "search-index.json" -o \
+      -iname "*.sqlite" -o \
+      -iname "*.sqlite3" -o \
+      -iname "*.db" -o \
       -iname "rollout-*.jsonl" -o \
       -iname "frame_*.jpg" -o \
       -iname "frame_*.jpeg" -o \
@@ -118,8 +128,26 @@ if [[ -d "$SRC/scripts" ]]; then
   copy_dir "$SRC/scripts" "$OUT/scripts"
 fi
 
+if [[ -d "$SRC/references" ]]; then
+  copy_dir "$SRC/references" "$OUT/references"
+fi
+
+if [[ -d "$SRC/agents" ]]; then
+  copy_dir "$SRC/agents" "$OUT/agents"
+fi
+
 cp "$SRC/README.md" "$OUT/README.md"
 cp "$ROOT/LICENSE" "$OUT/LICENSE"
+map_lines="packages/$PACKAGE/SKILL.md       -> generated/agent-skills/$PACKAGE/SKILL.md"$'\n'
+if [[ -d "$SRC/scripts" ]]; then
+  map_lines+="packages/$PACKAGE/scripts/       -> generated/agent-skills/$PACKAGE/scripts/"$'\n'
+fi
+if [[ -d "$SRC/references" ]]; then
+  map_lines+="packages/$PACKAGE/references/    -> generated/agent-skills/$PACKAGE/references/"$'\n'
+fi
+if [[ -d "$SRC/agents" ]]; then
+  map_lines+="packages/$PACKAGE/agents/        -> generated/agent-skills/$PACKAGE/agents/"$'\n'
+fi
 cat > "$OUT/GENERATED.md" <<EOF
 # Generated Agent-Agnostic Skill Package
 
@@ -136,8 +164,7 @@ rewritten by \`make rebuild-generated\`.
 
 ~~~text
 packages/$PACKAGE/README.md      -> generated/agent-skills/$PACKAGE/README.md
-packages/$PACKAGE/SKILL.md       -> generated/agent-skills/$PACKAGE/SKILL.md
-packages/$PACKAGE/scripts/       -> generated/agent-skills/$PACKAGE/scripts/
+${map_lines}
 LICENSE                          -> generated/agent-skills/$PACKAGE/LICENSE
 ~~~
 
@@ -162,6 +189,12 @@ header_args=(
 )
 if [[ -d "$SRC/scripts" ]]; then
   header_args+=(--map "generated/agent-skills/$PACKAGE/scripts=packages/$PACKAGE/scripts")
+fi
+if [[ -d "$SRC/references" ]]; then
+  header_args+=(--map "generated/agent-skills/$PACKAGE/references=packages/$PACKAGE/references")
+fi
+if [[ -d "$SRC/agents" ]]; then
+  header_args+=(--map "generated/agent-skills/$PACKAGE/agents=packages/$PACKAGE/agents")
 fi
 python3 "$ROOT/scripts/add-generated-headers.py" "${header_args[@]}"
 

@@ -15,6 +15,7 @@ rewritten by `make rebuild-generated`.
 packages/watch-video/README.md      -> generated/claude/custom-skills/watch-video/README.md
 packages/watch-video/SKILL.md       -> generated/claude/custom-skills/watch-video/skill.md
 packages/watch-video/scripts/       -> generated/claude/custom-skills/watch-video/scripts/
+
 LICENSE                          -> generated/claude/custom-skills/watch-video/LICENSE
 ~~~
 

@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Show Codex reset credits and local rate-limit windows without printing auth secrets.
-
-Ported from Nag's local dotfiles codex-reset-credit skill.
-"""
+"""Show Codex reset credits and local rate-limit windows without printing auth secrets."""
 
 from __future__ import annotations
 

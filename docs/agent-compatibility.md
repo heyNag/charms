@@ -6,9 +6,12 @@ shapes for each agent surface. The portable source pattern is:
 ```text
 packages/<name>/
   SKILL.md
-  scripts/        optional
   README.md
   tool.json
+  scripts/       optional
+  references/    optional
+  agents/        optional
+  commands/      optional Claude command prompts
 ```
 
 Generated outputs adapt that source:
@@ -31,6 +34,7 @@ Claude Code installs through the marketplace catalog:
 /plugin marketplace add heyNag/agent-tools
 /plugin install watch-video@agent-tools
 /plugin install codex-reset-credit@agent-tools
+/plugin install x-bookmarks@agent-tools
 ```
 
 Source path to edit:
@@ -51,6 +55,7 @@ Codex can copy the generated Codex skill package:
 mkdir -p ~/.codex/skills
 cp -R generated/codex/skills/watch-video ~/.codex/skills/watch-video
 cp -R generated/codex/skills/codex-reset-credit ~/.codex/skills/codex-reset-credit
+cp -R generated/codex/skills/x-bookmarks ~/.codex/skills/x-bookmarks
 ```
 
 Claude Desktop and claude.ai custom skills use a ZIP containing the skill folder
@@ -61,6 +66,7 @@ make rebuild-generated
 cd generated/claude/custom-skills
 zip -r watch-video.zip watch-video
 zip -r codex-reset-credit.zip codex-reset-credit
+zip -r x-bookmarks.zip x-bookmarks
 ```
 
 OpenCode uses the generated agent-skill bundle:
@@ -69,6 +75,7 @@ OpenCode uses the generated agent-skill bundle:
 mkdir -p ~/.config/opencode/skills
 cp -R generated/agent-skills/watch-video ~/.config/opencode/skills/watch-video
 cp -R generated/agent-skills/codex-reset-credit ~/.config/opencode/skills/codex-reset-credit
+cp -R generated/agent-skills/x-bookmarks ~/.config/opencode/skills/x-bookmarks
 ```
 
 The same portable folders can also be copied to agent-compatible locations such
@@ -115,6 +122,11 @@ agent shells that can read those files safely. A hosted Claude custom-skill
 upload can carry the instructions and scripts, but it cannot inspect local
 Codex Desktop auth files on your Mac.
 
+`x-bookmarks` needs Bird browser-cookie access or local X API OAuth state for
+live bookmark fetches. The skill package is portable, but live X/Twitter access
+is useful only where the agent can run local scripts and reach the user's local
+auth state safely.
+
 Keep new skills honest about this split: make the package format portable, then
-document any runtime assumptions in `SKILL.md`, `README.md`, and the matching
-docs page.
+document runtime assumptions in `SKILL.md`, `README.md`, and the matching docs
+page.

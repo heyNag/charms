@@ -11,6 +11,7 @@ BEGIN = "BEGIN GENERATED FROM SOURCE"
 END = "END GENERATED FROM SOURCE"
 SKIP_NAMES = {"GENERATED.md", "LICENSE"}
 SKIP_SUFFIXES = {".json"}
+HASH_COMMENT_SUFFIXES = {".py", ".sh", ".yaml", ".yml"}
 
 
 def repo_relative(path: Path, root: Path) -> str:
@@ -25,7 +26,7 @@ def markdown_notice(source: str) -> str:
     )
 
 
-def python_notice(source: str) -> str:
+def hash_notice(source: str) -> str:
     return (
         f"# {BEGIN}: {source}\n"
         "# Do not edit directly; edit the source path and run make rebuild-generated.\n"
@@ -47,8 +48,8 @@ def strip_existing_notice(text: str, suffix: str) -> str:
                 if remainder and remainder[0].strip() == "":
                     remainder = remainder[1:]
                 return "".join(remainder)
-    if suffix == ".py":
-        start_index = 1 if lines and lines[0].startswith("#!") else 0
+    if suffix in HASH_COMMENT_SUFFIXES:
+        start_index = 1 if suffix in {".py", ".sh"} and lines and lines[0].startswith("#!") else 0
         if len(lines) > start_index and lines[start_index].startswith(f"# {BEGIN}:"):
             end_index = None
             for index in range(start_index, min(len(lines), start_index + 6)):
@@ -77,13 +78,13 @@ def add_markdown_header(path: Path, source: str) -> None:
     path.write_text(updated, encoding="utf-8")
 
 
-def add_python_header(path: Path, source: str) -> None:
-    text = strip_existing_notice(path.read_text(encoding="utf-8"), ".py")
+def add_hash_header(path: Path, source: str) -> None:
+    text = strip_existing_notice(path.read_text(encoding="utf-8"), path.suffix)
     lines = text.splitlines(keepends=True)
-    if lines and lines[0].startswith("#!"):
-        updated = lines[0] + python_notice(source) + "".join(lines[1:])
+    if path.suffix in {".py", ".sh"} and lines and lines[0].startswith("#!"):
+        updated = lines[0] + hash_notice(source) + "".join(lines[1:])
     else:
-        updated = python_notice(source) + text
+        updated = hash_notice(source) + text
     path.write_text(updated, encoding="utf-8")
 
 
@@ -92,8 +93,8 @@ def add_header(path: Path, source: str) -> None:
         return
     if path.suffix == ".md":
         add_markdown_header(path, source)
-    elif path.suffix == ".py":
-        add_python_header(path, source)
+    elif path.suffix in HASH_COMMENT_SUFFIXES:
+        add_hash_header(path, source)
 
 
 def iter_mapped_files(generated: Path, source: Path) -> list[tuple[Path, Path]]:

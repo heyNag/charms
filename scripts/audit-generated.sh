@@ -37,6 +37,8 @@ import sys
 
 BEGIN = "BEGIN GENERATED FROM SOURCE"
 END = "END GENERATED FROM SOURCE"
+NOTICE_SUFFIXES = {".md", ".py", ".sh", ".yaml", ".yml"}
+HASH_COMMENT_SUFFIXES = {".py", ".sh", ".yaml", ".yml"}
 
 
 def strip_notice(text: str, suffix: str) -> str:
@@ -62,8 +64,8 @@ def strip_notice(text: str, suffix: str) -> str:
                     if len(remainder) > line_index and remainder[line_index].strip() == "":
                         del remainder[line_index]
                     return "".join(remainder)
-    if suffix == ".py":
-        start_index = 1 if lines and lines[0].startswith("#!") else 0
+    if suffix in HASH_COMMENT_SUFFIXES:
+        start_index = 1 if suffix in {".py", ".sh"} and lines and lines[0].startswith("#!") else 0
         if len(lines) > start_index and lines[start_index].startswith(f"# {BEGIN}:"):
             end_index = None
             for index in range(start_index, min(len(lines), start_index + 6)):
@@ -87,7 +89,7 @@ source = pathlib.Path(sys.argv[2])
 generated = pathlib.Path(sys.argv[3])
 source_text = source.read_text(encoding="utf-8")
 raw_generated_text = generated.read_text(encoding="utf-8")
-if generated.suffix in {".md", ".py"} and not has_notice(raw_generated_text, generated.suffix):
+if generated.suffix in NOTICE_SUFFIXES and not has_notice(raw_generated_text, generated.suffix):
     print(f"missing generated notice: {generated.relative_to(root)}", file=sys.stderr)
     raise SystemExit(1)
 generated_text = strip_notice(raw_generated_text, generated.suffix)
@@ -106,12 +108,13 @@ check_same_dir() {
   [[ -d "$source_dir" ]] || return 0
   [[ -d "$generated_dir" ]] || fail "missing generated directory: ${generated_dir#$ROOT/}"
   python3 - "$ROOT" "$source_dir" "$generated_dir" <<'PY'
-import filecmp
 import pathlib
 import sys
 
 BEGIN = "BEGIN GENERATED FROM SOURCE"
 END = "END GENERATED FROM SOURCE"
+NOTICE_SUFFIXES = {".md", ".py", ".sh", ".yaml", ".yml"}
+HASH_COMMENT_SUFFIXES = {".py", ".sh", ".yaml", ".yml"}
 root = pathlib.Path(sys.argv[1])
 source_dir = pathlib.Path(sys.argv[2])
 generated_dir = pathlib.Path(sys.argv[3])
@@ -151,8 +154,8 @@ def strip_notice(text: str, suffix: str) -> str:
                     if len(remainder) > line_index and remainder[line_index].strip() == "":
                         del remainder[line_index]
                     return "".join(remainder)
-    if suffix == ".py":
-        start_index = 1 if lines and lines[0].startswith("#!") else 0
+    if suffix in HASH_COMMENT_SUFFIXES:
+        start_index = 1 if suffix in {".py", ".sh"} and lines and lines[0].startswith("#!") else 0
         if len(lines) > start_index and lines[start_index].startswith(f"# {BEGIN}:"):
             end_index = None
             for index in range(start_index, min(len(lines), start_index + 6)):
@@ -180,7 +183,7 @@ for rel in sorted(set(source_files) - set(generated_files)):
 for rel in sorted(set(generated_files) - set(source_files)):
     errors.append(f"unexpected generated file: {generated_dir.relative_to(root) / rel}")
 for rel in sorted(set(source_files) & set(generated_files)):
-    if source_files[rel].suffix in {".md", ".py"}:
+    if source_files[rel].suffix in NOTICE_SUFFIXES:
         source_text = source_files[rel].read_text(encoding="utf-8")
         raw_generated_text = generated_files[rel].read_text(encoding="utf-8")
         if not has_notice(raw_generated_text, generated_files[rel].suffix):
@@ -189,7 +192,7 @@ for rel in sorted(set(source_files) & set(generated_files)):
         generated_text = strip_notice(raw_generated_text, generated_files[rel].suffix)
         same = source_text == generated_text
     else:
-        same = filecmp.cmp(source_files[rel], generated_files[rel], shallow=False)
+        same = source_files[rel].read_bytes() == generated_files[rel].read_bytes()
     if not same:
         errors.append(
             f"mismatch: {generated_dir.relative_to(root) / rel} differs from "
@@ -220,6 +223,8 @@ if [[ "$(json_has_target codex)" == "true" ]]; then
   check_same_file "$SRC/README.md" "$CODEX/README.md" || status=1
   check_same_file "$SRC/SKILL.md" "$CODEX/SKILL.md" || status=1
   check_same_dir "$SRC/scripts" "$CODEX/scripts" || status=1
+  check_same_dir "$SRC/references" "$CODEX/references" || status=1
+  check_same_dir "$SRC/agents" "$CODEX/agents" || status=1
   [[ -f "$CODEX/GENERATED.md" ]] || {
     echo "missing generated marker: generated/codex/skills/$PACKAGE/GENERATED.md" >&2
     status=1
@@ -230,6 +235,8 @@ if [[ "$(json_has_target generic)" == "true" ]]; then
   check_same_file "$SRC/README.md" "$AGENT/README.md" || status=1
   check_same_file "$SRC/SKILL.md" "$AGENT/SKILL.md" || status=1
   check_same_dir "$SRC/scripts" "$AGENT/scripts" || status=1
+  check_same_dir "$SRC/references" "$AGENT/references" || status=1
+  check_same_dir "$SRC/agents" "$AGENT/agents" || status=1
   [[ -f "$AGENT/GENERATED.md" ]] || {
     echo "missing generated marker: generated/agent-skills/$PACKAGE/GENERATED.md" >&2
     status=1
@@ -238,6 +245,8 @@ if [[ "$(json_has_target generic)" == "true" ]]; then
   check_same_file "$SRC/README.md" "$CLAUDE_SKILL/README.md" || status=1
   check_same_file "$SRC/SKILL.md" "$CLAUDE_SKILL/skill.md" || status=1
   check_same_dir "$SRC/scripts" "$CLAUDE_SKILL/scripts" || status=1
+  check_same_dir "$SRC/references" "$CLAUDE_SKILL/references" || status=1
+  check_same_dir "$SRC/agents" "$CLAUDE_SKILL/agents" || status=1
   [[ -f "$CLAUDE_SKILL/GENERATED.md" ]] || {
     echo "missing generated marker: generated/claude/custom-skills/$PACKAGE/GENERATED.md" >&2
     status=1
@@ -254,6 +263,8 @@ if [[ "$(json_has_target claude)" == "true" ]]; then
     status=1
   fi
   check_same_dir "$SRC/scripts" "$PLUGIN/skills/$PACKAGE/scripts" || status=1
+  check_same_dir "$SRC/references" "$PLUGIN/skills/$PACKAGE/references" || status=1
+  check_same_dir "$SRC/agents" "$PLUGIN/skills/$PACKAGE/agents" || status=1
   check_same_dir "$SRC/commands" "$PLUGIN/commands" || status=1
   [[ -f "$PLUGIN/GENERATED.md" ]] || {
     echo "missing generated marker: generated/claude/plugins/$PACKAGE/GENERATED.md" >&2

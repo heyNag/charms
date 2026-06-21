@@ -4,8 +4,8 @@ This repo keeps package source in one place and generates multiple public
 install targets from it. The generated targets are committed for convenience,
 but they are not source of truth.
 
-As of now, some targets share the same core shape, but each target has a
-slightly different wrapper or layout.
+Some targets share the same core shape, and each target has a small wrapper or
+layout difference.
 
 All generated package targets share:
 
@@ -13,6 +13,8 @@ All generated package targets share:
 - `LICENSE`
 - skill instructions generated from `packages/<name>/SKILL.md`
 - `scripts/` when the source package has scripts
+- `references/` when the source package has references
+- `agents/` when the source package has agent UI metadata
 - `GENERATED.md` marker
 
 Target differences:
@@ -32,6 +34,8 @@ flowchart TD
   P --> S["SKILL.md"]
   P --> R["README.md"]
   P --> H["scripts/<br/>optional"]
+  P --> F["references/<br/>optional"]
+  P --> A["agents/<br/>optional"]
   P --> C["commands/<br/>optional"]
   P --> M["plugin/plugin.json<br/>optional"]
 
@@ -39,6 +43,8 @@ flowchart TD
   S --> B
   R --> B
   H --> B
+  F --> B
+  A --> B
   C --> B
   M --> B
 
@@ -63,6 +69,8 @@ All generated targets share the same package source:
 packages/<name>/README.md
 packages/<name>/SKILL.md
 packages/<name>/scripts/        optional
+packages/<name>/references/     optional
+packages/<name>/agents/         optional
 LICENSE
 ```
 
@@ -75,6 +83,8 @@ generated/claude/plugins/<name>/
   .claude-plugin/plugin.json
   skills/<name>/SKILL.md
   skills/<name>/scripts/
+  skills/<name>/references/
+  skills/<name>/agents/
   commands/
   README.md
   LICENSE
@@ -87,6 +97,8 @@ Claude Desktop / claude.ai custom skill:
 generated/claude/custom-skills/<name>/
   skill.md
   scripts/
+  references/
+  agents/
   README.md
   LICENSE
   GENERATED.md
@@ -98,6 +110,8 @@ Codex skill:
 generated/codex/skills/<name>/
   SKILL.md
   scripts/
+  references/
+  agents/
   README.md
   LICENSE
   GENERATED.md
@@ -109,15 +123,21 @@ OpenCode / generic Agent Skill:
 generated/agent-skills/<name>/
   SKILL.md
   scripts/
+  references/
+  agents/
   README.md
   LICENSE
   GENERATED.md
 ```
 
+Optional directories are present only when the source package has them. The
+`GENERATED.md` file inside each target lists the exact source paths that
+produced that target.
+
 ## What Is Shared
 
 Codex and OpenCode/generic targets are the closest shape match. They both use a
-top-level `SKILL.md` plus optional `scripts/`.
+top-level `SKILL.md` plus optional source directories.
 
 Claude Desktop / claude.ai custom skill is similar, but uses lowercase
 `skill.md`. Keep it in a separate generated tree because macOS default
@@ -162,7 +182,7 @@ from manual edits.
 
 ```mermaid
 flowchart LR
-  SRC["packages/watch-video<br/>packages/codex-reset-credit"] --> A["Claude Code<br/>generated/claude/plugins/&lt;name&gt;"]
+  SRC["packages/watch-video<br/>packages/codex-reset-credit<br/>packages/x-bookmarks"] --> A["Claude Code<br/>generated/claude/plugins/&lt;name&gt;"]
   SRC --> B["Claude Desktop / claude.ai<br/>generated/claude/custom-skills/&lt;name&gt;<br/>uses skill.md"]
   SRC --> C["Codex<br/>generated/codex/skills/&lt;name&gt;<br/>uses SKILL.md"]
   SRC --> D["OpenCode / generic<br/>generated/agent-skills/&lt;name&gt;<br/>uses SKILL.md"]
@@ -178,7 +198,7 @@ sequenceDiagram
   participant Gen as generated/ + .claude-plugin/
   participant Verify as verify/audit checks
 
-  Dev->>Src: Edit SKILL.md, README.md, scripts, commands, plugin metadata
+  Dev->>Src: Edit SKILL.md, README.md, scripts, references, agents, commands, plugin metadata
   Dev->>Build: Run make rebuild-generated
   Build->>Gen: Delete generated roots and recreate from source
   Gen->>Verify: Run verify-packages + audit-generated + verify-generated-clean

@@ -1,0 +1,7 @@
+interface:
+  display_name: "X/Twitter Bookmarks"
+  short_description: "Fetch, search, and digest saved posts"
+  default_prompt: "Use $x-bookmarks to fetch my latest X/Twitter bookmarks and summarize concrete next actions."
+
+policy:
+  allow_implicit_invocation: true

@@ -30,7 +30,7 @@ packages/watch-video -> generated/codex/skills/watch-video
 packages/watch-video -> generated/agent-skills/watch-video
 ```
 
-Generated Markdown and Python files include in-file notices that point back to
-the source paths in this package. Generated JSON and LICENSE files are covered
-by the nearest `GENERATED.md` marker because those file formats should not carry
-extra comments.
+Generated Markdown, Python, shell, and YAML files include in-file notices that
+point back to the source paths in this package. Generated JSON and LICENSE files
+are covered by the nearest `GENERATED.md` marker because those file formats
+should not carry extra comments.

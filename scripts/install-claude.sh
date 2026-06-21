@@ -103,6 +103,12 @@ copy_skill() {
   if [[ -d "${package_dir}/scripts" ]]; then
     run cp -R "${package_dir}/scripts" "${tmp_target}/scripts"
   fi
+  if [[ -d "${package_dir}/references" ]]; then
+    run cp -R "${package_dir}/references" "${tmp_target}/references"
+  fi
+  if [[ -d "${package_dir}/agents" ]]; then
+    run cp -R "${package_dir}/agents" "${tmp_target}/agents"
+  fi
   write_marker "${tmp_target}/${marker_name}" "${package}"
   run rm -rf "${skill_target}"
   run mv "${tmp_target}" "${skill_target}"

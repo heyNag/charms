@@ -3,10 +3,7 @@
 # Do not edit directly; edit the source path and run make rebuild-generated.
 # END GENERATED FROM SOURCE
 
-"""Show Codex reset credits and local rate-limit windows without printing auth secrets.
-
-Ported from Nag's local dotfiles codex-reset-credit skill.
-"""
+"""Show Codex reset credits and local rate-limit windows without printing auth secrets."""
 
 from __future__ import annotations
 

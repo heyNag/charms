@@ -15,6 +15,7 @@ rewritten by `make rebuild-generated`.
 packages/watch-video/README.md      -> generated/agent-skills/watch-video/README.md
 packages/watch-video/SKILL.md       -> generated/agent-skills/watch-video/SKILL.md
 packages/watch-video/scripts/       -> generated/agent-skills/watch-video/scripts/
+
 LICENSE                          -> generated/agent-skills/watch-video/LICENSE
 ~~~
 

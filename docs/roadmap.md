@@ -5,15 +5,19 @@ This roadmap is directional. It is not a commitment to overbuild the repo.
 ## Phase 1: Local Tools
 
 Maintain `packages/watch-video` as a useful local skill/commands/scripts package
-for video analysis, and `packages/codex-reset-credit` as a read-only local skill
-for checking Codex reset credits and rate-limit reset windows. Keep both easy to
-install into Claude Code, Claude custom skills, Codex, and OpenCode/generic
-Agent Skills consumers.
+for video analysis, `packages/codex-reset-credit` as a read-only local skill for
+checking Codex reset credits and rate-limit reset windows, and
+`packages/x-bookmarks` as a local X/Twitter bookmark fetch/search/digest skill.
+Keep all public packages easy to install into Claude Code, Claude custom skills,
+Codex, and OpenCode/generic Agent Skills consumers.
 
 `watch-video` includes preflight checks, focused URL downloads, caption-first
 transcripts, bounded auto frame extraction, report modes, and Groq fallback.
 `codex-reset-credit` includes sanitized text/JSON reports, live reset-credit
 lookup, and local-only rate-limit snapshot reads.
+`x-bookmarks` includes Bird-first bookmark fetching, optional X API v2 OAuth,
+local query filters, since-last review state, and safe action-oriented digest
+instructions.
 
 ## Phase 2: Better Reports And Fallbacks
 

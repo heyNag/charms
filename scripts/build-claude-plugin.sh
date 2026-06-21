@@ -56,6 +56,7 @@ prune_generated() {
       -name ".env" -o \
       -name ".env.local" -o \
       -name ".watch-video" -o \
+      -name ".x-bookmarks" -o \
       -name "__pycache__" -o \
       -name ".pytest_cache" -o \
       -name ".mypy_cache" -o \
@@ -73,6 +74,15 @@ prune_generated() {
       -name "transcript.md" -o \
       -name "report.md" -o \
       -name "groq_transcript.raw.json" -o \
+      -name "tokens.json" -o \
+      -name "state.json" -o \
+      -name "bookmarks.json" -o \
+      -name "bookmarks.jsonl" -o \
+      -name "bookmarks.ndjson" -o \
+      -name "search-index.json" -o \
+      -iname "*.sqlite" -o \
+      -iname "*.sqlite3" -o \
+      -iname "*.db" -o \
       -iname "frame_*.jpg" -o \
       -iname "frame_*.jpeg" -o \
       -iname "frame_*.png" -o \
@@ -138,6 +148,14 @@ if [[ -d "$SRC/scripts" ]]; then
   copy_dir "$SRC/scripts" "$OUT/skills/$PACKAGE/scripts"
 fi
 
+if [[ -d "$SRC/references" ]]; then
+  copy_dir "$SRC/references" "$OUT/skills/$PACKAGE/references"
+fi
+
+if [[ -d "$SRC/agents" ]]; then
+  copy_dir "$SRC/agents" "$OUT/skills/$PACKAGE/agents"
+fi
+
 if [[ -d "$SRC/commands" ]]; then
   copy_dir "$SRC/commands" "$OUT/commands"
 fi
@@ -149,6 +167,25 @@ else
 fi
 cp "$SRC/README.md" "$OUT/README.md"
 cp "$ROOT/LICENSE" "$OUT/LICENSE"
+map_lines=""
+if [[ -f "$SRC/plugin/plugin.json" ]]; then
+  map_lines+="packages/$PACKAGE/plugin/plugin.json     -> generated/claude/plugins/$PACKAGE/.claude-plugin/plugin.json"$'\n'
+else
+  map_lines+="packages/$PACKAGE/tool.json                -> generated default plugin metadata"$'\n'
+fi
+map_lines+="packages/$PACKAGE/SKILL.md               -> generated/claude/plugins/$PACKAGE/skills/$PACKAGE/SKILL.md"$'\n'
+if [[ -d "$SRC/scripts" ]]; then
+  map_lines+="packages/$PACKAGE/scripts/               -> generated/claude/plugins/$PACKAGE/skills/$PACKAGE/scripts/"$'\n'
+fi
+if [[ -d "$SRC/references" ]]; then
+  map_lines+="packages/$PACKAGE/references/            -> generated/claude/plugins/$PACKAGE/skills/$PACKAGE/references/"$'\n'
+fi
+if [[ -d "$SRC/agents" ]]; then
+  map_lines+="packages/$PACKAGE/agents/                -> generated/claude/plugins/$PACKAGE/skills/$PACKAGE/agents/"$'\n'
+fi
+if [[ -d "$SRC/commands" ]]; then
+  map_lines+="packages/$PACKAGE/commands/              -> generated/claude/plugins/$PACKAGE/commands/"$'\n'
+fi
 cat > "$OUT/GENERATED.md" <<EOF
 # Generated Claude Code Package
 
@@ -165,10 +202,7 @@ rewritten by \`make rebuild-generated\`.
 
 ~~~text
 packages/$PACKAGE/README.md              -> generated/claude/plugins/$PACKAGE/README.md
-packages/$PACKAGE/plugin/plugin.json     -> generated/claude/plugins/$PACKAGE/.claude-plugin/plugin.json
-packages/$PACKAGE/SKILL.md               -> generated/claude/plugins/$PACKAGE/skills/$PACKAGE/SKILL.md
-packages/$PACKAGE/scripts/               -> generated/claude/plugins/$PACKAGE/skills/$PACKAGE/scripts/
-packages/$PACKAGE/commands/              -> generated/claude/plugins/$PACKAGE/commands/
+${map_lines}
 LICENSE                                  -> generated/claude/plugins/$PACKAGE/LICENSE
 ~~~
 
@@ -187,6 +221,12 @@ header_args=(
 )
 if [[ -d "$SRC/scripts" ]]; then
   header_args+=(--map "generated/claude/plugins/$PACKAGE/skills/$PACKAGE/scripts=packages/$PACKAGE/scripts")
+fi
+if [[ -d "$SRC/references" ]]; then
+  header_args+=(--map "generated/claude/plugins/$PACKAGE/skills/$PACKAGE/references=packages/$PACKAGE/references")
+fi
+if [[ -d "$SRC/agents" ]]; then
+  header_args+=(--map "generated/claude/plugins/$PACKAGE/skills/$PACKAGE/agents=packages/$PACKAGE/agents")
 fi
 if [[ -d "$SRC/commands" ]]; then
   header_args+=(--map "generated/claude/plugins/$PACKAGE/commands=packages/$PACKAGE/commands")

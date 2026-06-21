@@ -1,7 +1,8 @@
 # Architecture
 
 `agent-tools` is a public agent tooling workspace for local skills, commands,
-plugins, helper scripts, and future MCP servers.
+plugins, helper scripts, generated public install packages, and future MCP
+servers.
 
 The repo shape is intentionally small:
 
@@ -20,39 +21,51 @@ folders, Codex skill folders, and OpenCode/generic Agent Skill folders.
 
 ## Packages
 
-`packages/` is for local agent-facing source of truth. Packages can include
-skills, commands, plugin metadata, helper scripts, and tests.
+`packages/` is the source of truth for agent-facing tools. A package can include
+skills, commands, plugin metadata, helper scripts, references, agent UI metadata,
+and tests.
 
 Packages in this repo:
 
 ```text
 packages/codex-reset-credit
 packages/watch-video
+packages/x-bookmarks
 ```
 
-`packages/watch-video` owns the local `watch-video` skill, commands, plugin
-metadata, Python scripts, docs, and tests. Its script surface includes local
-preflight, video watching, frame extraction, and transcription helpers. Edit
-source files there first.
+`packages/watch-video` owns the `watch-video` skill, commands, plugin metadata,
+Python scripts, docs, and tests. Its script surface includes local preflight,
+video watching, frame extraction, and transcription helpers.
 
-`packages/codex-reset-credit` owns the local `codex-reset-credit` skill,
-command, plugin metadata, Python helper, docs, and tests. It is read-only and
-checks Codex reset credits plus local Codex rate-limit windows without exposing
-auth secrets. Edit source files there first.
+`packages/codex-reset-credit` owns the `codex-reset-credit` skill, command,
+plugin metadata, Python helper, docs, and tests. It is read-only and checks
+Codex reset credits plus local Codex rate-limit windows without exposing auth
+secrets.
 
-Each public package should declare its distribution targets in:
+`packages/x-bookmarks` owns the `x-bookmarks` skill, command, plugin metadata,
+agent UI metadata, backend references, scripts, docs, and tests. It fetches,
+searches, and digests X/Twitter bookmarks through Bird cookie auth or optional
+X API v2 OAuth state.
+
+Every public package declares its distribution behavior in:
 
 ```text
 packages/<name>/tool.json
 ```
 
-Public packages are `watch-video` and `codex-reset-credit`.
+Public packages:
+
+```text
+watch-video
+codex-reset-credit
+x-bookmarks
+```
 
 ## Public Distribution
 
 `generated/` and `.claude-plugin/` are generated from `packages/`, but they are
-committed as public install targets so users and agents do not need to understand
-the source workspace layout.
+committed as public install targets so users and agents can install without
+understanding the source workspace layout.
 
 ```text
 .claude-plugin/marketplace.json       generated Claude Code marketplace catalog
@@ -77,22 +90,22 @@ make verify-generated-clean
 whenever package source, generator templates, generated notices, or public
 distribution paths change. Do not move generated files into place manually.
 
-Future packages should follow the same manifest pattern:
+Packages follow the same manifest pattern:
 
-- `packages/<name>/tool.json` declares `public`, `targets`, and whether an MCP
-  placeholder exists.
-- `generated/claude/plugins/<name>` exists only when the package targets Claude Code.
+- `packages/<name>/tool.json` declares `public`, `targets`, supported surfaces,
+  and whether an MCP placeholder exists.
+- `generated/claude/plugins/<name>` exists when the package targets Claude Code.
 - `generated/claude/custom-skills/<name>` exists when the package targets
-  Claude custom skill upload.
-- `generated/codex/skills/<name>` exists only when the package targets Codex.
-- `generated/agent-skills/<name>` exists only when the package targets generic
+  generic Agent Skills upload surfaces such as Claude custom skills.
+- `generated/codex/skills/<name>` exists when the package targets Codex.
+- `generated/agent-skills/<name>` exists when the package targets generic
   `SKILL.md` Agent Skills consumers such as OpenCode.
 - `mcp/<name>` exists only when the package needs an MCP server shape.
 
 ## MCP
 
-`mcp/` is for deployable MCP server shapes. Each MCP server should live in its
-own folder and be independently buildable and deployable later, ideally with its
+`mcp/` is for deployable MCP server shapes. Each MCP server lives in its own
+folder and should be independently buildable and deployable, ideally with its
 own `Dockerfile`.
 
 MCP placeholder:
@@ -106,13 +119,12 @@ and does not wrap video processing.
 
 Future `watch-video` MCP work should add real tools only after the local package
 surface is stable. Candidate tools include `video_info`, `video_analyze`,
-`video_watch`, and `video_detail`. Keep them inside `mcp/watch-video`; do not
-introduce a gateway.
+`video_watch`, and `video_detail`. Keep them inside `mcp/watch-video`.
 
 ## No Gateway
 
-There is no MCP gateway for now. Do not add a gateway, router, proxy, or shared
-MCP control plane unless explicitly requested. Keep MCP folders independently
+There is no MCP gateway. Do not add a gateway, router, proxy, or shared MCP
+control plane unless explicitly requested. Keep MCP folders independently
 understandable and deployable.
 
 ## Source Of Truth
@@ -138,6 +150,7 @@ to edit; the right side is generated or installed from that source.
 ```text
 Edit: packages/watch-video/             source package
 Edit: packages/codex-reset-credit/      source package
+Edit: packages/x-bookmarks/             source package
 Edit: mcp/watch-video/                  MCP placeholder source
 Edit: scripts/                          build, install, and verification helpers
 Edit: docs/                             project memory and guidance
@@ -149,13 +162,17 @@ Source: packages/codex-reset-credit/                       -> generated/claude/p
 Source: packages/codex-reset-credit/                       -> generated/claude/custom-skills/codex-reset-credit/
 Source: packages/codex-reset-credit/                       -> generated/codex/skills/codex-reset-credit/
 Source: packages/codex-reset-credit/                       -> generated/agent-skills/codex-reset-credit/
+Source: packages/x-bookmarks/                              -> generated/claude/plugins/x-bookmarks/
+Source: packages/x-bookmarks/                              -> generated/claude/custom-skills/x-bookmarks/
+Source: packages/x-bookmarks/                              -> generated/codex/skills/x-bookmarks/
+Source: packages/x-bookmarks/                              -> generated/agent-skills/x-bookmarks/
 Source: packages/*/tool.json and packages/*/plugin/        -> .claude-plugin/
 ```
 
 Generated directories are committed for public installation, but they are
 downstream copies. Each generated package contains a `GENERATED.md` marker.
-Generated Markdown and Python files also include in-file generated notices when
-comments are safe. JSON and LICENSE files cannot safely carry comments, so they
-are covered by the nearest `GENERATED.md` marker. The source package contains
-`SOURCE.md`. Generated markers list the exact source paths to edit for each
-generated file or directory.
+Generated Markdown, Python, shell, and YAML files also include in-file generated
+notices when comments are safe. JSON and LICENSE files are covered by the
+nearest `GENERATED.md` marker when the file format should not carry extra
+comments. The source package contains `SOURCE.md`. Generated markers list the
+exact source paths to edit for each generated file or directory.

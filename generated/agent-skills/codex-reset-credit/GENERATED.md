@@ -15,6 +15,7 @@ rewritten by `make rebuild-generated`.
 packages/codex-reset-credit/README.md      -> generated/agent-skills/codex-reset-credit/README.md
 packages/codex-reset-credit/SKILL.md       -> generated/agent-skills/codex-reset-credit/SKILL.md
 packages/codex-reset-credit/scripts/       -> generated/agent-skills/codex-reset-credit/scripts/
+
 LICENSE                          -> generated/agent-skills/codex-reset-credit/LICENSE
 ~~~
 

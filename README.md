@@ -1,7 +1,7 @@
 # agent-tools
 
-`agent-tools` is a collection of agent tools, skills, commands, plugins, helper
-scripts, and future MCP servers.
+`agent-tools` is a public workspace for agent skills, commands, plugins, helper
+scripts, generated install packages, and future MCP servers.
 
 Public tools:
 
@@ -9,6 +9,8 @@ Public tools:
   and UI bug videos.
 - `codex-reset-credit` - check Codex reset credits and local rate-limit reset
   windows without exposing auth secrets.
+- `x-bookmarks` - fetch, search, and digest X/Twitter bookmarks using Bird
+  cookie auth or optional X API v2.
 
 ## Install For Claude Code
 
@@ -16,18 +18,15 @@ Public tools:
 /plugin marketplace add heyNag/agent-tools
 /plugin install watch-video@agent-tools
 /plugin install codex-reset-credit@agent-tools
+/plugin install x-bookmarks@agent-tools
 ```
 
-After installing `watch-video`, try:
+After installing, try:
 
 ```text
 /watch-video:watch <video-url-or-path>
-```
-
-After installing `codex-reset-credit`, try:
-
-```text
 /codex-reset-credit:codex-reset-credit
+/x-bookmarks:x-bookmarks digest
 ```
 
 If your Claude Code version shows a different command name, run `/plugin list`
@@ -43,6 +42,8 @@ rm -rf ~/.codex/skills/watch-video
 cp -R generated/codex/skills/watch-video ~/.codex/skills/watch-video
 rm -rf ~/.codex/skills/codex-reset-credit
 cp -R generated/codex/skills/codex-reset-credit ~/.codex/skills/codex-reset-credit
+rm -rf ~/.codex/skills/x-bookmarks
+cp -R generated/codex/skills/x-bookmarks ~/.codex/skills/x-bookmarks
 ```
 
 ## Install For Claude Desktop Or Claude.ai Skills
@@ -57,6 +58,7 @@ make rebuild-generated
 cd generated/claude/custom-skills
 zip -r watch-video.zip watch-video
 zip -r codex-reset-credit.zip codex-reset-credit
+zip -r x-bookmarks.zip x-bookmarks
 ```
 
 Upload the ZIP in Claude's `Customize > Skills` flow. The lowercase `skill.md`
@@ -72,6 +74,8 @@ rm -rf ~/.config/opencode/skills/watch-video
 cp -R generated/agent-skills/watch-video ~/.config/opencode/skills/watch-video
 rm -rf ~/.config/opencode/skills/codex-reset-credit
 cp -R generated/agent-skills/codex-reset-credit ~/.config/opencode/skills/codex-reset-credit
+rm -rf ~/.config/opencode/skills/x-bookmarks
+cp -R generated/agent-skills/x-bookmarks ~/.config/opencode/skills/x-bookmarks
 ```
 
 The same `generated/agent-skills/<name>` folders also work for agent-compatible
@@ -85,17 +89,15 @@ cd agent-tools
 ./scripts/install-all.sh
 ```
 
+`install-all.sh` installs every public package with the matching `claude` or
+`codex` target in `packages/<name>/tool.json`.
+
 ## Requirements
 
-`watch-video` needs:
+`watch-video` needs local video tooling:
 
 ```sh
 brew install yt-dlp ffmpeg jq
-```
-
-Check local readiness:
-
-```sh
 python3 packages/watch-video/scripts/doctor.py
 ```
 
@@ -115,6 +117,11 @@ work with the verbose JSON response shape used by `watch-video`.
 read-only and must not print tokens, account IDs, raw auth contents, or modify
 Codex state. It uses Python standard-library code and has no third-party Python
 dependency.
+
+`x-bookmarks` prefers the `bird` CLI for no-credit local X/Twitter bookmark
+access and can use X API v2 OAuth state when the API path is requested. Local
+state belongs outside the repo under `~/.config/x-bookmarks/`,
+`~/.local/state/x-bookmarks/`, and `~/.config/bird/`.
 
 ## Quick Test
 
@@ -141,10 +148,12 @@ python3 packages/watch-video/scripts/watch.py ./bug.mov --mode ui-bug --frame-fo
 python3 packages/codex-reset-credit/scripts/check_reset_credits.py --no-live
 ```
 
-Useful flags include `--transcriber groq|openai|none`, `--mode
-general|tutorial|ui-bug|notes`, `--frame-mode auto|interval`, `--fps`,
-`--resolution`, `--frame-format jpeg|png|webp`, `--cleanup`, and
-`--cleanup-frames`.
+`x-bookmarks` backend status checks:
+
+```sh
+command -v bird >/dev/null && bird check --plain
+python3 packages/x-bookmarks/scripts/x_api_auth.py --status
+```
 
 ## Repo Structure
 
@@ -170,6 +179,7 @@ Edit source files here:
 ```text
 packages/watch-video/
 packages/codex-reset-credit/
+packages/x-bookmarks/
 mcp/watch-video/
 scripts/
 docs/
@@ -186,13 +196,17 @@ packages/codex-reset-credit/                         -> generated/claude/plugins
 packages/codex-reset-credit/                         -> generated/claude/custom-skills/codex-reset-credit/
 packages/codex-reset-credit/                         -> generated/codex/skills/codex-reset-credit/
 packages/codex-reset-credit/                         -> generated/agent-skills/codex-reset-credit/
+packages/x-bookmarks/                                -> generated/claude/plugins/x-bookmarks/
+packages/x-bookmarks/                                -> generated/claude/custom-skills/x-bookmarks/
+packages/x-bookmarks/                                -> generated/codex/skills/x-bookmarks/
+packages/x-bookmarks/                                -> generated/agent-skills/x-bookmarks/
 packages/*/tool.json and packages/*/plugin/plugin.json -> .claude-plugin/marketplace.json
 ```
 
 Generated directories include `GENERATED.md` files with exact source-path
-mappings. Generated Markdown and Python files also include an in-file generated
-notice when the format allows comments. JSON and LICENSE files are covered by
-the nearest `GENERATED.md` marker.
+mappings. Generated Markdown, Python, shell, and YAML files also include an
+in-file generated notice when the format allows comments. JSON and LICENSE
+files are covered by the nearest `GENERATED.md` marker.
 
 After changing any package under `packages/`, rebuild generated outputs from
 scratch:
@@ -208,7 +222,7 @@ recreates them from `packages/`. Use that flow when source files, generator
 templates, generated headers, or public package paths change. Do not move or
 patch generated files by hand.
 
-Future tools should follow this pattern:
+New tools should follow this pattern:
 
 - `packages/<name>/tool.json`
 - `generated/claude/plugins/<name>` when the tool targets Claude Code
@@ -219,13 +233,14 @@ Future tools should follow this pattern:
   `SKILL.md` Agent Skills consumers
 - `mcp/<name>` only when an MCP server is needed
 
-There is no MCP gateway for now.
+There is no MCP gateway.
 
 ## Agent Compatibility
 
 The source skills are written to the Agent Skills convention: one folder per
-skill, a frontmatter `SKILL.md`, and optional `scripts/`. Generated public
-outputs adapt that source for each surface:
+skill, a frontmatter `SKILL.md`, and optional `scripts/`, `references/`,
+`agents/`, and `commands/`. Generated public outputs adapt that source for each
+surface:
 
 - Claude Code: `generated/claude/plugins/<name>`
 - Codex: `generated/codex/skills/<name>`
@@ -234,9 +249,9 @@ outputs adapt that source for each surface:
 
 Runtime access still matters. `watch-video` needs local `yt-dlp` and `ffmpeg`
 for full video inspection. `codex-reset-credit` needs local Codex auth/session
-state, so it is most useful in local shells such as Claude Code, Codex, and
-OpenCode. Hosted Claude skill upload can carry the instructions and bundled
-files, but it cannot read your local Codex auth files.
+state. `x-bookmarks` needs Bird browser-cookie access or local X API OAuth
+state. Hosted Claude skill upload can carry the instructions and bundled files,
+but it cannot read your local Mac auth/session state.
 
 ## Troubleshooting
 
@@ -246,6 +261,7 @@ If marketplace install fails, run these from the repo root:
 claude plugin validate .
 claude plugin validate generated/claude/plugins/watch-video
 claude plugin validate generated/claude/plugins/codex-reset-credit
+claude plugin validate generated/claude/plugins/x-bookmarks
 ```
 
 ## Docs
@@ -258,10 +274,11 @@ Future agents should read `docs/README.md`, `docs/architecture.md`,
 
 ## Security
 
-Do not commit real API keys, Codex auth/session files, `.env.local`,
-`.watch-video/` artifacts, media files, transcripts, frames, caches, or local
-build outputs. Keep CI no-secret and free of live Groq/video/Codex/Claude
-requirements. See [docs/security.md](docs/security.md).
+Do not commit real API keys, Codex auth/session files, X/Twitter cookies or
+OAuth tokens, `.env.local`, `.watch-video/` artifacts, `.x-bookmarks/` state,
+media files, transcripts, frames, caches, or local build outputs. Keep CI
+no-secret and free of live Groq/video/Codex/X/Claude requirements. See
+[docs/security.md](docs/security.md).
 
 ## Checks
 

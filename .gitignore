@@ -2,11 +2,23 @@
 .env
 .env.local
 .watch-video/
+.x-bookmarks/
 
 # Local Codex auth/session state must never be committed.
 .codex/
 auth.json
 rollout-*.jsonl
+tokens.json
+state.json
+
+# Local bookmark exports and indexes must be regenerated or stored outside repo.
+bookmarks.json
+bookmarks.jsonl
+bookmarks.ndjson
+search-index.json
+*.sqlite
+*.sqlite3
+*.db
 
 # Watch Video run artifacts when custom output dirs are placed in the repo.
 **/audio.mp3
@@ -46,5 +58,5 @@ yarn-debug.log*
 yarn-error.log*
 *.egg-info/
 
-# Local Claude custom-skill archives can be rebuilt from generated/agent-skills.
+# Local Claude custom-skill archives can be rebuilt from generated/claude/custom-skills.
 *.zip

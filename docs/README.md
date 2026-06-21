@@ -21,8 +21,9 @@ Recommended reading order for broader work:
 5. `security.md`
 6. `watch-video.md`
 7. `codex-reset-credit.md`
-8. `roadmap.md`
-9. `decisions.md`
+8. `x-bookmarks.md`
+9. `roadmap.md`
+10. `decisions.md`
 
 Keep these docs aligned with the repo when architecture, workflow, install
 behavior, security practice, or package scope changes. A future agent should be

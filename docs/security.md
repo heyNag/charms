@@ -4,6 +4,8 @@ Security rules for this repo:
 
 - Never commit real API keys, including Groq or OpenAI keys.
 - Never commit Codex auth/session files or copied local account data.
+- Never commit X/Twitter cookies, OAuth tokens, client secrets, bookmark
+  exports, search indexes, or copied Bird config.
 - Use environment variables or gitignored `.env.local` for local secrets.
 - `.env.local` must remain ignored and untracked.
 - Do not echo full keys.
@@ -11,6 +13,8 @@ Security rules for this repo:
 - CI must not require secrets.
 - Live Groq/OpenAI verification may source `.env.local` only inside a subshell.
 - Runtime artifacts under `.watch-video/` stay ignored.
+- X bookmark local state under `.x-bookmarks/`, `tokens.json`, `state.json`,
+  bookmark exports, search indexes, and local SQLite databases stay ignored.
 - Committed generated package outputs live under `generated/` and
   `.claude-plugin/`; they are rebuilt from `packages/` and must not contain
   secrets or runtime artifacts.
@@ -22,6 +26,16 @@ For `codex-reset-credit`, never print or commit Codex access tokens, refresh
 tokens, account IDs, raw auth file contents, credit IDs, email addresses, profile
 image URLs, or unredacted auth paths. The helper may read local Codex auth and
 session files, but it must not modify them.
+
+For `x-bookmarks`, never print or commit X/Twitter cookies, OAuth access tokens,
+refresh tokens, client secrets, raw auth files, bookmark exports, search
+indexes, or copied Bird config. Local state belongs outside this repo:
+
+```text
+~/.config/x-bookmarks/
+~/.local/state/x-bookmarks/
+~/.config/bird/
+```
 
 ## Safe Key Shape Checks
 

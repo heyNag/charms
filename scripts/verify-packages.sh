@@ -163,8 +163,15 @@ scan_output() {
         -name ".env" -o \
         -name ".env.local" -o \
         -name ".watch-video" -o \
+        -name ".x-bookmarks" -o \
         -name ".codex" -o \
         -name "auth.json" -o \
+        -name "tokens.json" -o \
+        -name "state.json" -o \
+        -name "bookmarks.json" -o \
+        -name "bookmarks.jsonl" -o \
+        -name "bookmarks.ndjson" -o \
+        -name "search-index.json" -o \
         -name "__pycache__" -o \
         -name ".pytest_cache" -o \
         -name ".mypy_cache" -o \
@@ -180,6 +187,9 @@ scan_output() {
         -name "report.md" -o \
         -name "groq_transcript.raw.json" -o \
         -iname "rollout-*.jsonl" -o \
+        -iname "*.sqlite" -o \
+        -iname "*.sqlite3" -o \
+        -iname "*.db" -o \
         -iname "frame_*.jpg" -o \
         -iname "frame_*.jpeg" -o \
         -iname "frame_*.png" -o \
@@ -277,6 +287,12 @@ for tool_json in "$ROOT"/packages/*/tool.json; do
     if [[ -d "$package_dir/scripts" ]]; then
       check_dir "$plugin_dir/skills/$package/scripts"
     fi
+    if [[ -d "$package_dir/references" ]]; then
+      check_dir "$plugin_dir/skills/$package/references"
+    fi
+    if [[ -d "$package_dir/agents" ]]; then
+      check_dir "$plugin_dir/skills/$package/agents"
+    fi
     if [[ -d "$package_dir/commands" ]]; then
       check_dir "$plugin_dir/commands"
     fi
@@ -302,6 +318,12 @@ for tool_json in "$ROOT"/packages/*/tool.json; do
     if [[ -d "$package_dir/scripts" ]]; then
       check_dir "$codex_dir/scripts"
     fi
+    if [[ -d "$package_dir/references" ]]; then
+      check_dir "$codex_dir/references"
+    fi
+    if [[ -d "$package_dir/agents" ]]; then
+      check_dir "$codex_dir/agents"
+    fi
     scan_output "$codex_dir"
   fi
 
@@ -314,6 +336,12 @@ for tool_json in "$ROOT"/packages/*/tool.json; do
     if [[ -d "$package_dir/scripts" ]]; then
       check_dir "$agent_dir/scripts"
     fi
+    if [[ -d "$package_dir/references" ]]; then
+      check_dir "$agent_dir/references"
+    fi
+    if [[ -d "$package_dir/agents" ]]; then
+      check_dir "$agent_dir/agents"
+    fi
     scan_output "$agent_dir"
 
     claude_skill_dir="$ROOT/generated/claude/custom-skills/$package"
@@ -323,6 +351,12 @@ for tool_json in "$ROOT"/packages/*/tool.json; do
     check_file "$claude_skill_dir/LICENSE"
     if [[ -d "$package_dir/scripts" ]]; then
       check_dir "$claude_skill_dir/scripts"
+    fi
+    if [[ -d "$package_dir/references" ]]; then
+      check_dir "$claude_skill_dir/references"
+    fi
+    if [[ -d "$package_dir/agents" ]]; then
+      check_dir "$claude_skill_dir/agents"
     fi
     scan_output "$claude_skill_dir"
   fi
