@@ -61,7 +61,8 @@ Deployment should build on the independent MCP folder shape, not on a gateway.
 Add more packages only when they have a clear local workflow or agent need. New
 packages can incubate here and graduate into standalone repos later.
 
-## Not Planned Now
+## MCP Gateway Constraint
 
-An MCP gateway is not planned now. Do not build one unless the user explicitly
-asks for it.
+Do not add an MCP gateway, router, proxy, or shared MCP control plane unless the
+user explicitly asks for it. Keep MCP servers independently understandable and
+deployable under `mcp/<name>`.
