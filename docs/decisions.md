@@ -40,10 +40,12 @@ are rebuilt from scratch with `make rebuild-generated` and checked with
 
 Keep Skillshare discovery source-first. The root `.skillignore` hides
 `generated/` during Skillshare install/discovery, while `skillshare-hub.json`
-provides a curated Hub index that lists only canonical `packages/<name>` source
-paths. GitHub Code Search may still show every committed `SKILL.md`; the repo's
-optional Skillshare path is Hub mode or direct `heyNag/agent-tools/packages/<name>`
-install for users who already use Skillshare.
+provides a curated Hub index that resolves only to canonical `packages/<name>`
+source paths. The hub uses `sourcePath: heyNag/agent-tools/packages` plus
+relative package names. GitHub Code Search may still show every committed
+`SKILL.md`; the repo's optional Skillshare path is Hub mode or direct
+`heyNag/agent-tools/packages/<name>` install for users who already use
+Skillshare.
 
 Skillshare-facing names, descriptions, and tags must be present in canonical
 `packages/<name>/SKILL.md` frontmatter. `tool.json` still declares build

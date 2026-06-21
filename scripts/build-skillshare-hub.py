@@ -15,8 +15,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from skill_metadata import load_json, normalized_tags, read_frontmatter
 
 
-DEFAULT_REPOSITORY = "https://github.com/heyNag/agent-tools"
-DEFAULT_OWNER_REPO = "heyNag/agent-tools"
+DEFAULT_HUB_SOURCE_PATH = "heyNag/agent-tools/packages"
 DEFAULT_GENERATED_AT = "1970-01-01T00:00:00Z"
 VERSION_DATE_RE = re.compile(r"^(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\.\d+)?$")
 
@@ -63,12 +62,10 @@ def skill_entry(package_dir: Path, tool: dict) -> tuple[dict, str]:
         raise SystemExit(f"error: tags must be an array of strings in {package_dir / 'tool.json'}")
     tags = normalized_tags(frontmatter.get("tags")) or normalized_tags(tool_tags)
 
-    source = f"{DEFAULT_OWNER_REPO}/packages/{name}"
     entry = {
         "name": name,
         "description": description,
-        "source": source,
-        "skill": name,
+        "source": name,
     }
     if tags:
         entry["tags"] = tags
@@ -95,7 +92,7 @@ def build_index(root: Path) -> dict:
     return {
         "schemaVersion": 1,
         "generatedAt": generated_at_for_versions(versions),
-        "sourcePath": DEFAULT_REPOSITORY,
+        "sourcePath": DEFAULT_HUB_SOURCE_PATH,
         "skills": skills,
     }
 

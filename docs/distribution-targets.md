@@ -148,10 +148,12 @@ skillshare-hub.json
 This root file is generated from `packages/*/SKILL.md`,
 `packages/*/tool.json`, and `packages/*/plugin/plugin.json`. It is not a
 target package. It is a curated index for optional Skillshare Hub search, and
-each entry points at the canonical source package path:
+each entry resolves to the canonical source package path:
 
 ```text
-heyNag/agent-tools/packages/<name>
+sourcePath: heyNag/agent-tools/packages
+source: <name>
+resolved install source: heyNag/agent-tools/packages/<name>
 ```
 
 ## What Is Shared

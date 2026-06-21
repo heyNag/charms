@@ -1,13 +1,12 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-06-21T00:00:00Z",
-  "sourcePath": "https://github.com/heyNag/agent-tools",
+  "sourcePath": "heyNag/agent-tools/packages",
   "skills": [
     {
       "name": "codex-reset-credit",
       "description": "Check Codex reset-credit status and local Codex rate-limit reset windows without exposing auth secrets or modifying local Codex state.",
-      "source": "heyNag/agent-tools/packages/codex-reset-credit",
-      "skill": "codex-reset-credit",
+      "source": "codex-reset-credit",
       "tags": [
         "codex",
         "credits",
@@ -19,8 +18,7 @@
     {
       "name": "watch-video",
       "description": "Analyze YouTube URLs, local videos, screen recordings, tutorials, demos, and UI bug videos using yt-dlp, ffmpeg, native captions, frame extraction, and Groq Whisper fallback.",
-      "source": "heyNag/agent-tools/packages/watch-video",
-      "skill": "watch-video",
+      "source": "watch-video",
       "tags": [
         "frames",
         "local",
@@ -32,8 +30,7 @@
     {
       "name": "x-bookmarks",
       "description": "Fetch, search, and turn X/Twitter bookmarks into action using Bird cookie auth or X API v2. Use when the user asks about X/Twitter bookmarks, bookmark digests, bookmark search, saved posts, no-credit X bookmark access, or recurring review of bookmarked posts.",
-      "source": "heyNag/agent-tools/packages/x-bookmarks",
-      "skill": "x-bookmarks",
+      "source": "x-bookmarks",
       "tags": [
         "bird",
         "bookmarks",

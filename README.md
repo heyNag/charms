@@ -77,9 +77,10 @@ web UI shows only canonical source packages:
 https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json
 ```
 
-In the Skillshare web UI, use `Search > Hub`, add/select that hub URL, then
-install `watch-video`, `codex-reset-credit`, or `x-bookmarks`. This is an
-optional install path; the main public install paths are Claude Code, Codex,
+In the Skillshare web UI, use `Search > Hub`, add/select that hub URL in the
+hub manager/source selector, then search for `watch`, `codex`, `bookmarks`, or
+another keyword. Do not paste the hub URL into the keyword search box. This is
+an optional install path; the main public install paths are Claude Code, Codex,
 Claude Desktop, and OpenCode.
 
 CLI users can save the hub once:

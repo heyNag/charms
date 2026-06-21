@@ -19,8 +19,12 @@ In the Skillshare web UI:
 
 1. Open `Search`.
 2. Choose `Hub`.
-3. Add or select the hub URL above.
-4. Install `watch-video`, `codex-reset-credit`, or `x-bookmarks`.
+3. Add or select the hub URL above in the hub manager/source selector.
+4. Search for `watch`, `codex`, `bookmarks`, or another keyword.
+5. Install `watch-video`, `codex-reset-credit`, or `x-bookmarks`.
+
+Do not paste the hub URL into the keyword search box. The URL selects the hub;
+the search box is for terms inside that hub.
 
 CLI users can save the hub once:
 
@@ -30,13 +34,17 @@ skillshare hub default agent-tools
 skillshare search --hub agent-tools bookmarks
 ```
 
-The hub points each skill at the canonical package source:
+The generated hub uses `sourcePath` plus a relative skill folder:
 
 ```text
-heyNag/agent-tools/packages/watch-video
-heyNag/agent-tools/packages/codex-reset-credit
-heyNag/agent-tools/packages/x-bookmarks
+sourcePath: heyNag/agent-tools/packages
+source: watch-video
+source: codex-reset-credit
+source: x-bookmarks
 ```
+
+Skillshare resolves those entries to installable package sources such as
+`heyNag/agent-tools/packages/watch-video`.
 
 Direct CLI install works too:
 
@@ -111,7 +119,7 @@ make verify-generated-clean
 ```
 
 `make verify-packages` checks that every public agent-compatible package appears
-in the hub exactly once and that hub entries point at `packages/<name>`, not
+in the hub exactly once and that hub entries resolve to `packages/<name>`, not
 `generated/`.
 
 ## Skill Metadata Contract

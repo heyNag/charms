@@ -14,8 +14,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from skill_metadata import invalid_tags, load_json, normalized_tags, read_frontmatter
 
 
-DEFAULT_REPOSITORY = "https://github.com/heyNag/agent-tools"
-DEFAULT_OWNER_REPO = "heyNag/agent-tools"
+DEFAULT_HUB_SOURCE_PATH = "heyNag/agent-tools/packages"
 
 
 def validate_package(root: Path, tool_path: Path) -> list[str]:
@@ -90,8 +89,8 @@ def validate_skillshare_hub(root: Path) -> list[str]:
 
     if hub.get("schemaVersion") != 1:
         errors.append("skillshare-hub.json: schemaVersion must be 1")
-    if hub.get("sourcePath") != DEFAULT_REPOSITORY:
-        errors.append(f"skillshare-hub.json: sourcePath must be {DEFAULT_REPOSITORY}")
+    if hub.get("sourcePath") != DEFAULT_HUB_SOURCE_PATH:
+        errors.append(f"skillshare-hub.json: sourcePath must be {DEFAULT_HUB_SOURCE_PATH}")
 
     expected: dict[str, dict[str, object]] = {}
     for tool_path in sorted((root / "packages").glob("*/tool.json")):
@@ -101,7 +100,7 @@ def validate_skillshare_hub(root: Path) -> list[str]:
             name = tool.get("name") or tool_path.parent.name
             frontmatter = read_frontmatter(tool_path.parent / "SKILL.md")
             expected[name] = {
-                "source": f"{DEFAULT_OWNER_REPO}/packages/{name}",
+                "source": name,
                 "description": frontmatter.get("description") or tool.get("description"),
                 "tags": normalized_tags(frontmatter.get("tags")) or normalized_tags(tool.get("tags")),
             }
@@ -130,10 +129,12 @@ def validate_skillshare_hub(root: Path) -> list[str]:
         info = expected[name]
         if skill.get("source") != info["source"]:
             errors.append(f"skillshare-hub.json: {name}.source must be {info['source']}")
+        if isinstance(skill.get("source"), str) and "://" in skill.get("source", ""):
+            errors.append(f"skillshare-hub.json: {name}.source must be relative to sourcePath")
         if skill.get("source") and "/generated/" in str(skill.get("source")):
             errors.append(f"skillshare-hub.json: {name}.source must not point at generated output")
-        if skill.get("skill") != name:
-            errors.append(f"skillshare-hub.json: {name}.skill must be {name}")
+        if skill.get("skill") not in (None, "", name):
+            errors.append(f"skillshare-hub.json: {name}.skill must be omitted or {name}")
         if skill.get("description") != info["description"]:
             errors.append(f"skillshare-hub.json: {name}.description must match SKILL.md frontmatter")
         if normalized_tags(skill.get("tags")) != info["tags"]:

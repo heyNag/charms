@@ -120,8 +120,8 @@ if data.get("schemaVersion") != 1:
     errors.append("skillshare hub schemaVersion must be 1")
 if not isinstance(data.get("generatedAt"), str) or not data["generatedAt"]:
     errors.append("skillshare hub generatedAt must be present")
-if data.get("sourcePath") != "https://github.com/heyNag/agent-tools":
-    errors.append("skillshare hub sourcePath must be https://github.com/heyNag/agent-tools")
+if data.get("sourcePath") != "heyNag/agent-tools/packages":
+    errors.append("skillshare hub sourcePath must be heyNag/agent-tools/packages")
 
 skills = data.get("skills")
 if not isinstance(skills, list) or not skills:
@@ -151,14 +151,16 @@ for index, skill in enumerate(skills or []):
         errors.append(f"skillshare hub skill has no public package: {name}")
 
     source = skill.get("source")
-    expected_source = f"heyNag/agent-tools/packages/{name}"
+    expected_source = name
     if source != expected_source:
         errors.append(f"skills[{index}].source should be {expected_source}")
+    if isinstance(source, str) and "://" in source:
+        errors.append(f"skills[{index}].source must be relative to sourcePath")
     if isinstance(source, str) and "/generated/" in source:
         errors.append(f"skills[{index}].source must not point at generated output")
 
-    if skill.get("skill") != name:
-        errors.append(f"skills[{index}].skill should be {name}")
+    if skill.get("skill") not in (None, "", name):
+        errors.append(f"skills[{index}].skill should be omitted or {name}")
     if not isinstance(skill.get("description"), str) or not skill["description"]:
         errors.append(f"skills[{index}].description must be present")
     tags = skill.get("tags", [])

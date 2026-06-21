@@ -27,7 +27,7 @@ Claude Code       -> generated/claude/plugins/<name>
 Claude Desktop    -> generated/claude/custom-skills/<name>
 Codex             -> generated/codex/skills/<name>
 OpenCode          -> generated/agent-skills/<name>
-Skillshare        -> skillshare-hub.json entry pointing at packages/<name>
+Skillshare        -> skillshare-hub.json entry resolving to packages/<name>
 ```
 
 The source package is always:

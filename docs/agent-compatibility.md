@@ -102,7 +102,7 @@ skillshare install heyNag/agent-tools/packages/watch-video --track
 skillshare sync
 ```
 
-The hub points at canonical `packages/<name>` source paths. See
+The hub resolves to canonical `packages/<name>` source paths. See
 [`skillshare.md`](skillshare.md) for duplicate-search behavior and update flow.
 
 ## Filename Compatibility
