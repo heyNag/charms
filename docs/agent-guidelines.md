@@ -13,7 +13,9 @@ Rules for future AI agents working in this repo:
   public outputs need to change.
 - When adding a package, declare its targets in `packages/<name>/tool.json`.
   The package builders iterate manifests and create every target automatically.
-  Do not add one-off generated package copies by hand.
+  Do not add one-off generated package copies or Skillshare hub entries by hand.
+- Treat `skillshare-hub.json` as generated discovery metadata. It is built from
+  `packages/*/tool.json` and `packages/*/plugin/plugin.json`.
 - Follow `docs/adding-a-skill.md` for the full new-skill checklist.
 - Follow `docs/updating-a-skill.md` for the skill release and user update
   process.
@@ -22,6 +24,7 @@ Rules for future AI agents working in this repo:
   package versions.
 - Do not manually edit `generated/` or `.claude-plugin/` outputs unless the
   user explicitly asks for a generated-output-only change.
+- Do not manually edit `skillshare-hub.json`.
 - Keep skill source agent-agnostic when possible. Put Claude Code marketplace
   wrapping under generated Claude plugin output, and keep reusable workflow
   guidance in `packages/<name>/SKILL.md`.
@@ -64,6 +67,7 @@ make test
 make syntax
 make mcp-build
 make rebuild-generated
+make build-skillshare-hub
 make verify-packages
 make audit-generated
 make verify-generated-clean

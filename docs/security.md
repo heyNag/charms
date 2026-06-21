@@ -15,9 +15,10 @@ Security rules for this repo:
 - Runtime artifacts under `.watch-video/` stay ignored.
 - X bookmark local state under `.x-bookmarks/`, `tokens.json`, `state.json`,
   bookmark exports, search indexes, and local SQLite databases stay ignored.
-- Committed generated package outputs live under `generated/` and
-  `.claude-plugin/`; they are rebuilt from `packages/` and must not contain
-  secrets or runtime artifacts.
+- Committed generated package outputs and discovery metadata live under
+  `generated/`, `.claude-plugin/`, and `skillshare-hub.json`; they are rebuilt
+  from `packages/` and must not contain secrets, local-only paths, or runtime
+  artifacts.
 - Local ZIP archives made from `generated/claude/custom-skills/` for Claude
   custom skill upload are ignored. Rebuild them when needed instead of
   committing them.

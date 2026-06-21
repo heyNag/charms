@@ -30,10 +30,20 @@ understandable and deployable.
 ## Generated Public Outputs
 
 Commit generated public install outputs under `generated/` and
-`.claude-plugin/`. Source still lives under `packages/`; generated outputs are
-rebuilt from scratch with `make rebuild-generated` and checked with
+`.claude-plugin/`, plus generated discovery metadata such as
+`skillshare-hub.json`. Source still lives under `packages/`; generated outputs
+are rebuilt from scratch with `make rebuild-generated` and checked with
 `make verify-packages`, `make audit-generated`, and
 `make verify-generated-clean`.
+
+## Skillshare Discovery
+
+Keep Skillshare discovery source-first. The root `.skillignore` hides
+`generated/` during Skillshare install/discovery, while `skillshare-hub.json`
+provides a curated Hub index that lists only canonical `packages/<name>` source
+paths. GitHub Code Search may still show every committed `SKILL.md`; the repo's
+recommended Skillshare path is Hub mode or direct `heyNag/agent-tools/packages/<name>`
+install.
 
 ## Package Manifests
 

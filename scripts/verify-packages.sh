@@ -105,6 +105,77 @@ if errors:
 PY
 }
 
+validate_skillshare_hub() {
+  python3 - "$ROOT/skillshare-hub.json" "$ROOT" <<'PY'
+import json
+import pathlib
+import sys
+
+hub_path = pathlib.Path(sys.argv[1])
+root = pathlib.Path(sys.argv[2])
+data = json.loads(hub_path.read_text(encoding="utf-8"))
+
+errors = []
+if data.get("schemaVersion") != 1:
+    errors.append("skillshare hub schemaVersion must be 1")
+if not isinstance(data.get("generatedAt"), str) or not data["generatedAt"]:
+    errors.append("skillshare hub generatedAt must be present")
+if data.get("sourcePath") != "https://github.com/heyNag/agent-tools":
+    errors.append("skillshare hub sourcePath must be https://github.com/heyNag/agent-tools")
+
+skills = data.get("skills")
+if not isinstance(skills, list) or not skills:
+    errors.append("skillshare hub skills must be a non-empty array")
+
+expected = {}
+for tool_path in sorted((root / "packages").glob("*/tool.json")):
+    tool = json.loads(tool_path.read_text(encoding="utf-8"))
+    targets = tool.get("targets") or []
+    if tool.get("public") is True and (tool.get("agent_agnostic") is True or "generic" in targets):
+        name = tool.get("name") or tool_path.parent.name
+        expected[name] = tool
+
+seen = set()
+for index, skill in enumerate(skills or []):
+    if not isinstance(skill, dict):
+        errors.append(f"skills[{index}] must be an object")
+        continue
+    name = skill.get("name")
+    if not isinstance(name, str) or not name:
+        errors.append(f"skills[{index}].name must be present")
+        continue
+    if name in seen:
+        errors.append(f"duplicate skillshare skill name: {name}")
+    seen.add(name)
+    if name not in expected:
+        errors.append(f"skillshare hub skill has no public package: {name}")
+
+    source = skill.get("source")
+    expected_source = f"heyNag/agent-tools/packages/{name}"
+    if source != expected_source:
+        errors.append(f"skills[{index}].source should be {expected_source}")
+    if isinstance(source, str) and "/generated/" in source:
+        errors.append(f"skills[{index}].source must not point at generated output")
+
+    if skill.get("skill") != name:
+        errors.append(f"skills[{index}].skill should be {name}")
+    if not isinstance(skill.get("description"), str) or not skill["description"]:
+        errors.append(f"skills[{index}].description must be present")
+    tags = skill.get("tags", [])
+    if tags is not None and (not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags)):
+        errors.append(f"skills[{index}].tags must be an array of strings when present")
+
+missing = sorted(set(expected) - seen)
+for name in missing:
+    errors.append(f"public agent-compatible package missing from skillshare hub: {name}")
+
+if errors:
+    for error in errors:
+        print(f"error: {error}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
 validate_plugin_manifest() {
   python3 - "$1" <<'PY'
 import json
@@ -256,10 +327,46 @@ if hits:
 PY
 }
 
+scan_metadata_file() {
+  local metadata_file="$1"
+  python3 - "$metadata_file" "$ROOT" <<'PY'
+import pathlib
+import re
+import sys
+
+path = pathlib.Path(sys.argv[1])
+root = pathlib.Path(sys.argv[2])
+secret_patterns = [
+    re.compile(r"gsk_[A-Za-z0-9_-]{8,}"),
+    re.compile(r"sk-[A-Za-z0-9_-]{8,}"),
+    re.compile(r"\b(?:GROQ_API_KEY|OPENAI_API_KEY)\s*="),
+]
+forbidden_text = [".env.local", "/generated/", "generated/"]
+hits = []
+text = path.read_text(encoding="utf-8")
+rel = path.relative_to(root)
+for line_no, line in enumerate(text.splitlines(), start=1):
+    for pattern in secret_patterns:
+        if pattern.search(line):
+            hits.append(f"{rel}:{line_no}: {pattern.pattern}")
+    for value in forbidden_text:
+        if value in line:
+            hits.append(f"{rel}:{line_no}: {value}")
+if hits:
+    for hit in hits:
+        print(hit, file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
 check_file "$ROOT/.claude-plugin/marketplace.json"
 check_file "$ROOT/.claude-plugin/GENERATED.md"
+check_file "$ROOT/skillshare-hub.json"
 valid_json "$ROOT/.claude-plugin/marketplace.json"
+valid_json "$ROOT/skillshare-hub.json"
+scan_metadata_file "$ROOT/skillshare-hub.json"
 validate_marketplace
+validate_skillshare_hub
 
 found=0
 shopt -s nullglob

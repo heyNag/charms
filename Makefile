@@ -1,4 +1,4 @@
-.PHONY: test syntax doctor install install-dry-run groq-test mcp-build clean-generated build-claude-plugin build-codex-skill build-agent-skill build-claude-custom-skill build-packages rebuild-generated verify-packages audit-generated verify-generated-clean ci-local
+.PHONY: test syntax doctor install install-dry-run groq-test mcp-build clean-generated build-claude-plugin build-codex-skill build-agent-skill build-claude-custom-skill build-skillshare-hub build-packages rebuild-generated verify-packages audit-generated verify-generated-clean ci-local
 
 AUDIO ?=
 PYTHON ?= python3
@@ -54,6 +54,9 @@ build-agent-skill:
 build-claude-custom-skill:
 	./scripts/build-claude-custom-skill.sh
 
+build-skillshare-hub:
+	$(PYTHON) scripts/build-skillshare-hub.py
+
 build-packages:
 	./scripts/build-packages.sh
 
@@ -71,12 +74,12 @@ audit-generated:
 
 verify-generated-clean:
 	@$(MAKE) rebuild-generated >/dev/null
-	@if ! git diff --exit-code -- .claude-plugin generated; then \
+	@if ! git diff --exit-code -- .claude-plugin generated skillshare-hub.json; then \
 		echo "generated package outputs are stale; run make rebuild-generated and commit the results" >&2; \
 		exit 1; \
 	fi
-	@if [ -n "$$(git ls-files --others --exclude-standard -- .claude-plugin generated)" ]; then \
-		git ls-files --others --exclude-standard -- .claude-plugin generated >&2; \
+	@if [ -n "$$(git ls-files --others --exclude-standard -- .claude-plugin generated skillshare-hub.json)" ]; then \
+		git ls-files --others --exclude-standard -- .claude-plugin generated skillshare-hub.json >&2; \
 		echo "generated package outputs are stale; run make rebuild-generated and commit the results" >&2; \
 		exit 1; \
 	fi

@@ -56,12 +56,14 @@ flowchart TD
   B --> CX["generated/codex/skills/&lt;name&gt;<br/>Codex skill"]
   B --> AG["generated/agent-skills/&lt;name&gt;<br/>OpenCode / generic Agent Skill"]
   B --> MP[".claude-plugin/marketplace.json<br/>Claude Code marketplace catalog"]
+  B --> SH["skillshare-hub.json<br/>Skillshare hub index"]
 
   CC --> V["make verify-packages<br/>make audit-generated<br/>make verify-generated-clean"]
   CD --> V
   CX --> V
   AG --> V
   MP --> V
+  SH --> V
 ```
 
 ## Target Shapes
@@ -137,6 +139,21 @@ Optional directories are present only when the source package has them. The
 `GENERATED.md` file inside each target lists the exact source paths that
 produced that target.
 
+Skillshare hub:
+
+```text
+skillshare-hub.json
+```
+
+This root file is generated from `packages/*/tool.json` and
+`packages/*/plugin/plugin.json`. It is not a target package. It is a curated
+index for Skillshare Hub search, and each entry points at the canonical source
+package path:
+
+```text
+heyNag/agent-tools/packages/<name>
+```
+
 ## What Is Shared
 
 Codex and OpenCode/generic targets are the closest shape match. They both use a
@@ -165,6 +182,7 @@ generated/claude/custom-skills/<name>/
 generated/codex/skills/<name>/
 generated/agent-skills/<name>/
 .claude-plugin/marketplace.json
+skillshare-hub.json
 ```
 
 To update generated outputs:
@@ -177,9 +195,9 @@ make verify-generated-clean
 ```
 
 `make rebuild-generated` deletes `.claude-plugin/` and `generated/`, then
-recreates them from `packages/`. That is intentional: generated files should
-inherit source-path wording and generated notices from the builder scripts, not
-from manual edits.
+recreates them from `packages/` and rewrites `skillshare-hub.json`. That is
+intentional: generated files and discovery metadata should inherit source-path
+wording from the builder scripts, not from manual edits.
 
 ## Per-Package Flow
 
@@ -198,12 +216,12 @@ sequenceDiagram
   participant Dev as Human/Agent
   participant Src as packages/&lt;name&gt;
   participant Build as make rebuild-generated
-  participant Gen as generated/ + .claude-plugin/
+  participant Gen as generated/ + .claude-plugin/ + skillshare-hub.json
   participant Verify as verify/audit checks
 
   Dev->>Src: Edit SKILL.md, README.md, scripts, references, agents, commands, plugin metadata
   Dev->>Build: Run make rebuild-generated
-  Build->>Gen: Delete generated roots and recreate from source
+  Build->>Gen: Delete generated roots, recreate targets, and rewrite hub index
   Gen->>Verify: Run verify-packages + audit-generated + verify-generated-clean
   Verify-->>Dev: Pass means generated outputs match source
 ```

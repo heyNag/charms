@@ -20,6 +20,8 @@ Choose the path that matches what you are trying to do:
 - Understand source versus generated files: read
   [docs/architecture.md](docs/architecture.md) and
   [docs/distribution-targets.md](docs/distribution-targets.md).
+- Install through Skillshare's web UI: read
+  [docs/skillshare.md](docs/skillshare.md).
 - Add a new skill: follow
   [docs/adding-a-skill.md](docs/adding-a-skill.md) step by step.
 - Update or release an existing skill: follow
@@ -28,8 +30,9 @@ Choose the path that matches what you are trying to do:
   [docs/security.md](docs/security.md).
 
 Normal development edits happen under `packages/<name>/`. Public install
-folders under `generated/` and the Claude marketplace catalog under
-`.claude-plugin/` are rebuilt from `packages/`; do not patch them by hand.
+folders under `generated/`, the Claude marketplace catalog under
+`.claude-plugin/`, and `skillshare-hub.json` are rebuilt from `packages/`; do
+not patch them by hand.
 
 ## Install For Claude Code
 
@@ -64,6 +67,33 @@ cp -R generated/codex/skills/codex-reset-credit ~/.codex/skills/codex-reset-cred
 rm -rf ~/.codex/skills/x-bookmarks
 cp -R generated/codex/skills/x-bookmarks ~/.codex/skills/x-bookmarks
 ```
+
+## Install With Skillshare
+
+Skillshare users should prefer the curated hub index so the web UI shows only
+canonical source packages:
+
+```text
+https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json
+```
+
+In the Skillshare web UI, use `Search > Hub`, add/select that hub URL, then
+install `watch-video`, `codex-reset-credit`, or `x-bookmarks`.
+
+Direct package install also works:
+
+```sh
+skillshare install heyNag/agent-tools/packages/watch-video --track
+skillshare install heyNag/agent-tools/packages/codex-reset-credit --track
+skillshare install heyNag/agent-tools/packages/x-bookmarks --track
+skillshare sync
+```
+
+Avoid installing from `generated/` through Skillshare. Those folders are
+target-specific outputs for Claude Code, Claude Desktop, Codex, and OpenCode.
+The root `.skillignore` hides `generated/` during Skillshare repo discovery;
+GitHub Code Search may still show generated copies because it scans every
+committed `SKILL.md`.
 
 ## Install For Claude Desktop Or Claude.ai Skills
 
@@ -196,6 +226,7 @@ python3 packages/x-bookmarks/scripts/x_api_auth.py --status
 packages/             source of truth for tools
 generated/            generated Claude/Codex/OpenCode public install packages
 .claude-plugin/       generated Claude Code marketplace catalog
+skillshare-hub.json   generated Skillshare hub index for canonical package install
 mcp/                  future deployable MCP servers
 docs/                 project memory and agent orientation
 scripts/              build, install, test, and helper scripts
@@ -204,8 +235,9 @@ scripts/              build, install, test, and helper scripts
 
 `generated/` includes Claude Code plugin packages, Claude custom-skill upload
 folders, Codex skill folders, and OpenCode/generic Agent Skill folders.
-`generated/` and `.claude-plugin/` are generated from `packages/`, but they are
-committed as public install targets.
+`generated/`, `.claude-plugin/`, and `skillshare-hub.json` are generated from
+`packages/`, but they are committed as public install targets or discovery
+metadata.
 
 ## What To Edit
 
@@ -236,6 +268,7 @@ packages/x-bookmarks/                                -> generated/claude/custom-
 packages/x-bookmarks/                                -> generated/codex/skills/x-bookmarks/
 packages/x-bookmarks/                                -> generated/agent-skills/x-bookmarks/
 packages/*/tool.json and packages/*/plugin/plugin.json -> .claude-plugin/marketplace.json
+packages/*/tool.json and packages/*/plugin/plugin.json -> skillshare-hub.json
 ```
 
 Generated directories include `GENERATED.md` files with exact source-path
@@ -253,9 +286,10 @@ make verify-generated-clean
 ```
 
 `make rebuild-generated` deletes only `.claude-plugin/` and `generated/`, then
-recreates them from `packages/`. Use that flow when source files, generator
-templates, generated headers, or public package paths change. Do not move or
-patch generated files by hand.
+recreates them from `packages/` and rewrites `skillshare-hub.json`. Use that
+flow when source files, generator templates, generated headers, public package
+paths, or public discovery metadata change. Do not move or patch generated
+files by hand.
 
 New tools should follow this pattern:
 
@@ -332,6 +366,7 @@ make test
 make syntax
 make mcp-build
 make rebuild-generated
+make build-skillshare-hub
 make verify-packages
 make audit-generated
 make verify-generated-clean

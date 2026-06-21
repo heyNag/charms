@@ -14,6 +14,8 @@ Tell users how to update for their target.
 
 Do not manually edit files under `generated/` or `.claude-plugin/`. Those paths
 are rebuilt from package source.
+Do not manually edit `skillshare-hub.json`; it is rebuilt from package
+manifests and plugin versions.
 
 ## Target Map
 
@@ -24,6 +26,7 @@ Claude Code       -> generated/claude/plugins/<name>
 Claude Desktop    -> generated/claude/custom-skills/<name>
 Codex             -> generated/codex/skills/<name>
 OpenCode          -> generated/agent-skills/<name>
+Skillshare        -> skillshare-hub.json entry pointing at packages/<name>
 ```
 
 The source package is always:
@@ -74,7 +77,9 @@ packages/<name>/plugin/plugin.json
 ```
 
 The generated Claude Code plugin manifest and marketplace catalog inherit the
-version from the source plugin metadata.
+version from the source plugin metadata. The Skillshare hub `generatedAt` value
+is derived deterministically from package date versions, so rebuilding does not
+create timestamp-only diffs.
 
 ## Manual Release Workflow
 
@@ -131,9 +136,10 @@ generated/codex/skills/<name>
 generated/agent-skills/<name>
 ```
 
-5. Runs tests, syntax checks, package verification, generated-output audit, and
+5. Regenerates the Claude marketplace and Skillshare hub index.
+6. Runs tests, syntax checks, package verification, generated-output audit, and
    generated-clean verification.
-6. Commits and pushes:
+7. Commits and pushes:
 
 ```text
 Release <name> <version>

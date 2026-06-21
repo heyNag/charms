@@ -1,0 +1,3 @@
+# Skillshare should discover canonical source packages only.
+# Public target-specific copies live under generated/ and are rebuilt from packages/.
+generated/

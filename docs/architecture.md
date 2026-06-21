@@ -10,6 +10,7 @@ The repo shape is intentionally small:
 packages/             local skills, commands, and package source
 generated/            generated Claude/Codex/OpenCode packages, committed for public install
 .claude-plugin/       generated Claude Code marketplace catalog
+skillshare-hub.json   generated Skillshare hub index for canonical package discovery
 mcp/                  deployable MCP server shapes, one folder per MCP server
 scripts/              install, test, sync, and helper scripts
 .github/workflows/    CI
@@ -63,12 +64,14 @@ x-bookmarks
 
 ## Public Distribution
 
-`generated/` and `.claude-plugin/` are generated from `packages/`, but they are
-committed as public install targets so users and agents can install without
-understanding the source workspace layout.
+`generated/`, `.claude-plugin/`, and `skillshare-hub.json` are generated from
+`packages/`, but they are committed as public install targets or discovery
+metadata so users and agents can install without understanding the source
+workspace layout.
 
 ```text
 .claude-plugin/marketplace.json       generated Claude Code marketplace catalog
+skillshare-hub.json                   generated Skillshare hub index
 generated/claude/plugins/<name>       Claude Code plugin package
 generated/claude/custom-skills/<name> Claude Desktop / claude.ai custom skill ZIP source
 generated/codex/skills/<name>         Codex skill package
@@ -86,7 +89,8 @@ make verify-generated-clean
 ```
 
 `make rebuild-generated` removes only the committed generated output roots
-`.claude-plugin/` and `generated/`, then recreates them from `packages/`. Use it
+`.claude-plugin/` and `generated/`, then recreates them from `packages/`. The
+same build also rewrites `skillshare-hub.json` from package manifests. Use it
 whenever package source, generator templates, generated notices, or public
 distribution paths change. Do not move generated files into place manually.
 
@@ -100,6 +104,8 @@ Packages follow the same manifest pattern:
 - `generated/codex/skills/<name>` exists when the package targets Codex.
 - `generated/agent-skills/<name>` exists when the package targets generic
   `SKILL.md` Agent Skills consumers such as OpenCode.
+- `skillshare-hub.json` lists public agent-compatible packages for Skillshare
+  Hub search and points at `heyNag/agent-tools/packages/<name>`.
 - `mcp/<name>` exists only when the package needs an MCP server shape.
 
 ## MCP
@@ -133,6 +139,7 @@ Repo source paths are authoritative:
 
 - Edit packages under `packages/`.
 - Regenerate public outputs under `generated/` and `.claude-plugin/` from packages.
+- Regenerate `skillshare-hub.json` from package manifests.
 - Edit MCP server source under `mcp/`.
 - Edit install and test helpers under `scripts/`.
 - Edit project memory under `docs/`.
@@ -167,6 +174,7 @@ Source: packages/x-bookmarks/                              -> generated/claude/c
 Source: packages/x-bookmarks/                              -> generated/codex/skills/x-bookmarks/
 Source: packages/x-bookmarks/                              -> generated/agent-skills/x-bookmarks/
 Source: packages/*/tool.json and packages/*/plugin/        -> .claude-plugin/
+Source: packages/*/tool.json and packages/*/plugin/        -> skillshare-hub.json
 ```
 
 Generated directories are committed for public installation, but they are

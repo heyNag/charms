@@ -30,6 +30,7 @@ for tool_json in "$ROOT"/packages/*/tool.json; do
 done
 
 "$ROOT/scripts/build-marketplace.sh"
+python3 "$ROOT/scripts/build-skillshare-hub.py" "$ROOT"
 
 if [[ "$found" -eq 0 ]]; then
   echo "no package manifests found under packages/*/tool.json"

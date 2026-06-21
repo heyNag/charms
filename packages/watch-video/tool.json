@@ -1,6 +1,7 @@
 {
   "name": "watch-video",
   "description": "Inspect short video clips using transcripts, timestamps, frames, and Groq Whisper fallback.",
+  "tags": ["video", "youtube", "transcription", "frames", "local"],
   "targets": ["claude", "codex", "generic"],
   "surfaces": ["claude-code", "claude-desktop", "codex", "opencode"],
   "agent_agnostic": true,

@@ -27,6 +27,7 @@ generated/claude/custom-skills/<name>/   Claude Desktop / claude.ai custom skill
 generated/codex/skills/<name>/           Codex skill package
 generated/agent-skills/<name>/           OpenCode / generic SKILL.md package
 .claude-plugin/marketplace.json          Claude Code marketplace catalog
+skillshare-hub.json                      Skillshare hub index
 ```
 
 The generator decides what to build from `packages/<name>/tool.json`.
@@ -37,6 +38,7 @@ Use this target set for a normal agent-agnostic skill:
 {
   "name": "awesome-skill",
   "description": "One sentence describing what the skill does.",
+  "tags": ["awesome", "local"],
   "targets": ["claude", "codex", "generic"],
   "surfaces": ["claude-code", "claude-desktop", "codex", "opencode"],
   "agent_agnostic": true,
@@ -46,6 +48,8 @@ Use this target set for a normal agent-agnostic skill:
 ```
 
 With those targets, `make rebuild-generated` builds every target listed above.
+It also regenerates `skillshare-hub.json`, so Skillshare Hub users can discover
+the package from the canonical `packages/awesome-skill` source path.
 Adding the package name to `.github/workflows/release-skill.yml` also makes it
 available to the manual release/update workflow described in
 [`updating-a-skill.md`](updating-a-skill.md).
@@ -130,6 +134,7 @@ Create `packages/awesome-skill/tool.json`:
 {
   "name": "awesome-skill",
   "description": "Describe the skill in one public-facing sentence.",
+  "tags": ["awesome", "local"],
   "targets": ["claude", "codex", "generic"],
   "surfaces": ["claude-code", "claude-desktop", "codex", "opencode"],
   "agent_agnostic": true,
@@ -145,6 +150,9 @@ Target meanings:
 - `codex` builds `generated/codex/skills/<name>`.
 - `generic` builds `generated/agent-skills/<name>` and
   `generated/claude/custom-skills/<name>`.
+
+`tags` are optional but recommended. They appear in `skillshare-hub.json` and
+help Skillshare Hub search. Keep tags short, lowercase, and public-safe.
 
 Set `has_mcp` to `true` only when an MCP folder exists or is intentionally part
 of the package plan. Do not add an MCP gateway.
@@ -515,7 +523,8 @@ git diff --cached --check
 Confirm:
 
 - Source files under `packages/<name>/` are staged.
-- Generated outputs under `generated/` and `.claude-plugin/` are staged.
+- Generated outputs under `generated/`, `.claude-plugin/`, and
+  `skillshare-hub.json` are staged.
 - `.github/workflows/release-skill.yml` includes the new package name.
 - Docs are staged.
 - No `.env.local`, secrets, local auth state, generated run artifacts, media,

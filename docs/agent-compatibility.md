@@ -21,6 +21,7 @@ generated/claude/plugins/<name>        Claude Code plugin package
 generated/claude/custom-skills/<name>  Claude Desktop / claude.ai custom skill folder
 generated/codex/skills/<name>          Codex skill package
 generated/agent-skills/<name>          OpenCode and generic SKILL.md skill folder
+skillshare-hub.json                    Skillshare discovery index, not a runtime target
 ```
 
 For diagrams and exact per-target folder shapes, see
@@ -86,6 +87,16 @@ cp -R generated/agent-skills/x-bookmarks ~/.config/opencode/skills/x-bookmarks
 
 The same portable folders can also be copied to agent-compatible locations such
 as `.agents/skills/<name>` or `~/.agents/skills/<name>`.
+
+Skillshare is an installer and sync manager rather than a separate runtime
+target. Use Hub mode with:
+
+```text
+https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json
+```
+
+The hub points at canonical `packages/<name>` source paths. See
+[`skillshare.md`](skillshare.md) for duplicate-search behavior and update flow.
 
 ## Filename Compatibility
 

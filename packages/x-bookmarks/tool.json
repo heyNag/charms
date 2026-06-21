@@ -1,6 +1,7 @@
 {
   "name": "x-bookmarks",
   "description": "Fetch, search, and digest X/Twitter bookmarks using Bird cookie auth or optional X API v2.",
+  "tags": ["x", "twitter", "bookmarks", "bird", "local"],
   "targets": ["claude", "codex", "generic"],
   "surfaces": ["claude-code", "claude-desktop", "codex", "opencode"],
   "agent_agnostic": true,

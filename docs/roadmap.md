@@ -9,7 +9,7 @@ for video analysis, `packages/codex-reset-credit` as a read-only local skill for
 checking Codex reset credits and rate-limit reset windows, and
 `packages/x-bookmarks` as a local X/Twitter bookmark fetch/search/digest skill.
 Keep all public packages easy to install into Claude Code, Claude custom skills,
-Codex, and OpenCode/generic Agent Skills consumers.
+Codex, OpenCode/generic Agent Skills consumers, and Skillshare Hub users.
 
 `watch-video` includes preflight checks, focused URL downloads, caption-first
 transcripts, bounded auto frame extraction, report modes, and Groq fallback.
@@ -39,6 +39,8 @@ Public packages should follow this shape:
 - `generated/codex/skills/<name>` when the package targets Codex
 - `generated/agent-skills/<name>` when the package targets OpenCode or generic
   `SKILL.md` Agent Skills consumers
+- `skillshare-hub.json` as generated discovery metadata for Skillshare Hub
+  users
 - `mcp/<name>` only when the package needs an MCP server
 
 Keep skills agent-agnostic at the source level where practical. Surface-specific
