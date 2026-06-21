@@ -4,6 +4,9 @@ This repo keeps package source in one place and generates multiple public
 install targets from it. The generated targets are committed for convenience,
 but they are not source of truth.
 
+For the full new-skill onboarding checklist, use
+[`adding-a-skill.md`](adding-a-skill.md).
+
 Some targets share the same core shape, and each target has a small wrapper or
 layout difference.
 

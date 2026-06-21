@@ -14,6 +14,7 @@ Rules for future AI agents working in this repo:
 - When adding a package, declare its targets in `packages/<name>/tool.json`.
   The package builders iterate manifests and create every target automatically.
   Do not add one-off generated package copies by hand.
+- Follow `docs/adding-a-skill.md` for the full new-skill checklist.
 - Do not manually edit `generated/` or `.claude-plugin/` outputs unless the
   user explicitly asks for a generated-output-only change.
 - Keep skill source agent-agnostic when possible. Put Claude Code marketplace

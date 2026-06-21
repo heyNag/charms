@@ -272,6 +272,9 @@ Future agents should read `docs/README.md`, `docs/architecture.md`,
 `docs/agent-guidelines.md`, `docs/agent-compatibility.md`, and
 `docs/distribution-targets.md` before making structural changes.
 
+When adding a new skill, follow
+[docs/adding-a-skill.md](docs/adding-a-skill.md).
+
 ## Security
 
 Do not commit real API keys, Codex auth/session files, X/Twitter cookies or
