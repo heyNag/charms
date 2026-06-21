@@ -13,7 +13,9 @@ Public install targets:
 
 ```text
 generated/claude/plugins/codex-reset-credit
+generated/claude/custom-skills/codex-reset-credit
 generated/codex/skills/codex-reset-credit
+generated/agent-skills/codex-reset-credit
 ```
 
 These public install targets are generated from `packages/codex-reset-credit`.
@@ -37,7 +39,7 @@ After installing, try:
 If your Claude Code version shows a different command name, run `/plugin list`
 or `/plugin details codex-reset-credit@agent-tools`.
 
-Codex or generic skill install:
+Codex install:
 
 ```sh
 git clone https://github.com/heyNag/agent-tools.git
@@ -46,6 +48,26 @@ mkdir -p ~/.codex/skills
 rm -rf ~/.codex/skills/codex-reset-credit
 cp -R generated/codex/skills/codex-reset-credit ~/.codex/skills/codex-reset-credit
 ```
+
+Claude Desktop / claude.ai custom skill ZIP:
+
+```sh
+make rebuild-generated
+cd generated/claude/custom-skills
+zip -r codex-reset-credit.zip codex-reset-credit
+```
+
+OpenCode install:
+
+```sh
+mkdir -p ~/.config/opencode/skills
+rm -rf ~/.config/opencode/skills/codex-reset-credit
+cp -R generated/agent-skills/codex-reset-credit ~/.config/opencode/skills/codex-reset-credit
+```
+
+`generated/agent-skills/codex-reset-credit/SKILL.md` and
+`generated/claude/custom-skills/codex-reset-credit/skill.md` are both generated
+from `packages/codex-reset-credit/SKILL.md`.
 
 Local development install from source:
 
@@ -66,6 +88,11 @@ The helper script:
 
 It does not redeem credits, consume credits, modify Codex files, or write local
 state.
+
+The skill folder format is portable across agent surfaces, but the useful live
+behavior needs access to local Codex auth/session state. It is most useful in
+local agent shells such as Claude Code, Codex, or OpenCode. Hosted Claude custom
+skill upload cannot read local Codex Desktop auth files on your machine.
 
 ## Usage
 

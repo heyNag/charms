@@ -1,7 +1,9 @@
 {
   "name": "codex-reset-credit",
   "description": "Check Codex reset credits and local rate-limit reset windows without exposing auth secrets.",
-  "targets": ["claude", "codex"],
+  "targets": ["claude", "codex", "generic"],
+  "surfaces": ["claude-code", "claude-desktop", "codex", "opencode"],
+  "agent_agnostic": true,
   "has_mcp": false,
   "public": true
 }

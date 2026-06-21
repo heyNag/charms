@@ -16,7 +16,9 @@ Public install targets:
 
 ```text
 generated/claude/plugins/watch-video
+generated/claude/custom-skills/watch-video
 generated/codex/skills/watch-video
+generated/agent-skills/watch-video
 ```
 
 These public install targets are generated from `packages/watch-video` and have
@@ -47,7 +49,7 @@ After installing, try:
 If your Claude Code version shows a different command name, run `/plugin list`
 or `/plugin details watch-video@agent-tools`.
 
-Codex or generic skill install:
+Codex install:
 
 ```sh
 git clone https://github.com/heyNag/agent-tools.git
@@ -56,6 +58,26 @@ mkdir -p ~/.codex/skills
 rm -rf ~/.codex/skills/watch-video
 cp -R generated/codex/skills/watch-video ~/.codex/skills/watch-video
 ```
+
+Claude Desktop / claude.ai custom skill ZIP:
+
+```sh
+make rebuild-generated
+cd generated/claude/custom-skills
+zip -r watch-video.zip watch-video
+```
+
+OpenCode install:
+
+```sh
+mkdir -p ~/.config/opencode/skills
+rm -rf ~/.config/opencode/skills/watch-video
+cp -R generated/agent-skills/watch-video ~/.config/opencode/skills/watch-video
+```
+
+`generated/agent-skills/watch-video/SKILL.md` and
+`generated/claude/custom-skills/watch-video/skill.md` are both generated from
+`packages/watch-video/SKILL.md`.
 
 Local development install from source:
 
@@ -85,6 +107,11 @@ The `watch.py` flow is:
 9. Optionally use OpenAI transcription with `--transcriber openai`.
 10. Extract frames with `ffmpeg` using automatic frame budgeting by default.
 11. Generate transcript files and a Markdown report.
+
+The skill folder format is portable across agent surfaces, but full runtime
+behavior needs local `yt-dlp`, `ffmpeg`, and `ffprobe`. Hosted Claude custom
+skill upload can carry the instructions and scripts, but local shell-based
+video inspection is most reliable in Claude Code, Codex, or OpenCode.
 
 Default Groq model:
 

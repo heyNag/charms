@@ -23,7 +23,9 @@ This source directory generates these public install copies:
 
 ```text
 packages/codex-reset-credit -> generated/claude/plugins/codex-reset-credit
+packages/codex-reset-credit -> generated/claude/custom-skills/codex-reset-credit
 packages/codex-reset-credit -> generated/codex/skills/codex-reset-credit
+packages/codex-reset-credit -> generated/agent-skills/codex-reset-credit
 ```
 
 Generated Markdown and Python files include in-file notices that point back to

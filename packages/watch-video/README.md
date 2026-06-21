@@ -9,15 +9,22 @@ local video into a small bundle of evidence:
 - optional frames
 - a concise report
 
-It is designed for local use by Claude, Codex, and similar tools.
+It is designed for local use by Claude Code, Codex, OpenCode, and similar
+agent tools. The skill format is portable; full video processing still needs a
+local runtime with `yt-dlp`, `ffmpeg`, and `ffprobe`.
 
 In the `agent-tools` repo, source lives under `packages/watch-video`. Public
 install targets are generated from that source into
-`generated/claude/plugins/watch-video` and `generated/codex/skills/watch-video`.
+`generated/claude/plugins/watch-video`,
+`generated/claude/custom-skills/watch-video`,
+`generated/codex/skills/watch-video`, and `generated/agent-skills/watch-video`.
 
 Claude Code marketplace metadata points at the generated plugin package under
-`generated/claude/plugins/watch-video`. Codex and generic skill users can copy
-`generated/codex/skills/watch-video` into their local skills directory.
+`generated/claude/plugins/watch-video`. Codex users can copy
+`generated/codex/skills/watch-video` into their local skills directory. Claude
+Desktop / claude.ai custom skill users can ZIP
+`generated/claude/custom-skills/watch-video`. OpenCode and generic Agent Skills
+users can use `generated/agent-skills/watch-video`.
 
 ## Requirements
 
@@ -44,7 +51,7 @@ verbose JSON segment timestamps.
 
 ## Quickstart
 
-From the source package directory or a Codex/generic skill install:
+From the source package directory, Codex install, or agent-generic install:
 
 ```sh
 python3 scripts/watch.py "https://www.youtube.com/watch?v=DTCyvo6cC54" \
@@ -101,5 +108,9 @@ Generated install packages contain a subset of those files:
 
 - Claude plugin package: `README.md`, `LICENSE`, `.claude-plugin/plugin.json`,
   commands, and `skills/watch-video/`.
-- Codex/generic skill package: `README.md`, `LICENSE`, `SKILL.md`, and
+- Codex skill package: `README.md`, `LICENSE`, `SKILL.md`, and
+  `scripts/`.
+- Claude custom-skill package: `README.md`, `LICENSE`, lowercase `skill.md`,
+  and `scripts/`.
+- Agent-generic skill package: `README.md`, `LICENSE`, `SKILL.md`, and
   `scripts/`.

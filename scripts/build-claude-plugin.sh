@@ -180,11 +180,17 @@ After editing source:
 4. Commit both source and regenerated output changes.
 EOF
 prune_generated "$OUT"
-python3 "$ROOT/scripts/add-generated-headers.py" \
+header_args=(
   --root "$ROOT" \
   --map "generated/claude/plugins/$PACKAGE/README.md=packages/$PACKAGE/README.md" \
-  --map "generated/claude/plugins/$PACKAGE/skills/$PACKAGE/SKILL.md=packages/$PACKAGE/SKILL.md" \
-  --map "generated/claude/plugins/$PACKAGE/skills/$PACKAGE/scripts=packages/$PACKAGE/scripts" \
-  --map "generated/claude/plugins/$PACKAGE/commands=packages/$PACKAGE/commands"
+  --map "generated/claude/plugins/$PACKAGE/skills/$PACKAGE/SKILL.md=packages/$PACKAGE/SKILL.md"
+)
+if [[ -d "$SRC/scripts" ]]; then
+  header_args+=(--map "generated/claude/plugins/$PACKAGE/skills/$PACKAGE/scripts=packages/$PACKAGE/scripts")
+fi
+if [[ -d "$SRC/commands" ]]; then
+  header_args+=(--map "generated/claude/plugins/$PACKAGE/commands=packages/$PACKAGE/commands")
+fi
+python3 "$ROOT/scripts/add-generated-headers.py" "${header_args[@]}"
 
 echo "built Claude plugin: generated/claude/plugins/$PACKAGE"

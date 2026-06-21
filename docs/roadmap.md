@@ -21,7 +21,7 @@ behavior when native captions are incomplete or unavailable. Future work can add
 better visual report summaries, configurable transcript provider preferences,
 and richer caption diagnostics.
 
-## Phase 3: Richer Claude/Codex Ergonomics
+## Phase 3: Richer Agent Ergonomics
 
 Make local use smoother through clearer commands, safer install behavior, and
 agent-friendly instructions. Keep installed copies downstream of repo source.
@@ -29,8 +29,15 @@ Public packages should follow this shape:
 
 - `packages/<name>` for source of truth
 - `generated/claude/plugins/<name>` when the package targets Claude Code
-- `generated/codex/skills/<name>` when the package targets Codex or generic skills
+- `generated/claude/custom-skills/<name>` when the package targets Claude
+  Desktop or claude.ai custom skill upload
+- `generated/codex/skills/<name>` when the package targets Codex
+- `generated/agent-skills/<name>` when the package targets OpenCode or generic
+  `SKILL.md` Agent Skills consumers
 - `mcp/<name>` only when the package needs an MCP server
+
+Keep skills agent-agnostic at the source level where practical. Surface-specific
+packaging should be generated from `packages/<name>`, not maintained by hand.
 
 ## Phase 4: Real MCP Tools
 

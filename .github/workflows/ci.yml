@@ -33,5 +33,8 @@ jobs:
       - name: Verify public packages
         run: make verify-packages
 
+      - name: Audit generated source mapping
+        run: make audit-generated
+
       - name: Verify generated outputs are committed
         run: make verify-generated-clean

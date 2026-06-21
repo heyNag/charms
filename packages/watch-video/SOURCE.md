@@ -23,7 +23,9 @@ This source directory generates these public install copies:
 
 ```text
 packages/watch-video -> generated/claude/plugins/watch-video
+packages/watch-video -> generated/claude/custom-skills/watch-video
 packages/watch-video -> generated/codex/skills/watch-video
+packages/watch-video -> generated/agent-skills/watch-video
 ```
 
 Generated Markdown and Python files include in-file notices that point back to

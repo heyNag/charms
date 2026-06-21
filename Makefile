@@ -1,4 +1,4 @@
-.PHONY: test syntax doctor install install-dry-run groq-test mcp-build clean-generated build-claude-plugin build-codex-skill build-packages rebuild-generated verify-packages audit-generated verify-generated-clean ci-local
+.PHONY: test syntax doctor install install-dry-run groq-test mcp-build clean-generated build-claude-plugin build-codex-skill build-agent-skill build-claude-custom-skill build-packages rebuild-generated verify-packages audit-generated verify-generated-clean ci-local
 
 AUDIO ?=
 PYTHON ?= python3
@@ -43,6 +43,12 @@ build-claude-plugin:
 
 build-codex-skill:
 	./scripts/build-codex-skill.sh
+
+build-agent-skill:
+	./scripts/build-agent-skill.sh
+
+build-claude-custom-skill:
+	./scripts/build-claude-custom-skill.sh
 
 build-packages:
 	./scripts/build-packages.sh

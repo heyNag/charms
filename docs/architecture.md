@@ -6,8 +6,8 @@ plugins, helper scripts, and future MCP servers.
 The current shape is intentionally small:
 
 ```text
-packages/             local skills, commands, and Claude/Codex-facing packages
-generated/            generated Claude/Codex packages, committed for public install
+packages/             local skills, commands, and package source
+generated/            generated Claude/Codex/OpenCode packages, committed for public install
 .claude-plugin/       generated Claude Code marketplace catalog
 mcp/                  deployable MCP server shapes, one folder per MCP server
 scripts/              install, test, sync, and helper scripts
@@ -54,7 +54,9 @@ the source workspace layout.
 ```text
 .claude-plugin/marketplace.json       generated Claude Code marketplace catalog
 generated/claude/plugins/<name>       Claude Code plugin package
-generated/codex/skills/<name>         Codex/generic skill package
+generated/claude/custom-skills/<name> Claude Desktop / claude.ai custom skill ZIP source
+generated/codex/skills/<name>         Codex skill package
+generated/agent-skills/<name>         OpenCode and generic SKILL.md Agent Skills package
 ```
 
 Do not manually edit generated public outputs during normal development. Edit
@@ -77,7 +79,11 @@ Future packages should follow the same manifest pattern:
 - `packages/<name>/tool.json` declares `public`, `targets`, and whether an MCP
   placeholder exists.
 - `generated/claude/plugins/<name>` exists only when the package targets Claude Code.
-- `generated/codex/skills/<name>` exists only when the package targets Codex or generic skills.
+- `generated/claude/custom-skills/<name>` exists when the package targets
+  Claude custom skill upload.
+- `generated/codex/skills/<name>` exists only when the package targets Codex.
+- `generated/agent-skills/<name>` exists only when the package targets generic
+  `SKILL.md` Agent Skills consumers such as OpenCode.
 - `mcp/<name>` exists only when the package needs an MCP server shape.
 
 ## MCP
@@ -116,10 +122,10 @@ Repo source paths are authoritative:
 - Edit install and test helpers under `scripts/`.
 - Edit project memory under `docs/`.
 
-Install scripts copy repo source into local Claude/Codex folders. Those installed
-copies are runtime copies, not source of truth. Do not manually edit installed
-copies and treat them as canonical. Change the repo source and rerun the install
-script instead.
+Install scripts copy repo source into local Claude/Codex folders. Those
+installed copies are runtime copies, not source of truth. Do not manually edit
+installed copies or treat them as canonical. Change the repo source and rerun
+the install script instead.
 
 ## Edit Map
 
@@ -133,9 +139,13 @@ Edit: mcp/watch-video/                  MCP placeholder source
 Edit: scripts/                          build, install, and verification helpers
 Edit: docs/                             project memory and guidance
 Source: packages/watch-video/                              -> generated/claude/plugins/watch-video/
+Source: packages/watch-video/                              -> generated/claude/custom-skills/watch-video/
 Source: packages/watch-video/                              -> generated/codex/skills/watch-video/
+Source: packages/watch-video/                              -> generated/agent-skills/watch-video/
 Source: packages/codex-reset-credit/                       -> generated/claude/plugins/codex-reset-credit/
+Source: packages/codex-reset-credit/                       -> generated/claude/custom-skills/codex-reset-credit/
 Source: packages/codex-reset-credit/                       -> generated/codex/skills/codex-reset-credit/
+Source: packages/codex-reset-credit/                       -> generated/agent-skills/codex-reset-credit/
 Source: packages/*/tool.json and packages/*/plugin/        -> .claude-plugin/
 ```
 

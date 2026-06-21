@@ -9,16 +9,18 @@ Before making structural changes, future agents should read:
 1. `docs/README.md`
 2. `docs/architecture.md`
 3. `docs/agent-guidelines.md`
+4. `docs/agent-compatibility.md`
 
 Recommended reading order for broader work:
 
 1. `architecture.md`
-2. `agent-guidelines.md`
-3. `security.md`
-4. `watch-video.md`
-5. `codex-reset-credit.md`
-6. `roadmap.md`
-7. `decisions.md`
+2. `agent-compatibility.md`
+3. `agent-guidelines.md`
+4. `security.md`
+5. `watch-video.md`
+6. `codex-reset-credit.md`
+7. `roadmap.md`
+8. `decisions.md`
 
 Keep these docs current when architecture, workflow, install behavior, security
 practice, or package scope changes. A future agent should not need prior chat

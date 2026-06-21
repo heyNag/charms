@@ -51,10 +51,11 @@ server shapes. A gateway would add architecture before there is a clear need.
 Decision: Commit generated public package outputs under `generated/` and
 `.claude-plugin/`.
 
-Reason: Users and future agents should be able to install Claude Code plugins
-and Codex/generic skills without learning the internal source layout. Source
-still lives under `packages/`; generated outputs are rebuilt from scratch with
-`make rebuild-generated` and checked with `make verify-packages`.
+Reason: Users and future agents should be able to install Claude Code plugins,
+Codex skills, and generic agent-skill bundles without learning the internal
+source layout. Source still lives under `packages/`; generated outputs are
+rebuilt from scratch with `make rebuild-generated` and checked with
+`make verify-packages`.
 
 ## 2026-06-19: Package Manifests Declare Targets
 
@@ -101,3 +102,22 @@ Reason: It is a small, useful, read-only local agent tool that fits the
 `agent-tools` package model. The package keeps the same strict security
 boundary: inspect local Codex auth/session state and the reset-credit endpoint,
 but never print secrets or modify Codex state.
+
+## 2026-06-21: Generate Agent-Agnostic Skill Bundles
+
+Decision: Generate portable skill folders under `generated/agent-skills/<name>`
+for public packages that target generic `SKILL.md` Agent Skills consumers, and
+generate Claude custom-skill upload folders under
+`generated/claude/custom-skills/<name>`.
+
+Reason: Claude Code, Codex, OpenCode, and Claude custom skills all center on a
+folder containing skill instructions plus optional scripts, but distribution
+details differ. Keeping `packages/<name>/SKILL.md` as the source and generating
+Claude Code, Claude custom-skill, Codex, and generic skill outputs avoids
+hand-maintained copies. `SKILL.md` and lowercase `skill.md` are generated into
+separate output folders so case-insensitive filesystems do not collapse them
+into the same file.
+
+Consequence: Future packages should declare the `generic` target in
+`tool.json` when they should be installable as a plain agent skill. Generated
+outputs remain disposable and must be rebuilt with `make rebuild-generated`.

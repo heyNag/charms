@@ -33,7 +33,7 @@ After installing `codex-reset-credit`, try:
 If your Claude Code version shows a different command name, run `/plugin list`
 or `/plugin details <plugin>@agent-tools`.
 
-## Install For Codex Or Generic Skills
+## Install For Codex
 
 ```sh
 git clone https://github.com/heyNag/agent-tools.git
@@ -44,6 +44,38 @@ cp -R generated/codex/skills/watch-video ~/.codex/skills/watch-video
 rm -rf ~/.codex/skills/codex-reset-credit
 cp -R generated/codex/skills/codex-reset-credit ~/.codex/skills/codex-reset-credit
 ```
+
+## Install For Claude Desktop Or Claude.ai Skills
+
+Claude custom skills use a ZIP containing a skill folder with lowercase
+`skill.md`. Use the Claude custom-skill bundles generated from `packages/`:
+
+```sh
+git clone https://github.com/heyNag/agent-tools.git
+cd agent-tools
+make rebuild-generated
+cd generated/claude/custom-skills
+zip -r watch-video.zip watch-video
+zip -r codex-reset-credit.zip codex-reset-credit
+```
+
+Upload the ZIP in Claude's `Customize > Skills` flow. The lowercase `skill.md`
+file is generated from `packages/<name>/SKILL.md`.
+
+## Install For OpenCode
+
+```sh
+git clone https://github.com/heyNag/agent-tools.git
+cd agent-tools
+mkdir -p ~/.config/opencode/skills
+rm -rf ~/.config/opencode/skills/watch-video
+cp -R generated/agent-skills/watch-video ~/.config/opencode/skills/watch-video
+rm -rf ~/.config/opencode/skills/codex-reset-credit
+cp -R generated/agent-skills/codex-reset-credit ~/.config/opencode/skills/codex-reset-credit
+```
+
+The same `generated/agent-skills/<name>` folders also work for agent-compatible
+skill locations such as `.agents/skills/<name>` or `~/.agents/skills/<name>`.
 
 ## Local Development Install
 
@@ -118,7 +150,7 @@ general|tutorial|ui-bug|notes`, `--frame-mode auto|interval`, `--fps`,
 
 ```text
 packages/             source of truth for tools
-generated/            generated Claude/Codex public install packages
+generated/            generated Claude/Codex/OpenCode public install packages
 .claude-plugin/       generated Claude Code marketplace catalog
 mcp/                  future deployable MCP servers
 docs/                 project memory and agent orientation
@@ -145,9 +177,13 @@ Do not edit generated public install copies directly:
 
 ```text
 packages/watch-video/                                -> generated/claude/plugins/watch-video/
+packages/watch-video/                                -> generated/claude/custom-skills/watch-video/
 packages/watch-video/                                -> generated/codex/skills/watch-video/
+packages/watch-video/                                -> generated/agent-skills/watch-video/
 packages/codex-reset-credit/                         -> generated/claude/plugins/codex-reset-credit/
+packages/codex-reset-credit/                         -> generated/claude/custom-skills/codex-reset-credit/
 packages/codex-reset-credit/                         -> generated/codex/skills/codex-reset-credit/
+packages/codex-reset-credit/                         -> generated/agent-skills/codex-reset-credit/
 packages/*/tool.json and packages/*/plugin/plugin.json -> .claude-plugin/marketplace.json
 ```
 
@@ -174,10 +210,31 @@ Future tools should follow this pattern:
 
 - `packages/<name>/tool.json`
 - `generated/claude/plugins/<name>` when the tool targets Claude Code
-- `generated/codex/skills/<name>` when the tool targets Codex or generic skills
+- `generated/claude/custom-skills/<name>` when the tool targets Claude Desktop
+  or claude.ai custom skill upload
+- `generated/codex/skills/<name>` when the tool targets Codex
+- `generated/agent-skills/<name>` when the tool targets OpenCode or generic
+  `SKILL.md` Agent Skills consumers
 - `mcp/<name>` only when an MCP server is needed
 
 There is no MCP gateway for now.
+
+## Agent Compatibility
+
+The source skills are written to the Agent Skills convention: one folder per
+skill, a frontmatter `SKILL.md`, and optional `scripts/`. Generated public
+outputs adapt that source for each surface:
+
+- Claude Code: `generated/claude/plugins/<name>`
+- Codex: `generated/codex/skills/<name>`
+- Claude Desktop / claude.ai custom skills: `generated/claude/custom-skills/<name>` ZIP
+- OpenCode and generic Agent Skills: `generated/agent-skills/<name>`
+
+Runtime access still matters. `watch-video` needs local `yt-dlp` and `ffmpeg`
+for full video inspection. `codex-reset-credit` needs local Codex auth/session
+state, so it is most useful in local shells such as Claude Code, Codex, and
+OpenCode. Hosted Claude skill upload can carry the instructions and bundled
+files, but it cannot read your local Codex auth files.
 
 ## Troubleshooting
 

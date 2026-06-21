@@ -5,7 +5,7 @@ PACKAGE="${1:-watch-video}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$ROOT/packages/$PACKAGE"
 TOOL_JSON="$SRC/tool.json"
-OUT="$ROOT/generated/codex/skills/$PACKAGE"
+OUT="$ROOT/generated/claude/custom-skills/$PACKAGE"
 
 fail() {
   echo "error: $*" >&2
@@ -56,6 +56,7 @@ prune_generated() {
       -name ".env" -o \
       -name ".env.local" -o \
       -name ".watch-video" -o \
+      -name ".codex" -o \
       -name "__pycache__" -o \
       -name ".pytest_cache" -o \
       -name ".mypy_cache" -o \
@@ -68,11 +69,13 @@ prune_generated() {
   find "$dest_dir" -name ".DS_Store" -delete
   find "$dest_dir" \
     \( \
+      -name "auth.json" -o \
       -name "metadata.json" -o \
       -name "transcript.json" -o \
       -name "transcript.md" -o \
       -name "report.md" -o \
       -name "groq_transcript.raw.json" -o \
+      -iname "rollout-*.jsonl" -o \
       -iname "frame_*.jpg" -o \
       -iname "frame_*.jpeg" -o \
       -iname "frame_*.png" -o \
@@ -97,8 +100,8 @@ prune_generated() {
   echo "skip: $PACKAGE is not public"
   exit 0
 }
-[[ "$(json_has_target codex)" == "true" ]] || {
-  echo "skip: $PACKAGE does not target codex"
+[[ "$(json_has_target generic)" == "true" ]] || {
+  echo "skip: $PACKAGE does not target generic"
   exit 0
 }
 
@@ -109,7 +112,7 @@ prune_generated() {
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-cp "$SRC/SKILL.md" "$OUT/SKILL.md"
+cp "$SRC/SKILL.md" "$OUT/skill.md"
 
 if [[ -d "$SRC/scripts" ]]; then
   copy_dir "$SRC/scripts" "$OUT/scripts"
@@ -118,7 +121,7 @@ fi
 cp "$SRC/README.md" "$OUT/README.md"
 cp "$ROOT/LICENSE" "$OUT/LICENSE"
 cat > "$OUT/GENERATED.md" <<EOF
-# Generated Codex Skill Package
+# Generated Claude Custom Skill Package
 
 This directory is generated from:
 
@@ -132,11 +135,15 @@ Edit the source paths on the left; the generated outputs on the right are
 rewritten by \`make rebuild-generated\`.
 
 ~~~text
-packages/$PACKAGE/README.md      -> generated/codex/skills/$PACKAGE/README.md
-packages/$PACKAGE/SKILL.md       -> generated/codex/skills/$PACKAGE/SKILL.md
-packages/$PACKAGE/scripts/       -> generated/codex/skills/$PACKAGE/scripts/
-LICENSE                          -> generated/codex/skills/$PACKAGE/LICENSE
+packages/$PACKAGE/README.md      -> generated/claude/custom-skills/$PACKAGE/README.md
+packages/$PACKAGE/SKILL.md       -> generated/claude/custom-skills/$PACKAGE/skill.md
+packages/$PACKAGE/scripts/       -> generated/claude/custom-skills/$PACKAGE/scripts/
+LICENSE                          -> generated/claude/custom-skills/$PACKAGE/LICENSE
 ~~~
+
+This bundle is for Claude Desktop / claude.ai custom skill upload. Create the
+ZIP from \`generated/claude/custom-skills\` so the archive contains the
+\`$PACKAGE/\` folder at its root.
 
 After editing source:
 
@@ -148,12 +155,12 @@ EOF
 prune_generated "$OUT"
 header_args=(
   --root "$ROOT" \
-  --map "generated/codex/skills/$PACKAGE/README.md=packages/$PACKAGE/README.md" \
-  --map "generated/codex/skills/$PACKAGE/SKILL.md=packages/$PACKAGE/SKILL.md"
+  --map "generated/claude/custom-skills/$PACKAGE/README.md=packages/$PACKAGE/README.md" \
+  --map "generated/claude/custom-skills/$PACKAGE/skill.md=packages/$PACKAGE/SKILL.md"
 )
 if [[ -d "$SRC/scripts" ]]; then
-  header_args+=(--map "generated/codex/skills/$PACKAGE/scripts=packages/$PACKAGE/scripts")
+  header_args+=(--map "generated/claude/custom-skills/$PACKAGE/scripts=packages/$PACKAGE/scripts")
 fi
 python3 "$ROOT/scripts/add-generated-headers.py" "${header_args[@]}"
 
-echo "built Codex skill: generated/codex/skills/$PACKAGE"
+echo "built Claude custom skill: generated/claude/custom-skills/$PACKAGE"

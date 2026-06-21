@@ -14,6 +14,9 @@ Security rules for this repo:
 - Committed generated package outputs live under `generated/` and
   `.claude-plugin/`; they are rebuilt from `packages/` and must not contain
   secrets or runtime artifacts.
+- Local ZIP archives made from `generated/claude/custom-skills/` for Claude
+  custom skill upload are ignored. Rebuild them when needed instead of
+  committing them.
 
 For `codex-reset-credit`, never print or commit Codex access tokens, refresh
 tokens, account IDs, raw auth file contents, credit IDs, email addresses, profile

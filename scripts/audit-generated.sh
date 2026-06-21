@@ -5,7 +5,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PACKAGE="${1:-watch-video}"
 SRC="$ROOT/packages/$PACKAGE"
 PLUGIN="$ROOT/generated/claude/plugins/$PACKAGE"
+CLAUDE_SKILL="$ROOT/generated/claude/custom-skills/$PACKAGE"
 CODEX="$ROOT/generated/codex/skills/$PACKAGE"
+AGENT="$ROOT/generated/agent-skills/$PACKAGE"
 
 fail() {
   echo "error: $*" >&2
@@ -220,6 +222,24 @@ if [[ "$(json_has_target codex)" == "true" ]]; then
   check_same_dir "$SRC/scripts" "$CODEX/scripts" || status=1
   [[ -f "$CODEX/GENERATED.md" ]] || {
     echo "missing generated marker: generated/codex/skills/$PACKAGE/GENERATED.md" >&2
+    status=1
+  }
+fi
+
+if [[ "$(json_has_target generic)" == "true" ]]; then
+  check_same_file "$SRC/README.md" "$AGENT/README.md" || status=1
+  check_same_file "$SRC/SKILL.md" "$AGENT/SKILL.md" || status=1
+  check_same_dir "$SRC/scripts" "$AGENT/scripts" || status=1
+  [[ -f "$AGENT/GENERATED.md" ]] || {
+    echo "missing generated marker: generated/agent-skills/$PACKAGE/GENERATED.md" >&2
+    status=1
+  }
+
+  check_same_file "$SRC/README.md" "$CLAUDE_SKILL/README.md" || status=1
+  check_same_file "$SRC/SKILL.md" "$CLAUDE_SKILL/skill.md" || status=1
+  check_same_dir "$SRC/scripts" "$CLAUDE_SKILL/scripts" || status=1
+  [[ -f "$CLAUDE_SKILL/GENERATED.md" ]] || {
+    echo "missing generated marker: generated/claude/custom-skills/$PACKAGE/GENERATED.md" >&2
     status=1
   }
 fi

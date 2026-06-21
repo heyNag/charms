@@ -45,3 +45,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.egg-info/
+
+# Local Claude custom-skill archives can be rebuilt from generated/agent-skills.
+*.zip

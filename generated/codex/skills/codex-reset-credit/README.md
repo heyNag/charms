@@ -18,6 +18,10 @@ It can:
 It must never print tokens, account IDs, raw auth file contents, or edit local
 Codex files.
 
+The skill folder format is portable across Claude Code, Claude Desktop, Codex,
+OpenCode, and generic Agent Skills consumers. The live helper is local-runtime
+dependent because it needs access to local Codex auth/session state.
+
 ## Source And Generated Outputs
 
 Source lives under:
@@ -30,7 +34,9 @@ Public install targets are generated from that source into:
 
 ```text
 generated/claude/plugins/codex-reset-credit
+generated/claude/custom-skills/codex-reset-credit
 generated/codex/skills/codex-reset-credit
+generated/agent-skills/codex-reset-credit
 ```
 
 Edit source first, then run:
@@ -42,7 +48,7 @@ make verify-generated-clean
 
 ## Usage
 
-From the source package directory or a Codex/generic skill install:
+From the source package directory, Codex install, or agent-generic install:
 
 ```sh
 python3 scripts/check_reset_credits.py
@@ -88,5 +94,9 @@ Generated install packages contain a subset of those files:
 
 - Claude plugin package: `README.md`, `LICENSE`, `.claude-plugin/plugin.json`,
   commands, and `skills/codex-reset-credit/`.
-- Codex/generic skill package: `README.md`, `LICENSE`, `SKILL.md`, and
+- Codex skill package: `README.md`, `LICENSE`, `SKILL.md`, and
+  `scripts/`.
+- Claude custom-skill package: `README.md`, `LICENSE`, lowercase `skill.md`,
+  and `scripts/`.
+- Agent-generic skill package: `README.md`, `LICENSE`, `SKILL.md`, and
   `scripts/`.

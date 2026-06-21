@@ -8,6 +8,8 @@
     "syntax": "files=\"$(find packages generated scripts -path '*/__pycache__' -prune -o -name '*.py' -print)\"; PYTHONDONTWRITEBYTECODE=1 python3 scripts/check-python-syntax.py $files && bash -n scripts/*.sh",
     "build:mcp": "npm --prefix mcp/watch-video run build",
     "build:packages": "./scripts/build-packages.sh",
+    "build:agent-skill": "./scripts/build-agent-skill.sh",
+    "build:claude-custom-skill": "./scripts/build-claude-custom-skill.sh",
     "rebuild:generated": "make rebuild-generated",
     "verify:packages": "./scripts/verify-packages.sh",
     "verify:generated": "make verify-generated-clean",

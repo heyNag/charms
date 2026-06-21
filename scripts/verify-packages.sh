@@ -163,6 +163,8 @@ scan_output() {
         -name ".env" -o \
         -name ".env.local" -o \
         -name ".watch-video" -o \
+        -name ".codex" -o \
+        -name "auth.json" -o \
         -name "__pycache__" -o \
         -name ".pytest_cache" -o \
         -name ".mypy_cache" -o \
@@ -177,6 +179,7 @@ scan_output() {
         -name "transcript.md" -o \
         -name "report.md" -o \
         -name "groq_transcript.raw.json" -o \
+        -iname "rollout-*.jsonl" -o \
         -iname "frame_*.jpg" -o \
         -iname "frame_*.jpeg" -o \
         -iname "frame_*.png" -o \
@@ -300,6 +303,28 @@ for tool_json in "$ROOT"/packages/*/tool.json; do
       check_dir "$codex_dir/scripts"
     fi
     scan_output "$codex_dir"
+  fi
+
+  if [[ "$(json_has_target "$tool_json" generic)" == "true" ]]; then
+    agent_dir="$ROOT/generated/agent-skills/$package"
+    check_file "$agent_dir/GENERATED.md"
+    check_file "$agent_dir/SKILL.md"
+    check_file "$agent_dir/README.md"
+    check_file "$agent_dir/LICENSE"
+    if [[ -d "$package_dir/scripts" ]]; then
+      check_dir "$agent_dir/scripts"
+    fi
+    scan_output "$agent_dir"
+
+    claude_skill_dir="$ROOT/generated/claude/custom-skills/$package"
+    check_file "$claude_skill_dir/GENERATED.md"
+    check_file "$claude_skill_dir/skill.md"
+    check_file "$claude_skill_dir/README.md"
+    check_file "$claude_skill_dir/LICENSE"
+    if [[ -d "$package_dir/scripts" ]]; then
+      check_dir "$claude_skill_dir/scripts"
+    fi
+    scan_output "$claude_skill_dir"
   fi
 done
 

@@ -13,6 +13,11 @@ Rules for future AI agents working in this repo:
   public outputs need to change.
 - Do not manually edit `generated/` or `.claude-plugin/` outputs unless the
   user explicitly asks for a generated-output-only change.
+- Keep skill source agent-agnostic when possible. Put Claude Code marketplace
+  wrapping under generated Claude plugin output, and keep reusable workflow
+  guidance in `packages/<name>/SKILL.md`.
+- Document runtime assumptions honestly. A skill folder can be portable even
+  when a helper script needs local binaries, local auth files, or shell access.
 - Treat `packages/<name>/SOURCE.md` and generated `GENERATED.md` files as the
   ownership markers.
 - Use `make verify-generated-clean` to confirm committed public outputs match
