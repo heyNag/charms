@@ -390,3 +390,17 @@ make verify-packages
 make audit-generated
 make verify-generated-clean
 ```
+
+## Public URLs
+
+GitHub/Search URL:
+
+```text
+https://github.com/heyNag/agent-tools
+```
+
+Skillshare Hub URL:
+
+```text
+https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json
+```
