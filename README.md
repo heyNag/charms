@@ -360,10 +360,13 @@ follow [docs/updating-a-skill.md](docs/updating-a-skill.md).
 Public skill releases are manual. Use the GitHub Actions `Release Skill`
 workflow to bump the selected package version using the UTC date, rebuild all
 generated targets, verify, commit, push, and create a skill-scoped GitHub
-Release such as `watch-video@2026.6.21.1`.
+Release with a tag named `<skill>@<version>`, for example
+`watch-video@YYYY.M.D`.
 
 This repo does not publish GitHub Packages yet. Skill versions are independent,
-so GitHub Releases are package-level and use tags named `<skill>@<version>`.
+so GitHub Releases are package-level. GitHub may still show the newest skill
+release as the repo's `Latest` release; that label is a GitHub UI artifact, not
+a repo-wide version.
 
 ## Security
 

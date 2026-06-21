@@ -69,10 +69,12 @@ the release commit. Local scripts may preview the next version with `--dry-run`,
 but write-mode version bumps are reserved for that workflow. CI rejects package
 plugin version changes from non-release commits.
 
-The workflow also creates a skill-scoped GitHub Release with a tag like
-`watch-video@2026.6.21.1`. GitHub Packages are intentionally unused until there
-is a real package artifact such as an npm package, Docker image, binary, or MCP
-container to publish.
+The workflow also creates a skill-scoped GitHub Release with a tag named
+`<skill>@<version>`, such as `watch-video@YYYY.M.D`. GitHub Packages are
+intentionally unused until there is a real package artifact such as an npm
+package, Docker image, binary, or MCP container to publish. GitHub may still
+show the newest skill release as the repo's `Latest` release; that label is a
+GitHub UI artifact, not a repo-wide version.
 
 ## Agent-Agnostic Skill Bundles
 

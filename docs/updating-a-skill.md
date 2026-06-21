@@ -159,14 +159,16 @@ Release <name> <version>
 Examples:
 
 ```text
-watch-video@2026.6.21.1
-codex-reset-credit@2026.6.21.1
-x-bookmarks@2026.6.21.1
+watch-video@YYYY.M.D
+codex-reset-credit@YYYY.M.D.N
+x-bookmarks@YYYY.M.D
 ```
 
 GitHub Releases are package-level because each skill can release
 independently. The repo does not publish GitHub Packages yet; there is no npm,
-container, or binary package artifact to publish today.
+container, or binary package artifact to publish today. GitHub may still show
+the newest skill release as the repo's `Latest` release; that label is a GitHub
+UI artifact, not a repo-wide version.
 
 Release workflows are serialized so two release button presses cannot update
 the shared marketplace catalog at the same time.

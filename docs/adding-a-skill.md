@@ -497,7 +497,7 @@ This is the only manual release-path wiring for a new public skill. After this
 step, the `Release Skill` workflow can bump `awesome-skill` to the next UTC
 date version, rebuild all four generated targets, verify, commit, and push the
 release commit, then create a skill-scoped GitHub Release such as
-`awesome-skill@2026.6.21`.
+`awesome-skill@YYYY.M.D`.
 
 If GitHub Actions later supports dynamic package choices for this repo, this
 manual dropdown step can be removed. For now, keep the explicit list so the
