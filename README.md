@@ -83,6 +83,22 @@ zip -r x-bookmarks.zip x-bookmarks
 Upload the ZIP in Claude's `Customize > Skills` flow. The lowercase `skill.md`
 file is generated from `packages/<name>/SKILL.md`.
 
+Optional no-terminal path: use the third-party
+[Skills Compiler](https://skill-compiler.statechange.ai/) to package a public
+generated custom-skill folder into a Claude Desktop `.skill` file. Paste one of
+these folder URLs, preview the files, download the `.skill`, then import it in
+Claude:
+
+```text
+https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/watch-video
+https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/codex-reset-credit
+https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/x-bookmarks
+```
+
+This is a convenience path only. The repo source of truth is still
+`packages/<name>/`, and the generated Claude custom-skill folder is still
+produced by `make rebuild-generated`.
+
 ## Install For OpenCode
 
 ```sh

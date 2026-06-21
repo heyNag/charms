@@ -26,6 +26,11 @@ Desktop / claude.ai custom skill users can ZIP
 `generated/claude/custom-skills/watch-video`. OpenCode and generic Agent Skills
 users can use `generated/agent-skills/watch-video`.
 
+Optional Claude Desktop no-terminal packaging: paste
+`https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/watch-video`
+into `https://skill-compiler.statechange.ai/`, preview the files, download the
+`.skill`, and import it in Claude Desktop.
+
 ## Requirements
 
 Run package-local commands from `packages/watch-video/` or from an installed

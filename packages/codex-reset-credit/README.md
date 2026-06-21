@@ -35,6 +35,11 @@ generated/codex/skills/codex-reset-credit
 generated/agent-skills/codex-reset-credit
 ```
 
+Optional Claude Desktop no-terminal packaging: paste
+`https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/codex-reset-credit`
+into `https://skill-compiler.statechange.ai/`, preview the files, download the
+`.skill`, and import it in Claude Desktop.
+
 Edit source first, then run:
 
 ```sh

@@ -59,6 +59,14 @@ cd generated/claude/custom-skills
 zip -r codex-reset-credit.zip codex-reset-credit
 ```
 
+Optional no-terminal path: paste this public generated folder URL into the
+third-party [Skills Compiler](https://skill-compiler.statechange.ai/), preview
+the files, download the `.skill`, and import it in Claude Desktop:
+
+```text
+https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/codex-reset-credit
+```
+
 OpenCode install:
 
 ```sh

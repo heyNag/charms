@@ -69,6 +69,12 @@ zip -r codex-reset-credit.zip codex-reset-credit
 zip -r x-bookmarks.zip x-bookmarks
 ```
 
+Optional no-terminal path: paste the public
+`generated/claude/custom-skills/<name>` GitHub folder URL into the third-party
+[Skills Compiler](https://skill-compiler.statechange.ai/), preview the files,
+download the `.skill`, and import it in Claude Desktop. This convenience path
+uses the same generated folder; it does not change the source-of-truth rule.
+
 OpenCode uses the generated agent-skill bundle:
 
 ```sh

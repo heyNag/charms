@@ -21,6 +21,10 @@ Security rules for this repo:
 - Local ZIP archives made from `generated/claude/custom-skills/` for Claude
   custom skill upload are ignored. Rebuild them when needed instead of
   committing them.
+- Third-party skill packagers such as Skills Compiler may fetch public GitHub
+  folders and produce Claude Desktop `.skill` files. Use them only for public
+  generated outputs, preview the bundled files before importing, and never paste
+  private repo URLs, secrets, local auth files, or uncommitted local artifacts.
 
 For `codex-reset-credit`, never print or commit Codex access tokens, refresh
 tokens, account IDs, raw auth file contents, credit IDs, email addresses, profile

@@ -261,6 +261,19 @@ Then upload or replace the ZIP in Claude's `Customize > Skills` flow.
 
 Replace `x-bookmarks` with the package name being updated.
 
+Optional no-terminal update path: after the release is pushed, paste the
+public generated folder URL into the third-party
+[Skills Compiler](https://skill-compiler.statechange.ai/), download the new
+`.skill`, and replace the existing Claude Desktop skill:
+
+```text
+https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/x-bookmarks
+```
+
+Replace `x-bookmarks` with the package name being updated. Preview the files
+before importing. This path still uses the generated folder built from
+`packages/<name>/`.
+
 The generated custom-skill folder uses lowercase `skill.md`, generated from:
 
 ```text
