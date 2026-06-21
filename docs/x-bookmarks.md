@@ -82,6 +82,13 @@ rm -rf ~/.config/opencode/skills/x-bookmarks
 cp -R generated/agent-skills/x-bookmarks ~/.config/opencode/skills/x-bookmarks
 ```
 
+Skillshare install:
+
+```sh
+skillshare install heyNag/agent-tools/packages/x-bookmarks --track
+skillshare sync
+```
+
 `generated/agent-skills/x-bookmarks/SKILL.md` and
 `generated/claude/custom-skills/x-bookmarks/skill.md` are both generated from
 `packages/x-bookmarks/SKILL.md`.

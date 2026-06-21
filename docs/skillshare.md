@@ -18,6 +18,14 @@ In the Skillshare web UI:
 3. Add or select the hub URL above.
 4. Install `watch-video`, `codex-reset-credit`, or `x-bookmarks`.
 
+CLI users can save the hub once:
+
+```sh
+skillshare hub add https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json --label agent-tools
+skillshare hub default agent-tools
+skillshare search --hub agent-tools bookmarks
+```
+
 The hub points each skill at the canonical package source:
 
 ```text
@@ -83,15 +91,17 @@ files directly.
 `skillshare-hub.json` is generated from:
 
 ```text
+packages/*/SKILL.md
 packages/*/tool.json
 packages/*/plugin/plugin.json
 ```
 
-Do not edit it by hand. After changing a package manifest or plugin version,
-run:
+Do not edit it by hand. After changing `SKILL.md` frontmatter, a package
+manifest, or a plugin version, run:
 
 ```sh
 make rebuild-generated
+make verify-skill-metadata
 make verify-packages
 make verify-generated-clean
 ```
@@ -99,6 +109,30 @@ make verify-generated-clean
 `make verify-packages` checks that every public agent-compatible package appears
 in the hub exactly once and that hub entries point at `packages/<name>`, not
 `generated/`.
+
+## Skill Metadata Contract
+
+Each public package must keep these fields aligned:
+
+```text
+packages/<name>/tool.json       name, description, tags, targets, public flag
+packages/<name>/SKILL.md        frontmatter name, description, tags
+skillshare-hub.json             generated public hub entry
+```
+
+The source `SKILL.md` frontmatter is intentionally self-describing because
+Skillshare-style indexing reads skill names, descriptions, and tags directly
+from skill files. `tool.json` remains the build manifest for this repo.
+
+Run this check after adding or editing a skill:
+
+```sh
+make verify-skill-metadata
+```
+
+It fails if a package name drifts, if `SKILL.md` tags do not match
+`tool.json`, if `skillshare-hub.json` points at `generated/`, or if
+`.skillignore` stops hiding generated outputs from Skillshare discovery.
 
 ## Update Flow
 

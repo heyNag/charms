@@ -86,6 +86,13 @@ rm -rf ~/.config/opencode/skills/watch-video
 cp -R generated/agent-skills/watch-video ~/.config/opencode/skills/watch-video
 ```
 
+Skillshare install:
+
+```sh
+skillshare install heyNag/agent-tools/packages/watch-video --track
+skillshare sync
+```
+
 `generated/agent-skills/watch-video/SKILL.md` and
 `generated/claude/custom-skills/watch-video/skill.md` are both generated from
 `packages/watch-video/SKILL.md`.

@@ -90,9 +90,10 @@ make verify-generated-clean
 
 `make rebuild-generated` removes only the committed generated output roots
 `.claude-plugin/` and `generated/`, then recreates them from `packages/`. The
-same build also rewrites `skillshare-hub.json` from package manifests. Use it
-whenever package source, generator templates, generated notices, or public
-distribution paths change. Do not move generated files into place manually.
+same build also rewrites `skillshare-hub.json` from package manifests and
+`SKILL.md` frontmatter. Use it whenever package source, generator templates,
+generated notices, or public distribution paths change. Do not move generated
+files into place manually.
 
 Packages follow the same manifest pattern:
 
@@ -139,7 +140,8 @@ Repo source paths are authoritative:
 
 - Edit packages under `packages/`.
 - Regenerate public outputs under `generated/` and `.claude-plugin/` from packages.
-- Regenerate `skillshare-hub.json` from package manifests.
+- Regenerate `skillshare-hub.json` from package manifests and `SKILL.md`
+  frontmatter.
 - Edit MCP server source under `mcp/`.
 - Edit install and test helpers under `scripts/`.
 - Edit project memory under `docs/`.
@@ -174,7 +176,7 @@ Source: packages/x-bookmarks/                              -> generated/claude/c
 Source: packages/x-bookmarks/                              -> generated/codex/skills/x-bookmarks/
 Source: packages/x-bookmarks/                              -> generated/agent-skills/x-bookmarks/
 Source: packages/*/tool.json and packages/*/plugin/        -> .claude-plugin/
-Source: packages/*/tool.json and packages/*/plugin/        -> skillshare-hub.json
+Source: packages/*/SKILL.md, packages/*/tool.json, and packages/*/plugin/ -> skillshare-hub.json
 ```
 
 Generated directories are committed for public installation, but they are

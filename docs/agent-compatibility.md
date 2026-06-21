@@ -95,6 +95,13 @@ target. Use Hub mode with:
 https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json
 ```
 
+Or install directly from the canonical source package:
+
+```sh
+skillshare install heyNag/agent-tools/packages/watch-video --track
+skillshare sync
+```
+
 The hub points at canonical `packages/<name>` source paths. See
 [`skillshare.md`](skillshare.md) for duplicate-search behavior and update flow.
 

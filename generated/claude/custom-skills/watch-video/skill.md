@@ -2,6 +2,7 @@
 name: watch-video
 description: Analyze YouTube URLs, local videos, screen recordings, tutorials, demos, and UI bug videos using yt-dlp, ffmpeg, native captions, frame extraction, and Groq Whisper fallback.
 argument-hint: "<video-url-or-path> [--start T] [--end T] [question]"
+tags: video, youtube, transcription, frames, local
 allowed-tools: Bash, Read
 homepage: https://github.com/heyNag/agent-tools
 repository: https://github.com/heyNag/agent-tools

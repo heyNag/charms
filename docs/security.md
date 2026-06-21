@@ -17,8 +17,8 @@ Security rules for this repo:
   bookmark exports, search indexes, and local SQLite databases stay ignored.
 - Committed generated package outputs and discovery metadata live under
   `generated/`, `.claude-plugin/`, and `skillshare-hub.json`; they are rebuilt
-  from `packages/` and must not contain secrets, local-only paths, or runtime
-  artifacts.
+  from package source metadata and must not contain secrets, local-only paths,
+  or runtime artifacts.
 - Local ZIP archives made from `generated/claude/custom-skills/` for Claude
   custom skill upload are ignored. Rebuild them when needed instead of
   committing them.

@@ -15,7 +15,10 @@ Rules for future AI agents working in this repo:
   The package builders iterate manifests and create every target automatically.
   Do not add one-off generated package copies or Skillshare hub entries by hand.
 - Treat `skillshare-hub.json` as generated discovery metadata. It is built from
-  `packages/*/tool.json` and `packages/*/plugin/plugin.json`.
+  `packages/*/SKILL.md`, `packages/*/tool.json`, and
+  `packages/*/plugin/plugin.json`.
+- Keep package `SKILL.md` frontmatter tags aligned with `tool.json` tags.
+  `make verify-skill-metadata` checks Skillshare-facing metadata.
 - Follow `docs/adding-a-skill.md` for the full new-skill checklist.
 - Follow `docs/updating-a-skill.md` for the skill release and user update
   process.
@@ -68,6 +71,7 @@ make syntax
 make mcp-build
 make rebuild-generated
 make build-skillshare-hub
+make verify-skill-metadata
 make verify-packages
 make audit-generated
 make verify-generated-clean

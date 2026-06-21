@@ -2,6 +2,7 @@
 name: codex-reset-credit
 description: Check Codex reset-credit status and local Codex rate-limit reset windows without exposing auth secrets or modifying local Codex state.
 argument-hint: "[--json] [--no-live] [--thread-id THREAD]"
+tags: codex, quota, credits, local, safe
 allowed-tools: Bash, Read
 homepage: https://github.com/heyNag/agent-tools
 repository: https://github.com/heyNag/agent-tools

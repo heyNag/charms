@@ -10,6 +10,7 @@ Declare targets once in packages/<name>/tool.json.
 Run make rebuild-generated.
 Validate generated outputs.
 Add the package name to the Release Skill workflow.
+Keep SKILL.md tags aligned with tool.json tags.
 Commit source and generated outputs together.
 ```
 
@@ -152,7 +153,9 @@ Target meanings:
   `generated/claude/custom-skills/<name>`.
 
 `tags` are optional but recommended. They appear in `skillshare-hub.json` and
-help Skillshare Hub search. Keep tags short, lowercase, and public-safe.
+help Skillshare Hub search. For public skills in this repo, add the same tags
+to `SKILL.md` frontmatter so Skillshare-style indexers can read the skill file
+directly. Keep tags short, lowercase, and public-safe.
 
 Set `has_mcp` to `true` only when an MCP folder exists or is intentionally part
 of the package plan. Do not add an MCP gateway.
@@ -208,6 +211,7 @@ Create `packages/awesome-skill/SKILL.md`:
 name: awesome-skill
 description: Describe what the skill does and when agents should use it. Include trigger phrases and task contexts here.
 argument-hint: "[optional args]"
+tags: awesome, local
 allowed-tools: Bash, Read
 homepage: https://github.com/heyNag/agent-tools
 repository: https://github.com/heyNag/agent-tools
@@ -250,6 +254,8 @@ Guidelines:
 
 - Put trigger wording in the frontmatter `description`; agents see it before
   loading the full skill.
+- Keep frontmatter `tags` aligned with `packages/awesome-skill/tool.json`.
+  `make verify-skill-metadata` checks this.
 - Keep the body concise.
 - Move detailed backend docs, schemas, API notes, and long examples into
   `references/`.
@@ -439,6 +445,7 @@ make test
 make syntax
 make mcp-build
 make rebuild-generated
+make verify-skill-metadata
 make verify-packages
 make audit-generated
 make verify-generated-clean
@@ -451,6 +458,8 @@ What each check catches:
 - `make test`: package unit tests.
 - `make syntax`: Python and shell syntax.
 - `make mcp-build`: existing MCP placeholder still builds.
+- `make verify-skill-metadata`: `tool.json`, `SKILL.md`, `.skillignore`, and
+  `skillshare-hub.json` agree on public skill metadata.
 - `make verify-packages`: target folders, marketplace JSON, plugin metadata,
   and forbidden files.
 - `make audit-generated`: generated files match source paths after stripping
@@ -590,6 +599,7 @@ Do not add an MCP gateway.
 
 - `packages/<name>/tool.json` declares `targets`: `claude`, `codex`, `generic`.
 - `packages/<name>/SKILL.md` has clear trigger text in `description`.
+- `packages/<name>/SKILL.md` has `tags` matching `packages/<name>/tool.json`.
 - `packages/<name>/agents/openai.yaml` has display metadata.
 - `packages/<name>/README.md` explains source and generated targets.
 - `packages/<name>/SOURCE.md` points future edits to source paths.
@@ -598,8 +608,8 @@ Do not add an MCP gateway.
 - `.github/workflows/release-skill.yml` includes the package in the `Release
   Skill` dropdown.
 - `make rebuild-generated` creates every target.
-- `make verify-packages`, `make audit-generated`, and
-  `make verify-generated-clean` pass.
+- `make verify-skill-metadata`, `make verify-packages`,
+  `make audit-generated`, and `make verify-generated-clean` pass.
 - Generated files are committed with source changes.
 - The package can be released through the manual `Release Skill` workflow.
 - No secrets or local artifacts are committed.

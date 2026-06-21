@@ -33,7 +33,7 @@ Commit generated public install outputs under `generated/` and
 `.claude-plugin/`, plus generated discovery metadata such as
 `skillshare-hub.json`. Source still lives under `packages/`; generated outputs
 are rebuilt from scratch with `make rebuild-generated` and checked with
-`make verify-packages`, `make audit-generated`, and
+`make verify-skill-metadata`, `make verify-packages`, `make audit-generated`, and
 `make verify-generated-clean`.
 
 ## Skillshare Discovery
@@ -45,11 +45,18 @@ paths. GitHub Code Search may still show every committed `SKILL.md`; the repo's
 recommended Skillshare path is Hub mode or direct `heyNag/agent-tools/packages/<name>`
 install.
 
+Skillshare-facing names, descriptions, and tags must be present in canonical
+`packages/<name>/SKILL.md` frontmatter. `tool.json` still declares build
+targets, public status, and tags for repo automation. `make
+verify-skill-metadata` keeps the two source files and the generated hub index
+aligned.
+
 ## Package Manifests
 
 Use `packages/<name>/tool.json` to declare public status, install targets, and
 MCP presence. This keeps build and verification scripts generic without adding a
-package framework.
+package framework. Use `packages/<name>/SKILL.md` frontmatter for the
+agent-visible name, description, argument hint, and Skillshare search tags.
 
 ## Manual Skill Releases
 

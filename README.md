@@ -80,6 +80,14 @@ https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json
 In the Skillshare web UI, use `Search > Hub`, add/select that hub URL, then
 install `watch-video`, `codex-reset-credit`, or `x-bookmarks`.
 
+CLI users can save the hub once:
+
+```sh
+skillshare hub add https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json --label agent-tools
+skillshare hub default agent-tools
+skillshare search --hub agent-tools watch
+```
+
 Direct package install also works:
 
 ```sh
@@ -93,7 +101,8 @@ Avoid installing from `generated/` through Skillshare. Those folders are
 target-specific outputs for Claude Code, Claude Desktop, Codex, and OpenCode.
 The root `.skillignore` hides `generated/` during Skillshare repo discovery;
 GitHub Code Search may still show generated copies because it scans every
-committed `SKILL.md`.
+committed `SKILL.md`. The hub is the clean public Skillshare entrypoint because
+it lists only canonical package source paths.
 
 ## Install For Claude Desktop Or Claude.ai Skills
 
@@ -268,7 +277,7 @@ packages/x-bookmarks/                                -> generated/claude/custom-
 packages/x-bookmarks/                                -> generated/codex/skills/x-bookmarks/
 packages/x-bookmarks/                                -> generated/agent-skills/x-bookmarks/
 packages/*/tool.json and packages/*/plugin/plugin.json -> .claude-plugin/marketplace.json
-packages/*/tool.json and packages/*/plugin/plugin.json -> skillshare-hub.json
+packages/*/SKILL.md, packages/*/tool.json, and packages/*/plugin/plugin.json -> skillshare-hub.json
 ```
 
 Generated directories include `GENERATED.md` files with exact source-path
@@ -367,6 +376,7 @@ make syntax
 make mcp-build
 make rebuild-generated
 make build-skillshare-hub
+make verify-skill-metadata
 make verify-packages
 make audit-generated
 make verify-generated-clean

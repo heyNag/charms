@@ -58,7 +58,7 @@ flowchart TD
   B --> MP[".claude-plugin/marketplace.json<br/>Claude Code marketplace catalog"]
   B --> SH["skillshare-hub.json<br/>Skillshare hub index"]
 
-  CC --> V["make verify-packages<br/>make audit-generated<br/>make verify-generated-clean"]
+  CC --> V["make verify-skill-metadata<br/>make verify-packages<br/>make audit-generated<br/>make verify-generated-clean"]
   CD --> V
   CX --> V
   AG --> V
@@ -145,10 +145,10 @@ Skillshare hub:
 skillshare-hub.json
 ```
 
-This root file is generated from `packages/*/tool.json` and
-`packages/*/plugin/plugin.json`. It is not a target package. It is a curated
-index for Skillshare Hub search, and each entry points at the canonical source
-package path:
+This root file is generated from `packages/*/SKILL.md`,
+`packages/*/tool.json`, and `packages/*/plugin/plugin.json`. It is not a
+target package. It is a curated index for Skillshare Hub search, and each entry
+points at the canonical source package path:
 
 ```text
 heyNag/agent-tools/packages/<name>
@@ -189,6 +189,7 @@ To update generated outputs:
 
 ```sh
 make rebuild-generated
+make verify-skill-metadata
 make verify-packages
 make audit-generated
 make verify-generated-clean
@@ -222,6 +223,6 @@ sequenceDiagram
   Dev->>Src: Edit SKILL.md, README.md, scripts, references, agents, commands, plugin metadata
   Dev->>Build: Run make rebuild-generated
   Build->>Gen: Delete generated roots, recreate targets, and rewrite hub index
-  Gen->>Verify: Run verify-packages + audit-generated + verify-generated-clean
+  Gen->>Verify: Run verify-skill-metadata + verify-packages + audit-generated + verify-generated-clean
   Verify-->>Dev: Pass means generated outputs match source
 ```

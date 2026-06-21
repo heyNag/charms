@@ -1,6 +1,6 @@
 {
   "name": "x-bookmarks",
-  "version": "2026.6.21",
+  "version": "2026.6.21.1",
   "description": "Fetch, search, and digest X/Twitter bookmarks using Bird cookie auth or optional X API v2.",
   "author": {
     "name": "Nagarjuna Boddu"

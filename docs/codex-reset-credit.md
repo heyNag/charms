@@ -77,6 +77,13 @@ rm -rf ~/.config/opencode/skills/codex-reset-credit
 cp -R generated/agent-skills/codex-reset-credit ~/.config/opencode/skills/codex-reset-credit
 ```
 
+Skillshare install:
+
+```sh
+skillshare install heyNag/agent-tools/packages/codex-reset-credit --track
+skillshare sync
+```
+
 `generated/agent-skills/codex-reset-credit/SKILL.md` and
 `generated/claude/custom-skills/codex-reset-credit/skill.md` are both generated
 from `packages/codex-reset-credit/SKILL.md`.

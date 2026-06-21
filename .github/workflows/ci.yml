@@ -33,6 +33,9 @@ jobs:
       - name: Verify public packages
         run: make verify-packages
 
+      - name: Verify skill metadata
+        run: make verify-skill-metadata
+
       - name: Audit generated source mapping
         run: make audit-generated
 

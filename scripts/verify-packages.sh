@@ -362,6 +362,7 @@ PY
 check_file "$ROOT/.claude-plugin/marketplace.json"
 check_file "$ROOT/.claude-plugin/GENERATED.md"
 check_file "$ROOT/skillshare-hub.json"
+python3 "$ROOT/scripts/verify-skill-metadata.py" "$ROOT"
 valid_json "$ROOT/.claude-plugin/marketplace.json"
 valid_json "$ROOT/skillshare-hub.json"
 scan_metadata_file "$ROOT/skillshare-hub.json"

@@ -15,7 +15,7 @@ Tell users how to update for their target.
 Do not manually edit files under `generated/` or `.claude-plugin/`. Those paths
 are rebuilt from package source.
 Do not manually edit `skillshare-hub.json`; it is rebuilt from package
-manifests and plugin versions.
+`SKILL.md` frontmatter, package manifests, and plugin versions.
 
 ## Target Map
 
@@ -201,6 +201,7 @@ make rebuild-generated
 make test
 make syntax
 make mcp-build
+make verify-skill-metadata
 make verify-packages
 make audit-generated
 make verify-generated-clean
@@ -379,6 +380,7 @@ Generated outputs are stale:
 
 ```sh
 make rebuild-generated
+make verify-skill-metadata
 make audit-generated
 make verify-generated-clean
 ```
@@ -388,6 +390,7 @@ make verify-generated-clean
 - Source changes are under `packages/<name>`.
 - Public release version is bumped by the manual `Release Skill` workflow.
 - Generated outputs are rebuilt with `make rebuild-generated`.
+- Skill metadata is checked with `make verify-skill-metadata`.
 - All verification commands pass.
 - Docs mention any changed setup, update, or runtime behavior.
 - No secrets, local auth state, media, transcripts, caches, or runtime

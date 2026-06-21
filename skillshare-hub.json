@@ -5,7 +5,7 @@
   "skills": [
     {
       "name": "codex-reset-credit",
-      "description": "Check Codex reset credits and local rate-limit reset windows without exposing auth secrets.",
+      "description": "Check Codex reset-credit status and local Codex rate-limit reset windows without exposing auth secrets or modifying local Codex state.",
       "source": "heyNag/agent-tools/packages/codex-reset-credit",
       "skill": "codex-reset-credit",
       "tags": [
@@ -18,7 +18,7 @@
     },
     {
       "name": "watch-video",
-      "description": "Inspect short video clips using transcripts, timestamps, frames, and Groq Whisper fallback.",
+      "description": "Analyze YouTube URLs, local videos, screen recordings, tutorials, demos, and UI bug videos using yt-dlp, ffmpeg, native captions, frame extraction, and Groq Whisper fallback.",
       "source": "heyNag/agent-tools/packages/watch-video",
       "skill": "watch-video",
       "tags": [
@@ -31,7 +31,7 @@
     },
     {
       "name": "x-bookmarks",
-      "description": "Fetch, search, and digest X/Twitter bookmarks using Bird cookie auth or optional X API v2.",
+      "description": "Fetch, search, and turn X/Twitter bookmarks into action using Bird cookie auth or X API v2. Use when the user asks about X/Twitter bookmarks, bookmark digests, bookmark search, saved posts, no-credit X bookmark access, or recurring review of bookmarked posts.",
       "source": "heyNag/agent-tools/packages/x-bookmarks",
       "skill": "x-bookmarks",
       "tags": [

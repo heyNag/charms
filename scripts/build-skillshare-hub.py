@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the public Skillshare hub index from package manifests."""
+"""Build the public Skillshare hub index from package source metadata."""
 
 from __future__ import annotations
 
@@ -8,19 +8,17 @@ import re
 import sys
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from skill_metadata import load_json, normalized_tags, read_frontmatter
+
 
 DEFAULT_REPOSITORY = "https://github.com/heyNag/agent-tools"
 DEFAULT_OWNER_REPO = "heyNag/agent-tools"
 DEFAULT_GENERATED_AT = "1970-01-01T00:00:00Z"
 VERSION_DATE_RE = re.compile(r"^(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\.\d+)?$")
-
-
-def load_json(path: Path) -> dict:
-    with path.open(encoding="utf-8") as handle:
-        data = json.load(handle)
-    if not isinstance(data, dict):
-        raise SystemExit(f"error: expected JSON object in {path}")
-    return data
 
 
 def plugin_version(package_dir: Path) -> str:
@@ -50,13 +48,20 @@ def skill_entry(package_dir: Path, tool: dict) -> tuple[dict, str]:
     if not isinstance(name, str) or not name:
         raise SystemExit(f"error: invalid package name in {package_dir / 'tool.json'}")
 
-    description = tool.get("description")
+    skill_path = package_dir / "SKILL.md"
+    frontmatter = read_frontmatter(skill_path) if skill_path.exists() else {}
+    skill_name = frontmatter.get("name")
+    if skill_name and skill_name != name:
+        raise SystemExit(f"error: {skill_path} name is {skill_name!r}, expected {name!r}")
+
+    description = frontmatter.get("description") or tool.get("description")
     if not isinstance(description, str) or not description:
         description = f"{name} agent skill."
 
-    tags = tool.get("tags") or []
-    if not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags):
+    tool_tags = tool.get("tags") or []
+    if not isinstance(tool_tags, list) or not all(isinstance(tag, str) for tag in tool_tags):
         raise SystemExit(f"error: tags must be an array of strings in {package_dir / 'tool.json'}")
+    tags = normalized_tags(frontmatter.get("tags")) or normalized_tags(tool_tags)
 
     source = f"{DEFAULT_OWNER_REPO}/packages/{name}"
     entry = {
@@ -66,7 +71,7 @@ def skill_entry(package_dir: Path, tool: dict) -> tuple[dict, str]:
         "skill": name,
     }
     if tags:
-        entry["tags"] = sorted(dict.fromkeys(tags))
+        entry["tags"] = tags
     return entry, plugin_version(package_dir)
 
 

@@ -39,6 +39,13 @@ generated/codex/skills/codex-reset-credit
 generated/agent-skills/codex-reset-credit
 ```
 
+Skillshare users should install from the hub or direct source package path:
+
+```sh
+skillshare install heyNag/agent-tools/packages/codex-reset-credit --track
+skillshare sync
+```
+
 Optional Claude Desktop no-terminal packaging: paste
 `https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/codex-reset-credit`
 into `https://skill-compiler.statechange.ai/`, preview the files, download the

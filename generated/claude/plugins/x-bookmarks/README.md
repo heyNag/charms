@@ -25,6 +25,13 @@ Desktop / claude.ai custom skill users can ZIP
 `generated/claude/custom-skills/x-bookmarks`. OpenCode and generic Agent Skills
 users can use `generated/agent-skills/x-bookmarks`.
 
+Skillshare users should install from the hub or direct source package path:
+
+```sh
+skillshare install heyNag/agent-tools/packages/x-bookmarks --track
+skillshare sync
+```
+
 Optional Claude Desktop no-terminal packaging: paste
 `https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/x-bookmarks`
 into `https://skill-compiler.statechange.ai/`, preview the files, download the
