@@ -31,7 +31,7 @@
       "name": "x-bookmarks",
       "source": "./generated/claude/plugins/x-bookmarks",
       "description": "Fetch, search, and digest X/Twitter bookmarks using Bird cookie auth or optional X API v2.",
-      "version": "0.1.0",
+      "version": "2026.6.21",
       "author": {
         "name": "Nagarjuna Boddu"
       },
