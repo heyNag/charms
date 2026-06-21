@@ -52,6 +52,8 @@ cp -R generated/codex/skills/codex-reset-credit ~/.codex/skills/codex-reset-cred
 Claude Desktop / claude.ai custom skill ZIP:
 
 ```sh
+git clone https://github.com/heyNag/agent-tools.git
+cd agent-tools
 make rebuild-generated
 cd generated/claude/custom-skills
 zip -r codex-reset-credit.zip codex-reset-credit
@@ -60,6 +62,8 @@ zip -r codex-reset-credit.zip codex-reset-credit
 OpenCode install:
 
 ```sh
+git clone https://github.com/heyNag/agent-tools.git
+cd agent-tools
 mkdir -p ~/.config/opencode/skills
 rm -rf ~/.config/opencode/skills/codex-reset-credit
 cp -R generated/agent-skills/codex-reset-credit ~/.config/opencode/skills/codex-reset-credit

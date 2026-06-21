@@ -48,6 +48,9 @@ make verify-generated-clean
 
 ## Usage
 
+Run package-local commands from `packages/codex-reset-credit/` or from an
+installed skill folder unless the command shows a repo-root path.
+
 From the source package directory, Codex install, or agent-generic install:
 
 ```sh

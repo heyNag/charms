@@ -57,6 +57,8 @@ cp -R generated/codex/skills/x-bookmarks ~/.codex/skills/x-bookmarks
 Claude Desktop / claude.ai custom skill ZIP:
 
 ```sh
+git clone https://github.com/heyNag/agent-tools.git
+cd agent-tools
 make rebuild-generated
 cd generated/claude/custom-skills
 zip -r x-bookmarks.zip x-bookmarks
@@ -65,6 +67,8 @@ zip -r x-bookmarks.zip x-bookmarks
 OpenCode install:
 
 ```sh
+git clone https://github.com/heyNag/agent-tools.git
+cd agent-tools
 mkdir -p ~/.config/opencode/skills
 rm -rf ~/.config/opencode/skills/x-bookmarks
 cp -R generated/agent-skills/x-bookmarks ~/.config/opencode/skills/x-bookmarks

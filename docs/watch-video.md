@@ -61,6 +61,8 @@ cp -R generated/codex/skills/watch-video ~/.codex/skills/watch-video
 Claude Desktop / claude.ai custom skill ZIP:
 
 ```sh
+git clone https://github.com/heyNag/agent-tools.git
+cd agent-tools
 make rebuild-generated
 cd generated/claude/custom-skills
 zip -r watch-video.zip watch-video
@@ -69,6 +71,8 @@ zip -r watch-video.zip watch-video
 OpenCode install:
 
 ```sh
+git clone https://github.com/heyNag/agent-tools.git
+cd agent-tools
 mkdir -p ~/.config/opencode/skills
 rm -rf ~/.config/opencode/skills/watch-video
 cp -R generated/agent-skills/watch-video ~/.config/opencode/skills/watch-video

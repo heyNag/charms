@@ -81,11 +81,13 @@ version from the source plugin metadata.
 Public releases are intentionally manual. Ordinary pushes and pull requests run
 verification only; they do not publish a new skill version.
 
-To release a skill:
+To release a skill in GitHub's web UI:
 
-1. Open GitHub Actions.
-2. Choose the `Release Skill` workflow.
-3. Select the skill/package name:
+1. Open `https://github.com/heyNag/agent-tools`.
+2. Open the `Actions` tab.
+3. Choose the `Release Skill` workflow.
+4. Click `Run workflow`.
+5. Select the skill/package name:
 
 ```text
 watch-video
@@ -93,7 +95,27 @@ codex-reset-credit
 x-bookmarks
 ```
 
-4. Run the workflow.
+6. Confirm the run.
+
+To release from a local checkout with the GitHub CLI:
+
+```sh
+gh workflow run release-skill.yml -f skill=x-bookmarks
+gh run list --workflow release-skill.yml --limit 5
+```
+
+Replace `x-bookmarks` with the package being released:
+
+```text
+watch-video
+codex-reset-credit
+x-bookmarks
+```
+
+For a newly added package such as `awesome-skill`, first add the package name
+to `.github/workflows/release-skill.yml` as described in
+`docs/adding-a-skill.md`. The first release workflow run moves the package from
+the bootstrap `0.1.0` version to the UTC date-based version.
 
 The workflow:
 
@@ -119,6 +141,20 @@ Release <name> <version>
 
 Release workflows are serialized so two release button presses cannot update
 the shared marketplace catalog at the same time.
+
+## Supported Release Choices
+
+The current release workflow dropdown includes:
+
+```text
+watch-video
+codex-reset-credit
+x-bookmarks
+```
+
+When adding `awesome-skill`, the only manual release-path wiring is adding
+`awesome-skill` to that dropdown. The builders already discover package targets
+from `packages/awesome-skill/tool.json`.
 
 ## Local Version Bump Helper
 

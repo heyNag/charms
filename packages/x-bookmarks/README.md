@@ -23,6 +23,9 @@ users can use `generated/agent-skills/x-bookmarks`.
 
 ## Requirements
 
+Run package-local commands from `packages/x-bookmarks/` or from an installed
+skill folder unless the command shows a repo-root path.
+
 Preferred no-credit backend:
 
 ```sh

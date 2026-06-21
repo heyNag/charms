@@ -12,6 +12,25 @@ Public tools:
 - `x-bookmarks` - fetch, search, and digest X/Twitter bookmarks using Bird
   cookie auth or optional X API v2.
 
+## New Here
+
+Choose the path that matches what you are trying to do:
+
+- Install and use a tool: start with the install section for your agent below.
+- Understand source versus generated files: read
+  [docs/architecture.md](docs/architecture.md) and
+  [docs/distribution-targets.md](docs/distribution-targets.md).
+- Add a new skill: follow
+  [docs/adding-a-skill.md](docs/adding-a-skill.md) step by step.
+- Update or release an existing skill: follow
+  [docs/updating-a-skill.md](docs/updating-a-skill.md).
+- Check security rules before live credentials or local auth: read
+  [docs/security.md](docs/security.md).
+
+Normal development edits happen under `packages/<name>/`. Public install
+folders under `generated/` and the Claude marketplace catalog under
+`.claude-plugin/` are rebuilt from `packages/`; do not patch them by hand.
+
 ## Install For Claude Code
 
 ```text

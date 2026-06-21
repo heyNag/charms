@@ -28,6 +28,9 @@ users can use `generated/agent-skills/watch-video`.
 
 ## Requirements
 
+Run package-local commands from `packages/watch-video/` or from an installed
+skill folder unless the command shows a repo-root path.
+
 ```sh
 brew install yt-dlp ffmpeg jq
 ```

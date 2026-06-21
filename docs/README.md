@@ -12,6 +12,22 @@ Before making structural changes, future agents should read:
 4. `docs/agent-compatibility.md`
 5. `docs/distribution-targets.md`
 
+## Task Map
+
+Use this map when you are new to the repo:
+
+- Installing a public tool: use the root `README.md` install sections.
+- Understanding what to edit: read `architecture.md`, then
+  `distribution-targets.md`.
+- Adding `packages/awesome-skill`: follow `adding-a-skill.md`.
+- Updating or releasing a skill: follow `updating-a-skill.md`.
+- Checking target compatibility across Claude Code, Claude Desktop, Codex, and
+  OpenCode: read `agent-compatibility.md`.
+- Changing auth, API keys, local state, or generated artifacts: read
+  `security.md` first.
+- Changing `watch-video`, `codex-reset-credit`, or `x-bookmarks`: read that
+  package's docs page before editing its source package.
+
 When adding a new skill package, read `docs/adding-a-skill.md` before creating
 files. It is the step-by-step checklist for targeting every generated surface.
 When updating an existing skill package or explaining how users refresh
