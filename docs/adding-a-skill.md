@@ -101,6 +101,8 @@ Rules:
   name identical.
 - Prefer a clear verb or task phrase.
 - Do not rename generated outputs by hand.
+- For target behavior, read `docs/target-tool-mapping.md` before adding
+  target-specific tool names or runtime assumptions.
 
 ## Step 2: Create The Source Folder
 
@@ -210,7 +212,7 @@ Create `packages/awesome-skill/SKILL.md`:
 ~~~markdown
 ---
 name: awesome-skill
-description: Describe what the skill does and when agents should use it. Include trigger phrases and task contexts here.
+description: Use when [specific trigger conditions and task contexts].
 argument-hint: "[optional args]"
 tags: awesome, local
 allowed-tools: Bash, Read
@@ -254,9 +256,11 @@ Unless the user asks for a narrower format, return:
 Guidelines:
 
 - Put trigger wording in the frontmatter `description`; agents see it before
-  loading the full skill.
+  loading the full skill. Public skill descriptions must start with `Use when `.
+- Keep the description trigger-focused. Do not compress the full workflow into
+  the frontmatter; put workflow steps in the body.
 - Keep frontmatter `tags` aligned with `packages/awesome-skill/tool.json`.
-  `make verify-skill-metadata` checks this.
+  `make verify-skill-metadata` checks tags and trigger-oriented descriptions.
 - Keep the body concise.
 - Move detailed backend docs, schemas, API notes, and long examples into
   `references/`.

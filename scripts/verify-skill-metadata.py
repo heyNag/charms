@@ -59,8 +59,14 @@ def validate_package(root: Path, tool_path: Path) -> list[str]:
     frontmatter = read_frontmatter(skill_path)
     if frontmatter.get("name") != name:
         errors.append(f"{skill_path.relative_to(root)}: frontmatter name must be {name!r}")
-    if not frontmatter.get("description"):
+    skill_description = frontmatter.get("description")
+    if not skill_description:
         errors.append(f"{skill_path.relative_to(root)}: frontmatter description is required")
+    elif not str(skill_description).startswith("Use when "):
+        errors.append(
+            f"{skill_path.relative_to(root)}: frontmatter description must start with "
+            "'Use when ' and describe trigger conditions"
+        )
 
     skill_tags = normalized_tags(frontmatter.get("tags"))
     if not skill_tags:

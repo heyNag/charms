@@ -20,6 +20,8 @@ Choose the path that matches what you are trying to do:
 - Understand source versus generated files: read
   [docs/architecture.md](docs/architecture.md) and
   [docs/distribution-targets.md](docs/distribution-targets.md).
+- Understand target behavior and runtime limits: read
+  [docs/target-tool-mapping.md](docs/target-tool-mapping.md).
 - Optional Skillshare hub install, if you already use Skillshare: read
   [docs/skillshare.md](docs/skillshare.md).
 - Add a new skill: follow
@@ -349,7 +351,9 @@ Start with [docs/README.md](docs/README.md).
 
 Future agents should read `docs/README.md`, `docs/architecture.md`,
 `docs/agent-guidelines.md`, `docs/agent-compatibility.md`, and
-`docs/distribution-targets.md` before making structural changes.
+`docs/distribution-targets.md` before making structural changes. For target
+behavior and action-to-tool mapping, read
+`docs/target-tool-mapping.md`.
 
 When adding a new skill, follow
 [docs/adding-a-skill.md](docs/adding-a-skill.md).

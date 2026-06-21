@@ -25,7 +25,9 @@ skillshare-hub.json                    Skillshare discovery index, not a runtime
 ```
 
 For diagrams and exact per-target folder shapes, see
-[`distribution-targets.md`](distribution-targets.md).
+[`distribution-targets.md`](distribution-targets.md). For action-to-tool
+mapping and runtime limits by target, see
+[`target-tool-mapping.md`](target-tool-mapping.md).
 
 ## Surface Map
 

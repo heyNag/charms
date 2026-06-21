@@ -33,7 +33,13 @@ class VerifySkillMetadataTests(unittest.TestCase):
         }
         (package_dir / "tool.json").write_text(json.dumps(tool), encoding="utf-8")
         (package_dir / "SKILL.md").write_text(
-            f"---\nname: {name}\ndescription: {name} frontmatter description\ntags: {skill_tags}\n---\n",
+            (
+                "---\n"
+                f"name: {name}\n"
+                f"description: Use when the user needs {name} help.\n"
+                f"tags: {skill_tags}\n"
+                "---\n"
+            ),
             encoding="utf-8",
         )
 
@@ -56,6 +62,25 @@ class VerifySkillMetadataTests(unittest.TestCase):
             errors = module.validate_package(root, root / "packages" / "drift-skill" / "tool.json")
 
         self.assertTrue(any("must match tool.json tags" in error for error in errors))
+
+    def test_package_metadata_rejects_non_trigger_description(self):
+        module = load_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self.write_package(root, "summary-skill")
+            skill_path = root / "packages" / "summary-skill" / "SKILL.md"
+            skill_path.write_text(
+                "---\n"
+                "name: summary-skill\n"
+                "description: Summarize something useful.\n"
+                "tags: local, safe\n"
+                "---\n",
+                encoding="utf-8",
+            )
+
+            errors = module.validate_package(root, root / "packages" / "summary-skill" / "tool.json")
+
+        self.assertTrue(any("description must start with 'Use when '" in error for error in errors))
 
     def test_skillignore_requires_generated(self):
         module = load_module()

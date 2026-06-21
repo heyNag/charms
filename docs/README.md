@@ -40,24 +40,26 @@ Recommended reading order for broader work:
 1. `architecture.md`
 2. `agent-compatibility.md`
 3. `distribution-targets.md`
-4. `skillshare.md`
-5. `adding-a-skill.md`
-6. `updating-a-skill.md`
-7. `agent-guidelines.md`
-8. `security.md`
-9. `watch-video.md`
-10. `codex-reset-credit.md`
-11. `x-bookmarks.md`
-12. `roadmap.md`
-13. `decisions.md`
+4. `target-tool-mapping.md`
+5. `skillshare.md`
+6. `adding-a-skill.md`
+7. `updating-a-skill.md`
+8. `agent-guidelines.md`
+9. `security.md`
+10. `watch-video.md`
+11. `codex-reset-credit.md`
+12. `x-bookmarks.md`
+13. `roadmap.md`
+14. `decisions.md`
 
 Keep these docs aligned with the repo when architecture, workflow, install
 behavior, security practice, or package scope changes. A future agent should be
 able to understand the repo from files alone.
 
 For source/generated ownership, start with `architecture.md`,
-`distribution-targets.md`, and `skillshare.md`. In short, edit the package
-under `packages/`, then rebuild the committed public outputs under
+`distribution-targets.md`, `target-tool-mapping.md`, and `skillshare.md`. In
+short, edit the package under `packages/`, then rebuild the committed public
+outputs under
 `generated/`, `.claude-plugin/`, and `skillshare-hub.json`.
 
 When generated files need to change, use the clean rebuild path:

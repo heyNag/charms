@@ -31,6 +31,7 @@ and richer caption diagnostics.
 
 Make local use smoother through clearer commands, safer install behavior, and
 agent-friendly instructions. Keep installed copies downstream of repo source.
+Keep `docs/target-tool-mapping.md` current when target behavior changes.
 Public packages should follow this shape:
 
 - `packages/<name>` for source of truth
@@ -63,6 +64,10 @@ Deployment should build on the independent MCP folder shape, not on a gateway.
 
 Add more packages only when they have a clear local workflow or agent need. New
 packages can incubate here and graduate into standalone repos later.
+
+If a future package needs automatic activation in every conversation, design
+that separately from the current task/domain packages. Do not add global
+bootstrap hooks as a side effect of ordinary package onboarding.
 
 ## MCP Gateway Constraint
 

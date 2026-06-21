@@ -19,6 +19,8 @@ docs/                 orientation and project memory
 
 `generated/` includes Claude Code plugin packages, Claude custom-skill upload
 folders, Codex skill folders, and OpenCode/generic Agent Skill folders.
+Target runtime differences and action-to-tool mapping live in
+`docs/target-tool-mapping.md`.
 
 ## Packages
 
@@ -133,6 +135,11 @@ surface is stable. Candidate tools include `video_info`, `video_analyze`,
 There is no MCP gateway. Do not add a gateway, router, proxy, or shared MCP
 control plane unless explicitly requested. Keep MCP folders independently
 understandable and deployable.
+
+There is also no session-start bootstrap or global auto-trigger layer today.
+Current packages are task/domain tools invoked by users, native skill discovery,
+or agent judgment. Do not add global bootstrap hooks or mutate target runtime
+config unless explicitly requested.
 
 ## Source Of Truth
 

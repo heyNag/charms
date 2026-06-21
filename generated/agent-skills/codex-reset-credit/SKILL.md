@@ -1,6 +1,6 @@
 ---
 name: codex-reset-credit
-description: Check Codex reset-credit status and local Codex rate-limit reset windows without exposing auth secrets or modifying local Codex state.
+description: Use when the user explicitly asks about Codex reset credits, credit expiry, quota usage, local rate-limit windows, or when Codex limits reset.
 argument-hint: "[--json] [--no-live] [--thread-id THREAD]"
 tags: codex, quota, credits, local, safe
 allowed-tools: Bash, Read

@@ -1,6 +1,6 @@
 ---
 name: watch-video
-description: Analyze YouTube URLs, local videos, screen recordings, tutorials, demos, and UI bug videos using yt-dlp, ffmpeg, native captions, frame extraction, and Groq Whisper fallback.
+description: Use when the user asks to inspect a YouTube URL, local video, screen recording, tutorial, demo, UI bug video, or visible/spoken video evidence.
 argument-hint: "<video-url-or-path> [--start T] [--end T] [question]"
 tags: video, youtube, transcription, frames, local
 allowed-tools: Bash, Read

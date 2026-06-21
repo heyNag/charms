@@ -6,6 +6,8 @@ but they are not source of truth.
 
 For the full new-skill onboarding checklist, use
 [`adding-a-skill.md`](adding-a-skill.md).
+For target tool names, runtime boundaries, and action-to-tool mapping, use
+[`target-tool-mapping.md`](target-tool-mapping.md).
 
 Some targets share the same core shape, and each target has a small wrapper or
 layout difference.

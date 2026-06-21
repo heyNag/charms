@@ -35,6 +35,10 @@ Rules for future AI agents working in this repo:
 - Keep skill source agent-agnostic when possible. Put Claude Code marketplace
   wrapping under generated Claude plugin output, and keep reusable workflow
   guidance in `packages/<name>/SKILL.md`.
+- Write `SKILL.md` frontmatter descriptions as trigger conditions starting
+  with `Use when `. Put workflow details in the body after the skill is loaded.
+- Keep source skill wording action-oriented. Use `docs/target-tool-mapping.md`
+  for target-specific tool names, runtime limits, and install differences.
 - Document runtime assumptions honestly. A skill folder can be portable even
   when a helper script needs local binaries, local auth files, or shell access.
 - Treat `packages/<name>/SOURCE.md` and generated `GENERATED.md` files as the

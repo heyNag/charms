@@ -1,6 +1,6 @@
 ---
 name: x-bookmarks
-description: Fetch, search, and turn X/Twitter bookmarks into action using Bird cookie auth or X API v2. Use when the user asks about X/Twitter bookmarks, bookmark digests, bookmark search, saved posts, no-credit X bookmark access, or recurring review of bookmarked posts.
+description: Use when the user asks to fetch, search, review, summarize, digest, or act on X/Twitter bookmarks, saved posts, bookmark folders, no-credit bookmark access, or recurring bookmark reviews.
 argument-hint: "[digest|search QUERY|folders|since-last] [--count N]"
 tags: x, twitter, bookmarks, bird, local
 allowed-tools: Bash, Read

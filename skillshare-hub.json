@@ -5,7 +5,7 @@
   "skills": [
     {
       "name": "codex-reset-credit",
-      "description": "Check Codex reset-credit status and local Codex rate-limit reset windows without exposing auth secrets or modifying local Codex state.",
+      "description": "Use when the user explicitly asks about Codex reset credits, credit expiry, quota usage, local rate-limit windows, or when Codex limits reset.",
       "source": "codex-reset-credit",
       "tags": [
         "codex",
@@ -17,7 +17,7 @@
     },
     {
       "name": "watch-video",
-      "description": "Analyze YouTube URLs, local videos, screen recordings, tutorials, demos, and UI bug videos using yt-dlp, ffmpeg, native captions, frame extraction, and Groq Whisper fallback.",
+      "description": "Use when the user asks to inspect a YouTube URL, local video, screen recording, tutorial, demo, UI bug video, or visible/spoken video evidence.",
       "source": "watch-video",
       "tags": [
         "frames",
@@ -29,7 +29,7 @@
     },
     {
       "name": "x-bookmarks",
-      "description": "Fetch, search, and turn X/Twitter bookmarks into action using Bird cookie auth or X API v2. Use when the user asks about X/Twitter bookmarks, bookmark digests, bookmark search, saved posts, no-credit X bookmark access, or recurring review of bookmarked posts.",
+      "description": "Use when the user asks to fetch, search, review, summarize, digest, or act on X/Twitter bookmarks, saved posts, bookmark folders, no-credit bookmark access, or recurring bookmark reviews.",
       "source": "x-bookmarks",
       "tags": [
         "bird",

@@ -92,6 +92,14 @@ generated/agent-skills/<name>
 `SKILL.md` and lowercase `skill.md` are generated into separate output folders
 so case-insensitive filesystems do not collapse them into the same file.
 
+## Target Mapping Instead Of Bootstrap
+
+Keep current skills as task/domain packages without global session-start
+bootstrap injection. Source skills should describe actions and trigger
+conditions; target-specific tool mapping lives in `docs/target-tool-mapping.md`
+and generated wrappers. Add bootstrap hooks only if a future class of broad
+process skills genuinely requires automatic activation in every session.
+
 ## Watch Video Defaults
 
 `watch-video` uses Groq `whisper-large-v3-turbo` as the default transcription
