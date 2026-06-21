@@ -9,7 +9,7 @@
       "name": "codex-reset-credit",
       "source": "./generated/claude/plugins/codex-reset-credit",
       "description": "Check Codex reset credits and local rate-limit reset windows without exposing auth secrets.",
-      "version": "0.1.0",
+      "version": "2026.6.21",
       "author": {
         "name": "Nagarjuna Boddu"
       },

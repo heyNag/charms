@@ -1,6 +1,6 @@
 {
   "name": "codex-reset-credit",
-  "version": "0.1.0",
+  "version": "2026.6.21",
   "description": "Check Codex reset credits and local rate-limit reset windows without exposing auth secrets.",
   "author": {
     "name": "Nagarjuna Boddu"
