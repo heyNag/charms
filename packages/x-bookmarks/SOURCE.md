@@ -1,36 +1,36 @@
 # Source Package
 
-This directory is the source of truth for `x-bookmarks`.
+This directory is the source of truth and Claude Code plugin root for
+`x-bookmarks`.
 
 Edit files here first:
 
-- `SKILL.md`
-- `README.md`
-- `agents/`
+- `skills/x-bookmarks/SKILL.md`
+- `skills/x-bookmarks/scripts/`
+- `skills/x-bookmarks/references/`
+- `skills/x-bookmarks/agents/`
 - `commands/`
-- `plugin/plugin.json`
-- `references/`
-- `scripts/`
+- `.claude-plugin/plugin.json`
+- `README.md`
+- `SOURCE.md`
 - `tests/`
 - `tool.json`
 
 After changing package source, run:
 
 ```sh
-make rebuild-generated
+make build-packages
 make public-check
 ```
 
-This source directory generates these public install copies:
+Install targets consume source directly:
 
 ```text
-packages/x-bookmarks -> generated/claude/plugins/x-bookmarks
-packages/x-bookmarks -> generated/claude/custom-skills/x-bookmarks
-packages/x-bookmarks -> generated/codex/skills/x-bookmarks
-packages/x-bookmarks -> generated/agent-skills/x-bookmarks
+Claude Code marketplace source  -> packages/x-bookmarks
+Codex skill source              -> packages/x-bookmarks/skills/x-bookmarks
+OpenCode/generic skill source   -> packages/x-bookmarks/skills/x-bookmarks
+Skillshare hub source           -> packages/x-bookmarks/skills/x-bookmarks
+Claude Desktop local artifact   -> .dist/claude/custom-skills/x-bookmarks
 ```
 
-Generated Markdown, Python, shell, and YAML files include in-file notices that
-point back to the source paths in this package. Generated JSON and LICENSE files
-are covered by the nearest `GENERATED.md` marker because those file formats
-should not carry extra comments.
+`.dist/` artifacts are local build outputs and must not be committed.

@@ -9,8 +9,8 @@ allowed-tools: [Bash, Read]
 Use the `codex-reset-credit` skill with the user's arguments: $ARGUMENTS
 
 Run `scripts/check_reset_credits.py` from the installed skill, or
-`packages/codex-reset-credit/scripts/check_reset_credits.py` when working from
-this repository.
+`packages/codex-reset-credit/skills/codex-reset-credit/scripts/check_reset_credits.py`
+when working from this repository.
 
 Default to the concise text report. Use `--json` only when structured output is
 requested. Use `--no-live` when the user only wants local rate-limit windows or

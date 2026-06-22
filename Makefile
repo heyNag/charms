@@ -1,4 +1,4 @@
-.PHONY: test syntax doctor install install-dry-run groq-test mcp-build clean-generated build-claude-plugin build-codex-skill build-agent-skill build-claude-custom-skill build-skillshare-hub build-packages rebuild-generated verify-skill-metadata verify-packages audit-generated verify-generated-clean public-check ci-local
+.PHONY: test syntax doctor install install-dry-run groq-test mcp-build clean-artifacts build-marketplace build-skillshare-hub build-claude-custom-skill build-packages verify-skill-metadata verify-packages verify-source-clean public-check ci-local
 
 AUDIO ?=
 PYTHON ?= python3
@@ -16,12 +16,12 @@ test:
 	done
 
 syntax:
-	@files="$$(find packages generated scripts -path '*/__pycache__' -prune -o -name '*.py' -print)"; \
+	@files="$$(find packages scripts -path '*/__pycache__' -prune -o -name '*.py' -print)"; \
 	PYTHONDONTWRITEBYTECODE=1 python3 scripts/check-python-syntax.py $$files
-	bash -n scripts/*.sh
+	bash -n scripts/*.sh packages/*/skills/*/scripts/*.sh
 
 doctor:
-	$(PYTHON) packages/watch-video/scripts/doctor.py
+	$(PYTHON) packages/watch-video/skills/watch-video/scripts/doctor.py
 
 install:
 	./scripts/install-all.sh
@@ -39,28 +39,20 @@ groq-test:
 mcp-build:
 	npm --prefix mcp/watch-video run build
 
-clean-generated:
-	rm -rf .claude-plugin generated
+clean-artifacts:
+	rm -rf .dist
 
-build-claude-plugin:
-	./scripts/build-claude-plugin.sh
-
-build-codex-skill:
-	./scripts/build-codex-skill.sh
-
-build-agent-skill:
-	./scripts/build-agent-skill.sh
-
-build-claude-custom-skill:
-	./scripts/build-claude-custom-skill.sh
+build-marketplace:
+	./scripts/build-marketplace.sh
 
 build-skillshare-hub:
 	$(PYTHON) scripts/build-skillshare-hub.py
 
+build-claude-custom-skill:
+	./scripts/build-claude-custom-skill.sh
+
 build-packages:
 	./scripts/build-packages.sh
-
-rebuild-generated: clean-generated build-packages
 
 verify-skill-metadata:
 	$(PYTHON) scripts/verify-skill-metadata.py
@@ -68,46 +60,26 @@ verify-skill-metadata:
 verify-packages:
 	./scripts/verify-packages.sh
 
-audit-generated:
-	@set -e; \
-	for tool_json in packages/*/tool.json; do \
-		package="$$(basename "$$(dirname "$$tool_json")")"; \
-		./scripts/audit-generated.sh "$$package"; \
-	done
-
-verify-generated-clean:
+verify-source-clean:
 	@set -e; \
 	tmp_dir="$$(mktemp -d)"; \
 	trap 'rm -rf "$$tmp_dir"' EXIT; \
-	mkdir -p "$$tmp_dir/before"; \
-	for path in .claude-plugin generated skillshare-hub.json; do \
-		if [ -e "$$path" ]; then \
-			mkdir -p "$$tmp_dir/before/$$(dirname "$$path")"; \
-			cp -R "$$path" "$$tmp_dir/before/$$path"; \
-		fi; \
-	done; \
-	$(MAKE) rebuild-generated >/dev/null; \
-	stale=0; \
-	for path in .claude-plugin generated skillshare-hub.json; do \
-		if ! diff -ruN "$$tmp_dir/before/$$path" "$$path" >/dev/null; then \
-			diff -ruN "$$tmp_dir/before/$$path" "$$path" >&2 || true; \
-			stale=1; \
-		fi; \
-	done; \
-	if [ "$$stale" -ne 0 ]; then \
-		echo "generated package outputs are stale; run make rebuild-generated and commit the results" >&2; \
-		exit 1; \
-	fi
+	cp .claude-plugin/marketplace.json "$$tmp_dir/marketplace.json.before"; \
+	cp skillshare-hub.json "$$tmp_dir/skillshare-hub.json.before"; \
+	$(MAKE) build-marketplace build-skillshare-hub >/dev/null; \
+	diff -u "$$tmp_dir/marketplace.json.before" .claude-plugin/marketplace.json; \
+	diff -u "$$tmp_dir/skillshare-hub.json.before" skillshare-hub.json; \
+	echo "source package indexes are current"
 
 public-check:
 	$(MAKE) test
 	$(MAKE) syntax
 	$(MAKE) mcp-build
-	$(MAKE) rebuild-generated
+	$(MAKE) clean-artifacts
+	$(MAKE) build-packages
 	$(MAKE) verify-skill-metadata
 	$(MAKE) verify-packages
-	$(MAKE) audit-generated
-	$(MAKE) verify-generated-clean
+	$(MAKE) verify-source-clean
 	git diff --check
 	$(MAKE) install-dry-run
 

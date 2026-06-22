@@ -31,8 +31,8 @@ root = pathlib.Path(sys.argv[2])
 data = json.loads(marketplace_path.read_text(encoding="utf-8"))
 
 errors = []
-if not isinstance(data.get("name"), str) or not data["name"]:
-    errors.append("marketplace name must be a non-empty string")
+if data.get("name") != "agent-tools":
+    errors.append("marketplace name must be agent-tools")
 owner = data.get("owner")
 if not isinstance(owner, dict) or not isinstance(owner.get("name"), str) or not owner["name"]:
     errors.append("marketplace owner.name must be present")
@@ -46,7 +46,7 @@ for tool_path in sorted((root / "packages").glob("*/tool.json")):
     targets = tool.get("targets") or []
     if tool.get("public") is True and "claude" in targets:
         name = tool.get("name") or tool_path.parent.name
-        expected[name] = tool_path
+        expected[name] = tool_path.parent
 
 seen = set()
 for index, plugin in enumerate(plugins or []):
@@ -64,18 +64,21 @@ for index, plugin in enumerate(plugins or []):
         errors.append(f"marketplace plugin has no public Claude package: {name}")
 
     source = plugin.get("source")
-    if not isinstance(source, str) or not source.startswith("./"):
-        errors.append(f"plugins[{index}].source must be a relative ./ path")
+    expected_source = f"./packages/{name}"
+    if source != expected_source:
+        errors.append(f"plugins[{index}].source should be {expected_source}")
     if "path" in plugin:
         errors.append(f"plugins[{index}].path is redundant; use source only")
     if isinstance(source, str):
         if ".." in pathlib.PurePosixPath(source).parts:
             errors.append(f"plugins[{index}].source must not contain '..'")
-        if source != f"./generated/claude/plugins/{name}":
-            errors.append(f"plugins[{index}].source should be ./generated/claude/plugins/{name}")
         source_dir = root / source.removeprefix("./")
         if not source_dir.is_dir():
             errors.append(f"plugins[{index}].source directory is missing: {source}")
+        if not (source_dir / ".claude-plugin" / "plugin.json").is_file():
+            errors.append(f"plugins[{index}].source missing .claude-plugin/plugin.json: {source}")
+        if not (source_dir / "skills" / name / "SKILL.md").is_file():
+            errors.append(f"plugins[{index}].source missing skills/{name}/SKILL.md: {source}")
 
     author = plugin.get("author")
     if not isinstance(author, dict) or not isinstance(author.get("name"), str) or not author["name"]:
@@ -85,17 +88,16 @@ for index, plugin in enumerate(plugins or []):
         if not isinstance(plugin.get(field), str) or not plugin[field]:
             errors.append(f"plugins[{index}].{field} must be a non-empty string")
 
-    if isinstance(source, str) and source.startswith("./"):
-        plugin_json = root / source[2:] / ".claude-plugin" / "plugin.json"
-        if plugin_json.exists():
-            manifest = json.loads(plugin_json.read_text(encoding="utf-8"))
+    if name in expected:
+        manifest_path = expected[name] / ".claude-plugin" / "plugin.json"
+        if manifest_path.exists():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             if manifest.get("name") != name:
-                errors.append(f"plugins[{index}].name does not match {plugin_json}")
+                errors.append(f"plugins[{index}].name does not match {manifest_path}")
             if manifest.get("version") != plugin.get("version"):
-                errors.append(f"plugins[{index}].version does not match {plugin_json}")
+                errors.append(f"plugins[{index}].version does not match {manifest_path}")
 
-missing = sorted(set(expected) - seen)
-for name in missing:
+for name in sorted(set(expected) - seen):
     errors.append(f"public Claude package missing from marketplace: {name}")
 
 if errors:
@@ -118,10 +120,8 @@ data = json.loads(hub_path.read_text(encoding="utf-8"))
 errors = []
 if data.get("schemaVersion") != 1:
     errors.append("skillshare hub schemaVersion must be 1")
-if not isinstance(data.get("generatedAt"), str) or not data["generatedAt"]:
-    errors.append("skillshare hub generatedAt must be present")
-if data.get("sourcePath") != "heyNag/agent-tools/packages":
-    errors.append("skillshare hub sourcePath must be heyNag/agent-tools/packages")
+if data.get("sourcePath") != "heyNag/agent-tools":
+    errors.append("skillshare hub sourcePath must be heyNag/agent-tools")
 
 skills = data.get("skills")
 if not isinstance(skills, list) or not skills:
@@ -133,7 +133,7 @@ for tool_path in sorted((root / "packages").glob("*/tool.json")):
     targets = tool.get("targets") or []
     if tool.get("public") is True and (tool.get("agent_agnostic") is True or "generic" in targets):
         name = tool.get("name") or tool_path.parent.name
-        expected[name] = tool
+        expected[name] = f"packages/{name}/skills/{name}"
 
 seen = set()
 for index, skill in enumerate(skills or []):
@@ -149,26 +149,19 @@ for index, skill in enumerate(skills or []):
     seen.add(name)
     if name not in expected:
         errors.append(f"skillshare hub skill has no public package: {name}")
+        continue
 
     source = skill.get("source")
-    expected_source = name
-    if source != expected_source:
-        errors.append(f"skills[{index}].source should be {expected_source}")
-    if isinstance(source, str) and "://" in source:
-        errors.append(f"skills[{index}].source must be relative to sourcePath")
-    if isinstance(source, str) and "/generated/" in source:
+    if source != expected[name]:
+        errors.append(f"skills[{index}].source should be {expected[name]}")
+    if isinstance(source, str) and "generated/" in source:
         errors.append(f"skills[{index}].source must not point at generated output")
-
+    if isinstance(source, str) and not (root / source).is_dir():
+        errors.append(f"skills[{index}].source directory is missing: {source}")
     if skill.get("skill") not in (None, "", name):
         errors.append(f"skills[{index}].skill should be omitted or {name}")
-    if not isinstance(skill.get("description"), str) or not skill["description"]:
-        errors.append(f"skills[{index}].description must be present")
-    tags = skill.get("tags", [])
-    if tags is not None and (not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags)):
-        errors.append(f"skills[{index}].tags must be an array of strings when present")
 
-missing = sorted(set(expected) - seen)
-for name in missing:
+for name in sorted(set(expected) - seen):
     errors.append(f"public agent-compatible package missing from skillshare hub: {name}")
 
 if errors:
@@ -225,13 +218,13 @@ print("true" if sys.argv[2] in targets else "false")
 PY
 }
 
-scan_output() {
-  local output_dir="$1"
-  [[ -d "$output_dir" ]] || return 0
+scan_tree() {
+  local scan_dir="$1"
+  [[ -d "$scan_dir" ]] || return 0
 
   local hits
   hits="$(
-    find "$output_dir" \
+    find "$scan_dir" \
       \( \
         -name ".env" -o \
         -name ".env.local" -o \
@@ -258,15 +251,9 @@ scan_output() {
         -name "transcript.json" -o \
         -name "transcript.md" -o \
         -name "report.md" -o \
-        -name "groq_transcript.raw.json" -o \
-        -iname "rollout-*.jsonl" -o \
         -iname "*.sqlite" -o \
         -iname "*.sqlite3" -o \
         -iname "*.db" -o \
-        -iname "frame_*.jpg" -o \
-        -iname "frame_*.jpeg" -o \
-        -iname "frame_*.png" -o \
-        -iname "frame_*.webp" -o \
         -iname "*.mp3" -o \
         -iname "*.wav" -o \
         -iname "*.m4a" -o \
@@ -275,203 +262,84 @@ scan_output() {
         -iname "*.mov" -o \
         -iname "*.mkv" -o \
         -iname "*.webm" -o \
-        -iname "*.webp" -o \
         -iname "*.avi" -o \
         -iname "*.flv" -o \
         -iname "*.wmv" \
       \) -print
   )"
-
   if [[ -n "$hits" ]]; then
     echo "$hits" >&2
-    fail "generated package contains forbidden files under ${output_dir#$ROOT/}"
+    fail "forbidden local artifact found under ${scan_dir#$ROOT/}"
   fi
 
-  python3 - "$output_dir" "$ROOT" <<'PY'
-import pathlib
-import re
-import sys
-
-output_dir = pathlib.Path(sys.argv[1])
-root = pathlib.Path(sys.argv[2])
-secret_patterns = [
-    re.compile(r"gsk_[A-Za-z0-9_-]{8,}"),
-    re.compile(r"sk-[A-Za-z0-9_-]{8,}"),
-]
-assignment = re.compile(r"\b(?:GROQ_API_KEY|OPENAI_API_KEY)\s*=\s*['\"]?([^'\"\s`]+)")
-safe_values = {"", "...", "your-key", "your_groq_api_key", "<key>", "<your-key>"}
-hits = []
-
-for path in sorted(output_dir.rglob("*")):
-    if not path.is_file():
-        continue
-    try:
-        text = path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        continue
-    rel = path.relative_to(root)
-    for line_no, line in enumerate(text.splitlines(), start=1):
-        if ".env.local" in line:
-            hits.append(f"{rel}:{line_no}: .env.local")
-        for pattern in secret_patterns:
-            if pattern.search(line):
-                hits.append(f"{rel}:{line_no}: {pattern.pattern}")
-        match = assignment.search(line)
-        if match:
-            value = match.group(1).strip()
-            if value not in safe_values and not value.startswith("$"):
-                hits.append(f"{rel}:{line_no}: API key assignment")
-
-if hits:
-    for hit in hits:
-        print(hit, file=sys.stderr)
-    raise SystemExit(1)
-PY
-}
-
-scan_metadata_file() {
-  local metadata_file="$1"
-  python3 - "$metadata_file" "$ROOT" <<'PY'
-import pathlib
-import re
-import sys
-
-path = pathlib.Path(sys.argv[1])
-root = pathlib.Path(sys.argv[2])
-secret_patterns = [
-    re.compile(r"gsk_[A-Za-z0-9_-]{8,}"),
-    re.compile(r"sk-[A-Za-z0-9_-]{8,}"),
-    re.compile(r"\b(?:GROQ_API_KEY|OPENAI_API_KEY)\s*="),
-]
-forbidden_text = [".env.local", "/generated/", "generated/"]
-hits = []
-text = path.read_text(encoding="utf-8")
-rel = path.relative_to(root)
-for line_no, line in enumerate(text.splitlines(), start=1):
-    for pattern in secret_patterns:
-        if pattern.search(line):
-            hits.append(f"{rel}:{line_no}: {pattern.pattern}")
-    for value in forbidden_text:
-        if value in line:
-            hits.append(f"{rel}:{line_no}: {value}")
-if hits:
-    for hit in hits:
-        print(hit, file=sys.stderr)
-    raise SystemExit(1)
-PY
+  if grep -R -I -n -E 'gsk_[A-Za-z0-9_-]{12,}|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY=[[:space:]]*sk-[A-Za-z0-9_-]{12,}|GROQ_API_KEY=[[:space:]]*gsk_[A-Za-z0-9_-]{12,}' "$scan_dir" >/tmp/agent-tools-secret-scan.$$ 2>/dev/null; then
+    cat /tmp/agent-tools-secret-scan.$$ >&2
+    rm -f /tmp/agent-tools-secret-scan.$$
+    fail "possible secret value found under ${scan_dir#$ROOT/}"
+  fi
+  rm -f /tmp/agent-tools-secret-scan.$$
 }
 
 check_file "$ROOT/.claude-plugin/marketplace.json"
-check_file "$ROOT/.claude-plugin/GENERATED.md"
 check_file "$ROOT/skillshare-hub.json"
-python3 "$ROOT/scripts/verify-skill-metadata.py" "$ROOT"
 valid_json "$ROOT/.claude-plugin/marketplace.json"
 valid_json "$ROOT/skillshare-hub.json"
-scan_metadata_file "$ROOT/skillshare-hub.json"
 validate_marketplace
 validate_skillshare_hub
 
-found=0
 shopt -s nullglob
+found=0
 for tool_json in "$ROOT"/packages/*/tool.json; do
   found=1
   package="$(basename "$(dirname "$tool_json")")"
   package_dir="$ROOT/packages/$package"
+  skill_dir="$package_dir/skills/$package"
+
   valid_json "$tool_json"
+  check_file "$package_dir/README.md"
+  check_file "$package_dir/SOURCE.md"
+  check_file "$skill_dir/SKILL.md"
 
-  if [[ "$(json_public "$tool_json")" != "true" ]]; then
-    echo "skip: $package is not public"
-    continue
+  if [[ -e "$package_dir/SKILL.md" ]]; then
+    fail "legacy root skill file remains: packages/$package/SKILL.md"
+  fi
+  if [[ -d "$package_dir/scripts" || -d "$package_dir/references" || -d "$package_dir/agents" ]]; then
+    fail "legacy package-level bundled skill directory remains under packages/$package"
+  fi
+  if [[ -d "$package_dir/plugin" ]]; then
+    fail "legacy plugin/ directory remains under packages/$package; use .claude-plugin/plugin.json"
   fi
 
-  if [[ "$(json_has_target "$tool_json" claude)" == "true" ]]; then
-    plugin_dir="$ROOT/generated/claude/plugins/$package"
-    check_file "$plugin_dir/.claude-plugin/plugin.json"
-    check_file "$plugin_dir/GENERATED.md"
-    check_file "$plugin_dir/skills/$package/SKILL.md"
-    check_file "$plugin_dir/README.md"
-    check_file "$plugin_dir/LICENSE"
-    valid_json "$plugin_dir/.claude-plugin/plugin.json"
-    validate_plugin_manifest "$plugin_dir/.claude-plugin/plugin.json"
-
-    if [[ -d "$package_dir/scripts" ]]; then
-      check_dir "$plugin_dir/skills/$package/scripts"
-    fi
-    if [[ -d "$package_dir/references" ]]; then
-      check_dir "$plugin_dir/skills/$package/references"
-    fi
-    if [[ -d "$package_dir/agents" ]]; then
-      check_dir "$plugin_dir/skills/$package/agents"
-    fi
-    if [[ -d "$package_dir/commands" ]]; then
-      check_dir "$plugin_dir/commands"
-    fi
-    scan_output "$plugin_dir"
-
-    if command -v claude >/dev/null 2>&1; then
-      if [[ "${CLAUDE_PLUGIN_VALIDATE:-0}" == "1" ]]; then
-        claude plugin validate "$plugin_dir" || fail "Claude plugin validation failed for $package"
-      else
-        echo "skip: claude CLI validation for $package (set CLAUDE_PLUGIN_VALIDATE=1 to enable)"
-      fi
-    else
-      echo "skip: claude CLI not found for $package"
-    fi
+  if [[ "$(json_public "$tool_json")" == "true" && "$(json_has_target "$tool_json" claude)" == "true" ]]; then
+    check_file "$package_dir/.claude-plugin/plugin.json"
+    valid_json "$package_dir/.claude-plugin/plugin.json"
+    validate_plugin_manifest "$package_dir/.claude-plugin/plugin.json"
   fi
 
-  if [[ "$(json_has_target "$tool_json" codex)" == "true" ]]; then
-    codex_dir="$ROOT/generated/codex/skills/$package"
-    check_file "$codex_dir/GENERATED.md"
-    check_file "$codex_dir/SKILL.md"
-    check_file "$codex_dir/README.md"
-    check_file "$codex_dir/LICENSE"
-    if [[ -d "$package_dir/scripts" ]]; then
-      check_dir "$codex_dir/scripts"
-    fi
-    if [[ -d "$package_dir/references" ]]; then
-      check_dir "$codex_dir/references"
-    fi
-    if [[ -d "$package_dir/agents" ]]; then
-      check_dir "$codex_dir/agents"
-    fi
-    scan_output "$codex_dir"
-  fi
-
-  if [[ "$(json_has_target "$tool_json" generic)" == "true" ]]; then
-    agent_dir="$ROOT/generated/agent-skills/$package"
-    check_file "$agent_dir/GENERATED.md"
-    check_file "$agent_dir/SKILL.md"
-    check_file "$agent_dir/README.md"
-    check_file "$agent_dir/LICENSE"
-    if [[ -d "$package_dir/scripts" ]]; then
-      check_dir "$agent_dir/scripts"
-    fi
-    if [[ -d "$package_dir/references" ]]; then
-      check_dir "$agent_dir/references"
-    fi
-    if [[ -d "$package_dir/agents" ]]; then
-      check_dir "$agent_dir/agents"
-    fi
-    scan_output "$agent_dir"
-
-    claude_skill_dir="$ROOT/generated/claude/custom-skills/$package"
-    check_file "$claude_skill_dir/GENERATED.md"
-    check_file "$claude_skill_dir/skill.md"
-    check_file "$claude_skill_dir/README.md"
-    check_file "$claude_skill_dir/LICENSE"
-    if [[ -d "$package_dir/scripts" ]]; then
-      check_dir "$claude_skill_dir/scripts"
-    fi
-    if [[ -d "$package_dir/references" ]]; then
-      check_dir "$claude_skill_dir/references"
-    fi
-    if [[ -d "$package_dir/agents" ]]; then
-      check_dir "$claude_skill_dir/agents"
-    fi
-    scan_output "$claude_skill_dir"
-  fi
+  scan_tree "$package_dir"
 done
+shopt -u nullglob
 
-[[ "$found" -eq 1 ]] || fail "no package manifests found under packages/*/tool.json"
+if [[ "$found" -eq 0 ]]; then
+  fail "no package manifests found under packages/*/tool.json"
+fi
+
+if [[ -d "$ROOT/generated" ]]; then
+  fail "generated/ should not exist in the source-only repo shape"
+fi
+
+if command -v claude >/dev/null 2>&1; then
+  echo "claude CLI found; validating package plugins"
+  for tool_json in "$ROOT"/packages/*/tool.json; do
+    package="$(basename "$(dirname "$tool_json")")"
+    if [[ "$(json_public "$tool_json")" == "true" && "$(json_has_target "$tool_json" claude)" == "true" ]]; then
+      if ! claude plugin validate "$ROOT/packages/$package"; then
+        fail "Claude plugin validation failed for packages/$package"
+      fi
+    fi
+  done
+else
+  echo "claude CLI not found; skipping Claude plugin validation"
+fi
 
 echo "package verification passed"

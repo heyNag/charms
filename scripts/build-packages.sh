@@ -23,9 +23,6 @@ for tool_json in "$ROOT"/packages/*/tool.json; do
     echo "skip: $package is not public"
     continue
   fi
-  "$ROOT/scripts/build-claude-plugin.sh" "$package"
-  "$ROOT/scripts/build-codex-skill.sh" "$package"
-  "$ROOT/scripts/build-agent-skill.sh" "$package"
   "$ROOT/scripts/build-claude-custom-skill.sh" "$package"
 done
 

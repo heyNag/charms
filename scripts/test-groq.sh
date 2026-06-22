@@ -22,7 +22,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp_json="$(mktemp -t watch-video-groq.XXXXXX.json)"
 trap 'rm -f "${tmp_json}"' EXIT
 
-python3 "${repo_root}/packages/watch-video/scripts/groq_transcribe.py" \
+python3 "${repo_root}/packages/watch-video/skills/watch-video/scripts/groq_transcribe.py" \
   "${audio_file}" \
   --out "${tmp_json}" \
   --model "${GROQ_MODEL:-whisper-large-v3-turbo}" \

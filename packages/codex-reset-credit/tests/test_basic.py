@@ -8,7 +8,13 @@ import unittest
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "check_reset_credits.py"
+SCRIPT = (
+    Path(__file__).resolve().parents[1]
+    / "skills"
+    / "codex-reset-credit"
+    / "scripts"
+    / "check_reset_credits.py"
+)
 
 
 def load_module():

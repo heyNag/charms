@@ -1,7 +1,7 @@
 # watch-video
 
 `watch-video` is a local video inspection package for agents. It turns a URL or
-local video into a small bundle of evidence:
+local video into a small evidence bundle:
 
 - metadata
 - focused audio clip
@@ -9,84 +9,56 @@ local video into a small bundle of evidence:
 - optional frames
 - a concise report
 
-It is designed for local use by Claude Code, Codex, OpenCode, and similar
-agent tools. The skill format is portable; full video processing still needs a
-local runtime with `yt-dlp`, `ffmpeg`, and `ffprobe`.
+The package root is a Claude Code plugin source. The portable skill source is:
 
-In the `agent-tools` repo, source lives under `packages/watch-video`. Public
-install targets are generated from that source into
-`generated/claude/plugins/watch-video`,
-`generated/claude/custom-skills/watch-video`,
-`generated/codex/skills/watch-video`, and `generated/agent-skills/watch-video`.
-
-Claude Code marketplace metadata points at the generated plugin package under
-`generated/claude/plugins/watch-video`. Codex users can copy
-`generated/codex/skills/watch-video` into their local skills directory. Claude
-Desktop / claude.ai custom skill users can ZIP
-`generated/claude/custom-skills/watch-video`. OpenCode and generic Agent Skills
-users can use `generated/agent-skills/watch-video`.
-
-Optional if you already use Skillshare:
-
-```sh
-skillshare install heyNag/agent-tools/packages/watch-video --track
-skillshare sync
+```text
+packages/watch-video/skills/watch-video
 ```
 
-Optional Claude Desktop no-terminal packaging: paste
-`https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/watch-video`
-into `https://skill-compiler.statechange.ai/`, preview the files, download the
-`.skill`, and import it in Claude Desktop.
+Codex, OpenCode, generic Agent Skills, and optional Skillshare installs all use
+that same skill folder. Claude Desktop custom-skill ZIP contents are built
+locally under `.dist/claude/custom-skills/watch-video`.
 
 ## Requirements
 
-Run package-local commands from `packages/watch-video/` or from an installed
-skill folder unless the command shows a repo-root path.
-
 ```sh
 brew install yt-dlp ffmpeg jq
+python3 packages/watch-video/skills/watch-video/scripts/doctor.py
 ```
 
-Set `GROQ_API_KEY` for Whisper fallback:
+Groq is the default transcription fallback when captions are missing or
+incomplete:
 
 ```sh
 export GROQ_API_KEY="..."
 export GROQ_MODEL="whisper-large-v3-turbo"
 ```
 
-Run preflight before the first real video:
-
-```sh
-python3 scripts/doctor.py
-```
-
-Groq is the default transcription fallback. OpenAI is optional with
-`--transcriber openai` and `OPENAI_API_KEY`; it defaults to `whisper-1` for
-verbose JSON segment timestamps.
+OpenAI transcription is optional with `--transcriber openai` and
+`OPENAI_API_KEY`; it defaults to `whisper-1` for verbose JSON segment
+timestamps.
 
 ## Quickstart
 
-From the source package directory, Codex install, or agent-generic install:
+From the repo root:
 
 ```sh
-python3 scripts/watch.py "https://www.youtube.com/watch?v=DTCyvo6cC54" \
+python3 packages/watch-video/skills/watch-video/scripts/watch.py \
+  "https://www.youtube.com/watch?v=DTCyvo6cC54" \
   --duration 30 \
   --transcriber none \
   --frame-mode auto \
   --max-frames 8
 ```
 
-From the generated Claude plugin package root, use the skill subdirectory:
+From the skill folder:
 
 ```sh
-python3 skills/watch-video/scripts/watch.py "https://www.youtube.com/watch?v=DTCyvo6cC54" \
-  --duration 30 \
-  --transcriber none \
-  --frame-mode auto \
-  --max-frames 8
+cd packages/watch-video/skills/watch-video
+python3 scripts/watch.py "https://www.youtube.com/watch?v=DTCyvo6cC54" --duration 30 --transcriber none
 ```
 
-Focused local examples:
+Focused examples:
 
 ```sh
 python3 scripts/watch.py ./screen-recording.mov --start 00:15 --end 00:45 --mode ui-bug --frame-format png
@@ -106,26 +78,20 @@ Common options:
 
 Outputs are written under `.watch-video/runs/<run-id>/` by default.
 
-## Source Files
+## Package Files
 
 ```text
-SKILL.md              # skill instructions for local agents
-scripts/watch.py      # orchestration CLI
-scripts/groq_transcribe.py
-scripts/extract_frames.py
-scripts/doctor.py
+.claude-plugin/plugin.json       Claude Code plugin metadata
+skills/watch-video/SKILL.md      skill instructions
+skills/watch-video/scripts/      local helper CLIs
+commands/                        Claude Code slash command prompts
+tests/                           offline helper tests
+tool.json                        package manifest
 ```
 
-The source package also includes command prompts, plugin metadata, tests, and
-`tool.json`.
+After editing source:
 
-Generated install packages contain a subset of those files:
-
-- Claude plugin package: `README.md`, `LICENSE`, `.claude-plugin/plugin.json`,
-  commands, and `skills/watch-video/`.
-- Codex skill package: `README.md`, `LICENSE`, `SKILL.md`, and
-  `scripts/`.
-- Claude custom-skill package: `README.md`, `LICENSE`, lowercase `skill.md`,
-  and `scripts/`.
-- Agent-generic skill package: `README.md`, `LICENSE`, `SKILL.md`, and
-  `scripts/`.
+```sh
+make build-packages
+make public-check
+```

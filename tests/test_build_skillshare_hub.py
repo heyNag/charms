@@ -22,8 +22,10 @@ def load_builder():
 class BuildSkillshareHubTests(unittest.TestCase):
     def write_package(self, root, name, *, public=True, targets=None, tags=None, version="2026.6.21"):
         package_dir = root / "packages" / name
-        plugin_dir = package_dir / "plugin"
+        plugin_dir = package_dir / ".claude-plugin"
+        skill_dir = package_dir / "skills" / name
         plugin_dir.mkdir(parents=True)
+        skill_dir.mkdir(parents=True)
         tool = {
             "name": name,
             "description": f"{name} description",
@@ -36,7 +38,7 @@ class BuildSkillshareHubTests(unittest.TestCase):
         (package_dir / "tool.json").write_text(json.dumps(tool), encoding="utf-8")
         (plugin_dir / "plugin.json").write_text(json.dumps({"version": version}), encoding="utf-8")
         tag_line = ", ".join(tags or [])
-        (package_dir / "SKILL.md").write_text(
+        (skill_dir / "SKILL.md").write_text(
             "\n".join(
                 [
                     "---",
@@ -64,9 +66,9 @@ class BuildSkillshareHubTests(unittest.TestCase):
 
         self.assertEqual(index["schemaVersion"], 1)
         self.assertEqual(index["generatedAt"], "2026-06-21T00:00:00Z")
-        self.assertEqual(index["sourcePath"], "heyNag/agent-tools/packages")
+        self.assertEqual(index["sourcePath"], "heyNag/agent-tools")
         self.assertEqual([skill["name"] for skill in index["skills"]], ["alpha", "zeta"])
-        self.assertEqual(index["skills"][0]["source"], "alpha")
+        self.assertEqual(index["skills"][0]["source"], "packages/alpha/skills/alpha")
         self.assertNotIn("skill", index["skills"][0])
         self.assertEqual(index["skills"][0]["description"], "alpha skill description from frontmatter")
         self.assertNotIn("generated", index["skills"][1]["source"])
@@ -97,7 +99,7 @@ class BuildSkillshareHubTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.write_package(root, "actual", tags=["local"])
-            (root / "packages" / "actual" / "SKILL.md").write_text(
+            (root / "packages" / "actual" / "skills" / "actual" / "SKILL.md").write_text(
                 "---\nname: wrong\ndescription: Wrong.\ntags: local\n---\n",
                 encoding="utf-8",
             )

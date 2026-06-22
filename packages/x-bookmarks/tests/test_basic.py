@@ -7,7 +7,7 @@ import unittest
 from unittest import mock
 
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "x-bookmarks" / "scripts"
 
 
 def load_module(name: str, path: Path):

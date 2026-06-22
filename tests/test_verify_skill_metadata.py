@@ -22,7 +22,8 @@ def load_module():
 class VerifySkillMetadataTests(unittest.TestCase):
     def write_package(self, root, name, *, skill_tags="local, safe", tool_tags=None):
         package_dir = root / "packages" / name
-        package_dir.mkdir(parents=True)
+        skill_dir = package_dir / "skills" / name
+        skill_dir.mkdir(parents=True)
         tool = {
             "name": name,
             "description": f"{name} description",
@@ -32,7 +33,7 @@ class VerifySkillMetadataTests(unittest.TestCase):
             "public": True,
         }
         (package_dir / "tool.json").write_text(json.dumps(tool), encoding="utf-8")
-        (package_dir / "SKILL.md").write_text(
+        (skill_dir / "SKILL.md").write_text(
             (
                 "---\n"
                 f"name: {name}\n"
@@ -68,7 +69,7 @@ class VerifySkillMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.write_package(root, "summary-skill")
-            skill_path = root / "packages" / "summary-skill" / "SKILL.md"
+            skill_path = root / "packages" / "summary-skill" / "skills" / "summary-skill" / "SKILL.md"
             skill_path.write_text(
                 "---\n"
                 "name: summary-skill\n"
@@ -82,7 +83,7 @@ class VerifySkillMetadataTests(unittest.TestCase):
 
         self.assertTrue(any("description must start with 'Use when '" in error for error in errors))
 
-    def test_skillignore_requires_generated(self):
+    def test_skillignore_requires_dist(self):
         module = load_module()
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
@@ -90,7 +91,7 @@ class VerifySkillMetadataTests(unittest.TestCase):
 
             errors = module.validate_skillignore(root)
 
-        self.assertEqual(errors, [".skillignore: must include generated/"])
+        self.assertEqual(errors, [".skillignore: must include .dist/"])
 
 
 if __name__ == "__main__":

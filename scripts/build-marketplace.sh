@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/.claude-plugin/marketplace.json"
-MARKER="$ROOT/.claude-plugin/GENERATED.md"
 
 mkdir -p "$(dirname "$OUT")"
 
@@ -46,13 +45,13 @@ for tool_path in sorted((ROOT / "packages").glob("*/tool.json")):
         continue
 
     name = tool.get("name") or package_dir.name
-    plugin_path = package_dir / "plugin" / "plugin.json"
+    plugin_path = package_dir / ".claude-plugin" / "plugin.json"
     plugin = load_json(plugin_path) if plugin_path.exists() else {}
 
     plugins.append(
         {
             "name": name,
-            "source": f"./generated/claude/plugins/{name}",
+            "source": f"./packages/{name}",
             "description": plugin.get("description")
             or tool.get("description")
             or f"{name} Claude Code plugin.",
@@ -74,25 +73,3 @@ OUT.write_text(json.dumps(marketplace, indent=2) + "\n", encoding="utf-8")
 PY
 
 echo "built Claude marketplace: .claude-plugin/marketplace.json"
-
-cat > "$MARKER" <<'EOF'
-# Generated Claude Code Marketplace Catalog
-
-This directory contains generated Claude Code marketplace metadata.
-
-Do not edit this directory directly during normal development.
-
-Edit the source paths on the left; the generated output on the right is
-rewritten by `make rebuild-generated`.
-
-```text
-packages/*/tool.json and packages/*/plugin/plugin.json -> .claude-plugin/marketplace.json
-```
-
-After editing source:
-
-1. Edit package manifests under `packages/`.
-2. Run `make rebuild-generated`.
-3. Run `make public-check`.
-4. Commit both source and regenerated output changes.
-EOF

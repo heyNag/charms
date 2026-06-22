@@ -5,7 +5,8 @@ PACKAGE="${1:-watch-video}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$ROOT/packages/$PACKAGE"
 TOOL_JSON="$SRC/tool.json"
-OUT="$ROOT/generated/claude/custom-skills/$PACKAGE"
+SKILL_SRC="$SRC/skills/$PACKAGE"
+OUT="$ROOT/.dist/claude/custom-skills/$PACKAGE"
 
 fail() {
   echo "error: $*" >&2
@@ -41,15 +42,7 @@ print("true" if sys.argv[2] in targets else "false")
 PY
 }
 
-copy_dir() {
-  local source_dir="$1"
-  local dest_dir="$2"
-  mkdir -p "$dest_dir"
-  cp -R "$source_dir"/. "$dest_dir"/
-  prune_generated "$dest_dir"
-}
-
-prune_generated() {
+prune_artifact() {
   local dest_dir="$1"
   find "$dest_dir" \
     \( \
@@ -65,6 +58,7 @@ prune_generated() {
       -name ".venv" -o \
       -name "node_modules" -o \
       -name "dist" -o \
+      -name ".dist" -o \
       -name "frames" \
     \) -prune -exec rm -rf {} +
   find "$dest_dir" -name ".DS_Store" -delete
@@ -105,6 +99,14 @@ prune_generated() {
     \) -type f -delete
 }
 
+copy_optional_dir() {
+  local name="$1"
+  if [[ -d "$SKILL_SRC/$name" ]]; then
+    mkdir -p "$OUT/$name"
+    cp -R "$SKILL_SRC/$name"/. "$OUT/$name"/
+  fi
+}
+
 [[ -f "$TOOL_JSON" ]] || fail "missing package manifest: $TOOL_JSON"
 [[ "$(json_public)" == "true" ]] || {
   echo "skip: $PACKAGE is not public"
@@ -115,85 +117,35 @@ prune_generated() {
   exit 0
 }
 
-[[ -f "$SRC/SKILL.md" ]] || fail "missing required file: $SRC/SKILL.md"
+[[ -f "$SKILL_SRC/SKILL.md" ]] || fail "missing required file: $SKILL_SRC/SKILL.md"
 [[ -f "$SRC/README.md" ]] || fail "missing required file: $SRC/README.md"
 [[ -f "$ROOT/LICENSE" ]] || fail "missing required file: $ROOT/LICENSE"
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-cp "$SRC/SKILL.md" "$OUT/skill.md"
-
-if [[ -d "$SRC/scripts" ]]; then
-  copy_dir "$SRC/scripts" "$OUT/scripts"
-fi
-
-if [[ -d "$SRC/references" ]]; then
-  copy_dir "$SRC/references" "$OUT/references"
-fi
-
-if [[ -d "$SRC/agents" ]]; then
-  copy_dir "$SRC/agents" "$OUT/agents"
-fi
-
+cp "$SKILL_SRC/SKILL.md" "$OUT/skill.md"
+copy_optional_dir scripts
+copy_optional_dir references
+copy_optional_dir agents
 cp "$SRC/README.md" "$OUT/README.md"
 cp "$ROOT/LICENSE" "$OUT/LICENSE"
-map_lines="packages/$PACKAGE/SKILL.md       -> generated/claude/custom-skills/$PACKAGE/skill.md"$'\n'
-if [[ -d "$SRC/scripts" ]]; then
-  map_lines+="packages/$PACKAGE/scripts/       -> generated/claude/custom-skills/$PACKAGE/scripts/"$'\n'
-fi
-if [[ -d "$SRC/references" ]]; then
-  map_lines+="packages/$PACKAGE/references/    -> generated/claude/custom-skills/$PACKAGE/references/"$'\n'
-fi
-if [[ -d "$SRC/agents" ]]; then
-  map_lines+="packages/$PACKAGE/agents/        -> generated/claude/custom-skills/$PACKAGE/agents/"$'\n'
-fi
-cat > "$OUT/GENERATED.md" <<EOF
-# Generated Claude Custom Skill Package
 
-This directory is generated from:
+cat > "$OUT/ARTIFACT.md" <<EOF
+# Claude Custom Skill Artifact
+
+This local artifact was built from:
 
 \`\`\`text
-packages/$PACKAGE
+packages/$PACKAGE/skills/$PACKAGE
+packages/$PACKAGE/README.md
+LICENSE
 \`\`\`
 
-Do not edit this directory directly during normal development.
-
-Edit the source paths on the left; the generated outputs on the right are
-rewritten by \`make rebuild-generated\`.
-
-~~~text
-packages/$PACKAGE/README.md      -> generated/claude/custom-skills/$PACKAGE/README.md
-${map_lines}
-LICENSE                          -> generated/claude/custom-skills/$PACKAGE/LICENSE
-~~~
-
-This bundle is for Claude Desktop / claude.ai custom skill upload. Create the
-ZIP from \`generated/claude/custom-skills\` so the archive contains the
-\`$PACKAGE/\` folder at its root.
-
-After editing source:
-
-1. Edit \`packages/$PACKAGE\`.
-2. Run \`make rebuild-generated\`.
-3. Run \`make public-check\`.
-4. Commit both source and regenerated output changes.
+It is written under \`.dist/\` and is not committed. Zip the \`$PACKAGE/\`
+folder for Claude Desktop or claude.ai custom skill upload.
 EOF
-prune_generated "$OUT"
-header_args=(
-  --root "$ROOT" \
-  --map "generated/claude/custom-skills/$PACKAGE/README.md=packages/$PACKAGE/README.md" \
-  --map "generated/claude/custom-skills/$PACKAGE/skill.md=packages/$PACKAGE/SKILL.md"
-)
-if [[ -d "$SRC/scripts" ]]; then
-  header_args+=(--map "generated/claude/custom-skills/$PACKAGE/scripts=packages/$PACKAGE/scripts")
-fi
-if [[ -d "$SRC/references" ]]; then
-  header_args+=(--map "generated/claude/custom-skills/$PACKAGE/references=packages/$PACKAGE/references")
-fi
-if [[ -d "$SRC/agents" ]]; then
-  header_args+=(--map "generated/claude/custom-skills/$PACKAGE/agents=packages/$PACKAGE/agents")
-fi
-python3 "$ROOT/scripts/add-generated-headers.py" "${header_args[@]}"
 
-echo "built Claude custom skill: generated/claude/custom-skills/$PACKAGE"
+prune_artifact "$OUT"
+
+echo "built Claude custom skill artifact: .dist/claude/custom-skills/$PACKAGE"

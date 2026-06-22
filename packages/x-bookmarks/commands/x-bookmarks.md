@@ -9,7 +9,8 @@ allowed-tools: [Bash, Read]
 Use the `x-bookmarks` skill with the user's arguments: $ARGUMENTS
 
 Run scripts from the installed `x-bookmarks` skill, or
-`packages/x-bookmarks/scripts/` when working from this repository.
+`packages/x-bookmarks/skills/x-bookmarks/scripts/` when working from this
+repository.
 
 Start by checking safe backend status:
 

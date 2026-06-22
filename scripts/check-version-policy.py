@@ -11,7 +11,7 @@ import sys
 
 
 ZERO_SHA = "0" * 40
-PLUGIN_SUFFIX = "/plugin/plugin.json"
+PLUGIN_SUFFIX = "/.claude-plugin/plugin.json"
 POLICY_PATH = "scripts/check-version-policy.py"
 RELEASE_ACTOR = "github-actions[bot]"
 

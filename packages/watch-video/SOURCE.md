@@ -1,34 +1,34 @@
 # Source Package
 
-This directory is the source of truth for `watch-video`.
+This directory is the source of truth and Claude Code plugin root for
+`watch-video`.
 
 Edit files here first:
 
-- `SKILL.md`
-- `README.md`
+- `skills/watch-video/SKILL.md`
+- `skills/watch-video/scripts/`
 - `commands/`
-- `plugin/plugin.json`
-- `scripts/`
+- `.claude-plugin/plugin.json`
+- `README.md`
+- `SOURCE.md`
 - `tests/`
 - `tool.json`
 
 After changing package source, run:
 
 ```sh
-make rebuild-generated
+make build-packages
 make public-check
 ```
 
-This source directory generates these public install copies:
+Install targets consume source directly:
 
 ```text
-packages/watch-video -> generated/claude/plugins/watch-video
-packages/watch-video -> generated/claude/custom-skills/watch-video
-packages/watch-video -> generated/codex/skills/watch-video
-packages/watch-video -> generated/agent-skills/watch-video
+Claude Code marketplace source  -> packages/watch-video
+Codex skill source              -> packages/watch-video/skills/watch-video
+OpenCode/generic skill source   -> packages/watch-video/skills/watch-video
+Skillshare hub source           -> packages/watch-video/skills/watch-video
+Claude Desktop local artifact   -> .dist/claude/custom-skills/watch-video
 ```
 
-Generated Markdown, Python, shell, and YAML files include in-file notices that
-point back to the source paths in this package. Generated JSON and LICENSE files
-are covered by the nearest `GENERATED.md` marker because those file formats
-should not carry extra comments.
+`.dist/` artifacts are local build outputs and must not be committed.

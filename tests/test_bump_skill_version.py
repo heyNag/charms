@@ -40,7 +40,7 @@ class BumpSkillVersionTests(unittest.TestCase):
     def test_bump_package_updates_plugin_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            plugin_dir = root / "packages" / "x-bookmarks" / "plugin"
+            plugin_dir = root / "packages" / "x-bookmarks" / ".claude-plugin"
             plugin_dir.mkdir(parents=True)
             plugin_path = plugin_dir / "plugin.json"
             plugin_path.write_text(
@@ -57,7 +57,7 @@ class BumpSkillVersionTests(unittest.TestCase):
     def test_dry_run_does_not_write(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            plugin_dir = root / "packages" / "x-bookmarks" / "plugin"
+            plugin_dir = root / "packages" / "x-bookmarks" / ".claude-plugin"
             plugin_dir.mkdir(parents=True)
             plugin_path = plugin_dir / "plugin.json"
             plugin_path.write_text(
@@ -74,7 +74,7 @@ class BumpSkillVersionTests(unittest.TestCase):
     def test_main_refuses_local_write_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            plugin_dir = root / "packages" / "x-bookmarks" / "plugin"
+            plugin_dir = root / "packages" / "x-bookmarks" / ".claude-plugin"
             plugin_dir.mkdir(parents=True)
             plugin_path = plugin_dir / "plugin.json"
             plugin_path.write_text(
@@ -92,7 +92,7 @@ class BumpSkillVersionTests(unittest.TestCase):
     def test_main_allows_write_in_release_workflow(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            plugin_dir = root / "packages" / "x-bookmarks" / "plugin"
+            plugin_dir = root / "packages" / "x-bookmarks" / ".claude-plugin"
             plugin_dir.mkdir(parents=True)
             plugin_path = plugin_dir / "plugin.json"
             plugin_path.write_text(

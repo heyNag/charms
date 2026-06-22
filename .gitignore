@@ -51,6 +51,8 @@ __pycache__/
 .venv/
 node_modules/
 dist/
+.dist/
+generated/
 build/
 coverage/
 npm-debug.log*
@@ -58,5 +60,5 @@ yarn-debug.log*
 yarn-error.log*
 *.egg-info/
 
-# Local Claude custom-skill archives can be rebuilt from generated/claude/custom-skills.
+# Local Claude custom-skill archives can be rebuilt into .dist/.
 *.zip

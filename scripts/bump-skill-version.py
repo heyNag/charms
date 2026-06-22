@@ -55,7 +55,7 @@ def next_version(current: str, release_date: dt.date) -> str:
 def package_plugin_path(root: pathlib.Path, package: str) -> pathlib.Path:
     if not PACKAGE_RE.match(package):
         raise ValueError(f"invalid package name: {package!r}")
-    return root / "packages" / package / "plugin" / "plugin.json"
+    return root / "packages" / package / ".claude-plugin" / "plugin.json"
 
 
 def load_plugin(path: pathlib.Path) -> dict:
@@ -102,7 +102,7 @@ def bump_package(root: pathlib.Path, package: str, release_date: dt.date, dry_ru
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Bump packages/<name>/plugin/plugin.json to the next UTC date-based "
+            "Bump packages/<name>/.claude-plugin/plugin.json to the next UTC date-based "
             "version. Same-day releases use .1, .2, and so on."
         )
     )

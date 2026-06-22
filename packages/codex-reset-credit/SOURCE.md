@@ -1,34 +1,34 @@
 # Source Package
 
-This directory is the source of truth for `codex-reset-credit`.
+This directory is the source of truth and Claude Code plugin root for
+`codex-reset-credit`.
 
 Edit files here first:
 
-- `SKILL.md`
-- `README.md`
+- `skills/codex-reset-credit/SKILL.md`
+- `skills/codex-reset-credit/scripts/`
 - `commands/`
-- `plugin/plugin.json`
-- `scripts/`
+- `.claude-plugin/plugin.json`
+- `README.md`
+- `SOURCE.md`
 - `tests/`
 - `tool.json`
 
 After changing package source, run:
 
 ```sh
-make rebuild-generated
+make build-packages
 make public-check
 ```
 
-This source directory generates these public install copies:
+Install targets consume source directly:
 
 ```text
-packages/codex-reset-credit -> generated/claude/plugins/codex-reset-credit
-packages/codex-reset-credit -> generated/claude/custom-skills/codex-reset-credit
-packages/codex-reset-credit -> generated/codex/skills/codex-reset-credit
-packages/codex-reset-credit -> generated/agent-skills/codex-reset-credit
+Claude Code marketplace source  -> packages/codex-reset-credit
+Codex skill source              -> packages/codex-reset-credit/skills/codex-reset-credit
+OpenCode/generic skill source   -> packages/codex-reset-credit/skills/codex-reset-credit
+Skillshare hub source           -> packages/codex-reset-credit/skills/codex-reset-credit
+Claude Desktop local artifact   -> .dist/claude/custom-skills/codex-reset-credit
 ```
 
-Generated Markdown, Python, shell, and YAML files include in-file notices that
-point back to the source paths in this package. Generated JSON and LICENSE files
-are covered by the nearest `GENERATED.md` marker because those file formats
-should not carry extra comments.
+`.dist/` artifacts are local build outputs and must not be committed.

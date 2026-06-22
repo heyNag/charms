@@ -14,61 +14,29 @@ It can:
 It must never print tokens, account IDs, raw auth file contents, or edit local
 Codex files.
 
-The skill folder format is portable across Claude Code, Claude Desktop, Codex,
-OpenCode, and generic Agent Skills consumers. The live helper is local-runtime
-dependent because it needs access to local Codex auth/session state.
-
-## Source And Generated Outputs
-
-Source lives under:
+The package root is a Claude Code plugin source. The portable skill source is:
 
 ```text
-packages/codex-reset-credit
+packages/codex-reset-credit/skills/codex-reset-credit
 ```
 
-Public install targets are generated from that source into:
-
-```text
-generated/claude/plugins/codex-reset-credit
-generated/claude/custom-skills/codex-reset-credit
-generated/codex/skills/codex-reset-credit
-generated/agent-skills/codex-reset-credit
-```
-
-Optional if you already use Skillshare:
-
-```sh
-skillshare install heyNag/agent-tools/packages/codex-reset-credit --track
-skillshare sync
-```
-
-Optional Claude Desktop no-terminal packaging: paste
-`https://github.com/heyNag/agent-tools/tree/main/generated/claude/custom-skills/codex-reset-credit`
-into `https://skill-compiler.statechange.ai/`, preview the files, download the
-`.skill`, and import it in Claude Desktop.
-
-Edit source first, then run:
-
-```sh
-make rebuild-generated
-make public-check
-```
+Codex, OpenCode, generic Agent Skills, and optional Skillshare installs all use
+that same skill folder. Claude Desktop custom-skill ZIP contents are built
+locally under `.dist/claude/custom-skills/codex-reset-credit`.
 
 ## Usage
 
-Run package-local commands from `packages/codex-reset-credit/` or from an
-installed skill folder unless the command shows a repo-root path.
-
-From the source package directory, Codex install, or agent-generic install:
+From the repo root:
 
 ```sh
-python3 scripts/check_reset_credits.py
+python3 packages/codex-reset-credit/skills/codex-reset-credit/scripts/check_reset_credits.py --no-live
 ```
 
-From the generated Claude plugin package root, use the skill subdirectory:
+From the skill folder:
 
 ```sh
-python3 skills/codex-reset-credit/scripts/check_reset_credits.py
+cd packages/codex-reset-credit/skills/codex-reset-credit
+python3 scripts/check_reset_credits.py
 ```
 
 Useful options:
@@ -88,25 +56,20 @@ python3 scripts/check_reset_credits.py --timezone UTC
 - Local session snapshots may be stale if Codex has not emitted recent usage
   events.
 
-## Source Files
+## Package Files
 
 ```text
-SKILL.md                         # skill instructions for agents
-scripts/check_reset_credits.py   # read-only helper CLI
-commands/codex-reset-credit.md   # Claude command prompt
-plugin/plugin.json               # Claude plugin metadata
-tests/                           # offline helper tests
+.claude-plugin/plugin.json                       Claude Code plugin metadata
+skills/codex-reset-credit/SKILL.md               skill instructions
+skills/codex-reset-credit/scripts/               read-only helper CLI
+commands/codex-reset-credit.md                   Claude Code slash command prompt
+tests/                                           offline helper tests
+tool.json                                        package manifest
 ```
 
-Keep edits in this package source directory.
+After editing source:
 
-Generated install packages contain a subset of those files:
-
-- Claude plugin package: `README.md`, `LICENSE`, `.claude-plugin/plugin.json`,
-  commands, and `skills/codex-reset-credit/`.
-- Codex skill package: `README.md`, `LICENSE`, `SKILL.md`, and
-  `scripts/`.
-- Claude custom-skill package: `README.md`, `LICENSE`, lowercase `skill.md`,
-  and `scripts/`.
-- Agent-generic skill package: `README.md`, `LICENSE`, `SKILL.md`, and
-  `scripts/`.
+```sh
+make build-packages
+make public-check
+```

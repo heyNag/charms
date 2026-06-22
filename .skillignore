@@ -1,3 +1,4 @@
-# Skillshare should discover canonical source packages only.
-# Public target-specific copies live under generated/ and are rebuilt from packages/.
+# Skillshare should discover canonical source skill folders only.
+# Local artifacts are built under .dist/ and are never source.
+.dist/
 generated/

@@ -33,7 +33,7 @@ class CheckVersionPolicyTests(unittest.TestCase):
         self.git(root, "config", "commit.gpgsign", "false")
 
     def write_plugin(self, root, version):
-        path = root / "packages" / "demo-skill" / "plugin" / "plugin.json"
+        path = root / "packages" / "demo-skill" / ".claude-plugin" / "plugin.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({"name": "demo-skill", "version": version}) + "\n", encoding="utf-8")
 
@@ -53,7 +53,7 @@ class CheckVersionPolicyTests(unittest.TestCase):
 
             changes = self.module.plugin_version_changes(root, base, head)
 
-        self.assertEqual(changes, ["packages/demo-skill/plugin/plugin.json: 2026.6.21 -> 2026.6.21.1"])
+        self.assertEqual(changes, ["packages/demo-skill/.claude-plugin/plugin.json: 2026.6.21 -> 2026.6.21.1"])
 
     def test_main_rejects_human_version_change_when_policy_is_active(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -15,13 +15,13 @@ if str(SCRIPT_DIR) not in sys.path:
 from skill_metadata import load_json, normalized_tags, read_frontmatter
 
 
-DEFAULT_HUB_SOURCE_PATH = "heyNag/agent-tools/packages"
+DEFAULT_HUB_SOURCE_PATH = "heyNag/agent-tools"
 DEFAULT_GENERATED_AT = "1970-01-01T00:00:00Z"
 VERSION_DATE_RE = re.compile(r"^(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\.\d+)?$")
 
 
 def plugin_version(package_dir: Path) -> str:
-    plugin_path = package_dir / "plugin" / "plugin.json"
+    plugin_path = package_dir / ".claude-plugin" / "plugin.json"
     if not plugin_path.exists():
         return ""
     value = load_json(plugin_path).get("version")
@@ -47,7 +47,7 @@ def skill_entry(package_dir: Path, tool: dict) -> tuple[dict, str]:
     if not isinstance(name, str) or not name:
         raise SystemExit(f"error: invalid package name in {package_dir / 'tool.json'}")
 
-    skill_path = package_dir / "SKILL.md"
+    skill_path = package_dir / "skills" / name / "SKILL.md"
     frontmatter = read_frontmatter(skill_path) if skill_path.exists() else {}
     skill_name = frontmatter.get("name")
     if skill_name and skill_name != name:
@@ -65,7 +65,7 @@ def skill_entry(package_dir: Path, tool: dict) -> tuple[dict, str]:
     entry = {
         "name": name,
         "description": description,
-        "source": name,
+        "source": f"packages/{name}/skills/{name}",
     }
     if tags:
         entry["tags"] = tags

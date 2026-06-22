@@ -1,15 +1,9 @@
 # Optional Skillshare Support
 
 Skillshare support exists for people who already use Skillshare. It is not the
-primary public install path for this repo. The main install paths are Claude
-Code, Codex, Claude Desktop / claude.ai custom skills, and OpenCode.
+primary public install path for this repo.
 
-Skillshare can install skills from this repo, but it sees source and generated
-files differently depending on the UI mode.
-
-## Optional Install Path
-
-If you use Skillshare, prefer the curated hub index:
+## Hub URL
 
 ```text
 https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json
@@ -19,14 +13,14 @@ In the Skillshare web UI:
 
 1. Open `Search`.
 2. Choose `Hub`.
-3. Add or select the hub URL above in the hub manager/source selector.
+3. Add or select the hub URL above.
 4. Search for `watch`, `codex`, `bookmarks`, or another keyword.
-5. Install `watch-video`, `codex-reset-credit`, or `x-bookmarks`.
+5. Install the matching skill.
 
 Do not paste the hub URL into the keyword search box. The URL selects the hub;
 the search box is for terms inside that hub.
 
-CLI users can save the hub once:
+## CLI
 
 ```sh
 skillshare hub add https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json --label agent-tools
@@ -34,119 +28,50 @@ skillshare hub default agent-tools
 skillshare search --hub agent-tools bookmarks
 ```
 
-The generated hub uses `sourcePath` plus a relative skill folder:
-
-```text
-sourcePath: heyNag/agent-tools/packages
-source: watch-video
-source: codex-reset-credit
-source: x-bookmarks
-```
-
-Skillshare resolves those entries to installable package sources such as
-`heyNag/agent-tools/packages/watch-video`.
-
-Direct CLI install works too:
+Direct installs use canonical source skill folders:
 
 ```sh
-skillshare install heyNag/agent-tools/packages/watch-video --track
-skillshare install heyNag/agent-tools/packages/codex-reset-credit --track
-skillshare install heyNag/agent-tools/packages/x-bookmarks --track
+skillshare install heyNag/agent-tools/packages/watch-video/skills/watch-video --track
+skillshare install heyNag/agent-tools/packages/codex-reset-credit/skills/codex-reset-credit --track
+skillshare install heyNag/agent-tools/packages/x-bookmarks/skills/x-bookmarks --track
 skillshare sync
 ```
 
-Use `--track` when you want Skillshare's `check` and `update` commands to find
-future repo updates.
-
-## Why GitHub Search Can Show Duplicates
-
-Skillshare's GitHub Search mode searches GitHub for every committed uppercase
-`SKILL.md`. This repo intentionally commits generated target copies under
-`generated/` for Claude Code, Claude Desktop, Codex, and OpenCode installs.
-Those generated copies are useful, but they are not canonical source.
-
-The canonical source files are:
-
-```text
-packages/watch-video/SKILL.md
-packages/codex-reset-credit/SKILL.md
-packages/x-bookmarks/SKILL.md
-```
-
-Generated copies include paths such as:
-
-```text
-generated/claude/plugins/<name>/skills/<name>/SKILL.md
-generated/codex/skills/<name>/SKILL.md
-generated/agent-skills/<name>/SKILL.md
-```
-
-That is why repo-scoped GitHub Search can show multiple cards with the same
-skill name. Prefer Hub mode or direct package paths when installing from this
-repo.
-
-## `.skillignore`
-
-The root `.skillignore` contains:
-
-```text
-generated/
-```
-
-Skillshare install/discovery honors `.skillignore`, so installing from the repo
-root discovers canonical source packages instead of generated target copies.
-GitHub Code Search may still show generated copies because it scans committed
-files directly.
-
-## Generated Hub Ownership
+## Hub Ownership
 
 `skillshare-hub.json` is generated from:
 
 ```text
-packages/*/SKILL.md
 packages/*/tool.json
-packages/*/plugin/plugin.json
+packages/*/.claude-plugin/plugin.json
+packages/*/skills/*/SKILL.md
 ```
 
-Do not edit it by hand. After changing `SKILL.md` frontmatter, a package
-manifest, or a plugin version, run:
+It uses:
+
+```text
+sourcePath: heyNag/agent-tools
+source: packages/<name>/skills/<name>
+```
+
+Do not edit it by hand. Run:
 
 ```sh
-make rebuild-generated
+make build-packages
 make public-check
 ```
 
-`make verify-packages` checks that every public agent-compatible package appears
-in the hub exactly once and that hub entries resolve to `packages/<name>`, not
-`generated/`.
+## Duplicate Search Results
 
-## Skill Metadata Contract
+This repo no longer commits per-target `generated/` copies. GitHub search
+should primarily find the source skill files under `packages/*/skills/*`.
 
-Each public package must keep these fields aligned:
-
-```text
-packages/<name>/tool.json       name, description, tags, targets, public flag
-packages/<name>/SKILL.md        frontmatter name, description, tags
-skillshare-hub.json             generated public hub entry
-```
-
-The source `SKILL.md` frontmatter is intentionally self-describing because
-Skillshare-style indexing reads skill names, descriptions, and tags directly
-from skill files. `tool.json` remains the build manifest for this repo.
-
-Run this check after adding or editing a skill:
-
-```sh
-make verify-skill-metadata
-```
-
-It fails if a package name drifts, if `SKILL.md` tags do not match
-`tool.json`, if `skillshare-hub.json` points at `generated/`, or if
-`.skillignore` stops hiding generated outputs from Skillshare discovery.
+If a local or external search tool shows stale generated paths, refresh the repo
+checkout and make sure `.skillignore` hides `.dist/` and `generated/`.
 
 ## Update Flow
 
-For users who installed with `--track`:
+For tracked installs:
 
 ```sh
 skillshare check
@@ -154,12 +79,9 @@ skillshare update <skill-name>
 skillshare sync
 ```
 
-For all skills:
+For all tracked skills:
 
 ```sh
 skillshare update --all
 skillshare sync
 ```
-
-If a user installed without tracking, reinstall from the hub or direct package
-path and then run `skillshare sync`.

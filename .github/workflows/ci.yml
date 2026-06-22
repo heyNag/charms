@@ -39,8 +39,8 @@ jobs:
       - name: Build MCP placeholder
         run: make mcp-build
 
-      - name: Build public packages
-        run: make rebuild-generated
+      - name: Build package artifacts and indexes
+        run: make build-packages
 
       - name: Verify public packages
         run: make verify-packages
@@ -48,8 +48,5 @@ jobs:
       - name: Verify skill metadata
         run: make verify-skill-metadata
 
-      - name: Audit generated source mapping
-        run: make audit-generated
-
-      - name: Verify generated outputs are committed
-        run: make verify-generated-clean
+      - name: Verify source indexes are current
+        run: make verify-source-clean

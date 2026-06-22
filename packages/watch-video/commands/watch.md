@@ -9,7 +9,8 @@ allowed-tools: [Bash, Read]
 Use the `watch-video` skill with the user's arguments: $ARGUMENTS
 
 Run the `watch.py` script from the installed `watch-video` skill, or
-`packages/watch-video/scripts/watch.py` when working from this repository.
+`packages/watch-video/skills/watch-video/scripts/watch.py` when working from
+this repository.
 Prefer captions, extract a focused audio clip, use Groq Whisper only when
 captions are missing or incomplete, extract frames when visual evidence matters,
 then answer from `report.md`, `transcript.md`, and the frame images.

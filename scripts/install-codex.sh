@@ -35,7 +35,7 @@ write_marker() {
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
     printf '[dry-run] write managed marker %q\n' "${target}"
   else
-    printf 'managed-by=agent-tools\npackage=%s\nsource=%s\n' "${package}" "${repo_root}/packages/${package}" > "${target}"
+    printf 'managed-by=agent-tools\npackage=%s\nsource=%s\n' "${package}" "${repo_root}/packages/${package}/skills/${package}" > "${target}"
   fi
 }
 
@@ -66,22 +66,19 @@ EOF
 copy_skill() {
   local package="$1"
   local package_dir="${repo_root}/packages/${package}"
+  local source_skill="${package_dir}/skills/${package}"
   local skill_target="${skills_root}/${package}"
   local tmp_target="${skill_target}.tmp.$$"
+
+  [[ -f "${source_skill}/SKILL.md" ]] || {
+    echo "error: missing source skill: ${source_skill}/SKILL.md" >&2
+    exit 1
+  }
 
   ensure_managed_dir "${skill_target}"
   run rm -rf "${tmp_target}"
   run mkdir -p "${tmp_target}"
-  run cp "${package_dir}/SKILL.md" "${tmp_target}/SKILL.md"
-  if [[ -d "${package_dir}/scripts" ]]; then
-    run cp -R "${package_dir}/scripts" "${tmp_target}/scripts"
-  fi
-  if [[ -d "${package_dir}/references" ]]; then
-    run cp -R "${package_dir}/references" "${tmp_target}/references"
-  fi
-  if [[ -d "${package_dir}/agents" ]]; then
-    run cp -R "${package_dir}/agents" "${tmp_target}/agents"
-  fi
+  run cp -R "${source_skill}/." "${tmp_target}/"
   write_marker "${tmp_target}/${marker_name}" "${package}"
   run rm -rf "${skill_target}"
   run mv "${tmp_target}" "${skill_target}"

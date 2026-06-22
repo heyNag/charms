@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-06-21T00:00:00Z",
-  "sourcePath": "heyNag/agent-tools/packages",
+  "sourcePath": "heyNag/agent-tools",
   "skills": [
     {
       "name": "codex-reset-credit",
       "description": "Use when the user explicitly asks about Codex reset credits, credit expiry, quota usage, local rate-limit windows, or when Codex limits reset.",
-      "source": "codex-reset-credit",
+      "source": "packages/codex-reset-credit/skills/codex-reset-credit",
       "tags": [
         "codex",
         "credits",
@@ -18,7 +18,7 @@
     {
       "name": "watch-video",
       "description": "Use when the user asks to inspect a YouTube URL, local video, screen recording, tutorial, demo, UI bug video, or visible/spoken video evidence.",
-      "source": "watch-video",
+      "source": "packages/watch-video/skills/watch-video",
       "tags": [
         "frames",
         "local",
@@ -30,7 +30,7 @@
     {
       "name": "x-bookmarks",
       "description": "Use when the user asks to fetch, search, review, summarize, digest, or act on X/Twitter bookmarks, saved posts, bookmark folders, no-credit bookmark access, or recurring bookmark reviews.",
-      "source": "x-bookmarks",
+      "source": "packages/x-bookmarks/skills/x-bookmarks",
       "tags": [
         "bird",
         "bookmarks",

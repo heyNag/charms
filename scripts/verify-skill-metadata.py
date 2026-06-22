@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify package metadata used by generated targets and Skillshare hubs."""
+"""Verify package metadata used by public indexes and Skillshare hubs."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from skill_metadata import invalid_tags, load_json, normalized_tags, read_frontmatter
 
 
-DEFAULT_HUB_SOURCE_PATH = "heyNag/agent-tools/packages"
+DEFAULT_HUB_SOURCE_PATH = "heyNag/agent-tools"
 
 
 def validate_package(root: Path, tool_path: Path) -> list[str]:
@@ -51,7 +51,7 @@ def validate_package(root: Path, tool_path: Path) -> list[str]:
     elif tool.get("agent_agnostic") is True and "generic" not in targets:
         errors.append(f"{tool_path.relative_to(root)}: agent_agnostic packages should target generic")
 
-    skill_path = package_dir / "SKILL.md"
+    skill_path = package_dir / "skills" / name / "SKILL.md"
     if not skill_path.is_file():
         errors.append(f"{skill_path.relative_to(root)}: missing SKILL.md")
         return errors
@@ -86,7 +86,7 @@ def validate_skillshare_hub(root: Path) -> list[str]:
     hub_path = root / "skillshare-hub.json"
     errors: list[str] = []
     if not hub_path.is_file():
-        return ["skillshare-hub.json: missing generated Skillshare hub"]
+        return ["skillshare-hub.json: missing Skillshare hub index"]
 
     try:
         hub = json.loads(hub_path.read_text(encoding="utf-8"))
@@ -104,9 +104,9 @@ def validate_skillshare_hub(root: Path) -> list[str]:
         targets = tool.get("targets") or []
         if tool.get("public") is True and (tool.get("agent_agnostic") is True or "generic" in targets):
             name = tool.get("name") or tool_path.parent.name
-            frontmatter = read_frontmatter(tool_path.parent / "SKILL.md")
+            frontmatter = read_frontmatter(tool_path.parent / "skills" / name / "SKILL.md")
             expected[name] = {
-                "source": name,
+                "source": f"packages/{name}/skills/{name}",
                 "description": frontmatter.get("description") or tool.get("description"),
                 "tags": normalized_tags(frontmatter.get("tags")) or normalized_tags(tool.get("tags")),
             }
@@ -137,7 +137,7 @@ def validate_skillshare_hub(root: Path) -> list[str]:
             errors.append(f"skillshare-hub.json: {name}.source must be {info['source']}")
         if isinstance(skill.get("source"), str) and "://" in skill.get("source", ""):
             errors.append(f"skillshare-hub.json: {name}.source must be relative to sourcePath")
-        if skill.get("source") and "/generated/" in str(skill.get("source")):
+        if skill.get("source") and "generated/" in str(skill.get("source")):
             errors.append(f"skillshare-hub.json: {name}.source must not point at generated output")
         if skill.get("skill") not in (None, "", name):
             errors.append(f"skillshare-hub.json: {name}.skill must be omitted or {name}")
@@ -155,14 +155,14 @@ def validate_skillshare_hub(root: Path) -> list[str]:
 def validate_skillignore(root: Path) -> list[str]:
     path = root / ".skillignore"
     if not path.is_file():
-        return [".skillignore: missing; generated/ must stay hidden from Skillshare discovery"]
+        return [".skillignore: missing; local build outputs must stay hidden from Skillshare discovery"]
     lines = [
         line.strip()
         for line in path.read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     ]
-    if "generated/" not in lines and "generated" not in lines:
-        return [".skillignore: must include generated/"]
+    if ".dist/" not in lines and ".dist" not in lines:
+        return [".skillignore: must include .dist/"]
     return []
 
 
