@@ -28,6 +28,10 @@ search-index.json
 **/groq_transcript.raw.json
 **/report.md
 **/frames/
+**/frame_*.jpg
+**/frame_*.jpeg
+**/frame_*.png
+**/frame_*.webp
 
 # Local media scratch files.
 *.mp3
@@ -38,7 +42,6 @@ search-index.json
 *.mov
 *.mkv
 *.webm
-*.webp
 *.avi
 *.flv
 *.wmv

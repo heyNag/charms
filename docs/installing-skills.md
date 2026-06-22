@@ -6,6 +6,7 @@ Use this guide to install the current public skills:
 watch-video
 codex-reset-credit
 x-bookmarks
+chatgpt-pro-review
 ```
 
 For skill-specific requirements and examples, read:
@@ -13,6 +14,7 @@ For skill-specific requirements and examples, read:
 - [watch-video.md](watch-video.md)
 - [codex-reset-credit.md](codex-reset-credit.md)
 - [x-bookmarks.md](x-bookmarks.md)
+- [chatgpt-pro-review.md](chatgpt-pro-review.md)
 
 ## Pick A Target
 
@@ -39,6 +41,7 @@ Install the skill you want:
 /plugin install watch-video@agent-tools
 /plugin install codex-reset-credit@agent-tools
 /plugin install x-bookmarks@agent-tools
+/plugin install chatgpt-pro-review@agent-tools
 ```
 
 Invoke:
@@ -47,6 +50,7 @@ Invoke:
 /watch-video:watch <video-url-or-path>
 /codex-reset-credit:codex-reset-credit
 /x-bookmarks:x-bookmarks digest
+/chatgpt-pro-review:chatgpt-pro-review implementation
 ```
 
 If command names differ in your Claude Code version, run `/plugin list` or
@@ -65,7 +69,8 @@ rm -rf "$HOME/.codex/skills/$SKILL"
 cp -R "packages/$SKILL/skills/$SKILL" "$HOME/.codex/skills/$SKILL"
 ```
 
-Change `SKILL` to `codex-reset-credit` or `x-bookmarks` for the other skills.
+Change `SKILL` to `codex-reset-credit`, `x-bookmarks`, or
+`chatgpt-pro-review` for the other skills.
 
 Local development shortcut from this repo:
 
@@ -146,6 +151,7 @@ Direct CLI install:
 skillshare install heyNag/agent-tools/packages/watch-video/skills/watch-video --track
 skillshare install heyNag/agent-tools/packages/codex-reset-credit/skills/codex-reset-credit --track
 skillshare install heyNag/agent-tools/packages/x-bookmarks/skills/x-bookmarks --track
+skillshare install heyNag/agent-tools/packages/chatgpt-pro-review/skills/chatgpt-pro-review --track
 skillshare sync
 ```
 

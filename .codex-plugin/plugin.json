@@ -1,7 +1,7 @@
 {
   "name": "agent-tools",
   "version": "0.1.0",
-  "description": "Agent skills for video inspection, Codex quota checks, and X/Twitter bookmark review.",
+  "description": "Agent skills for video inspection, Codex quota checks, X/Twitter bookmarks, and ChatGPT Pro review.",
   "author": {
     "name": "Nagarjuna Boddu",
     "url": "https://github.com/heyNag"
@@ -14,13 +14,14 @@
     "agents",
     "video",
     "codex",
-    "bookmarks"
+    "bookmarks",
+    "review"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Agent Tools",
-    "shortDescription": "Local skills for video, Codex quota, and X/Twitter bookmarks",
-    "longDescription": "Use agent-tools skills to inspect short videos, check Codex reset-credit status, and fetch or digest X/Twitter bookmarks from local auth-backed workflows.",
+    "shortDescription": "Local skills for video, quota, bookmarks, and review",
+    "longDescription": "Use agent-tools skills to inspect short videos, check Codex reset-credit status, fetch or digest X/Twitter bookmarks, and prepare scoped ChatGPT Pro review packets.",
     "developerName": "Nagarjuna Boddu",
     "category": "Productivity",
     "capabilities": [
@@ -30,7 +31,8 @@
     "defaultPrompt": [
       "Use watch-video to inspect this video.",
       "Check my Codex reset-credit status.",
-      "Digest my latest X/Twitter bookmarks."
+      "Digest my latest X/Twitter bookmarks.",
+      "Use chatgpt-pro-review to review this implementation."
     ],
     "websiteURL": "https://github.com/heyNag/agent-tools"
   }

@@ -1,0 +1,4 @@
+interface:
+  display_name: "ChatGPT Pro Review"
+  short_description: "Ask ChatGPT Pro to review local work."
+  default_prompt: "Use $chatgpt-pro-review to ask ChatGPT Pro for a scoped review of my current plan, diff, or PR."

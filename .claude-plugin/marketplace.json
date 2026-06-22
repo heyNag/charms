@@ -6,6 +6,17 @@
   },
   "plugins": [
     {
+      "name": "chatgpt-pro-review",
+      "source": "./packages/chatgpt-pro-review",
+      "description": "Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repo evidence.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Nagarjuna Boddu"
+      },
+      "repository": "https://github.com/heyNag/agent-tools",
+      "license": "MIT"
+    },
+    {
       "name": "codex-reset-credit",
       "source": "./packages/codex-reset-credit",
       "description": "Check Codex reset credits and local rate-limit reset windows without exposing auth secrets.",

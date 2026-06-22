@@ -92,7 +92,6 @@ prune_artifact() {
       -iname "*.mov" -o \
       -iname "*.mkv" -o \
       -iname "*.webm" -o \
-      -iname "*.webp" -o \
       -iname "*.avi" -o \
       -iname "*.flv" -o \
       -iname "*.wmv" \

@@ -51,6 +51,8 @@ is target-specific.
 - `codex-reset-credit` needs local Codex auth/session state.
 - `x-bookmarks` needs local Bird browser-cookie access or local X API OAuth
   state.
+- `chatgpt-pro-review` needs user approval before sending private context to
+  ChatGPT.
 
 Hosted or upload-only targets can carry instructions, but they may not be able
 to run helpers or access local auth state.

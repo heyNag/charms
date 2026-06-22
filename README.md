@@ -10,6 +10,7 @@ plugins, helper commands, and local workflow scripts.
 | `watch-video` | Inspect YouTube URLs, local videos, demos, tutorials, screen recordings, and UI bug videos. | [docs/watch-video.md](docs/watch-video.md) |
 | `codex-reset-credit` | Check Codex reset credits and local rate-limit reset windows without exposing auth secrets. | [docs/codex-reset-credit.md](docs/codex-reset-credit.md) |
 | `x-bookmarks` | Fetch, search, and digest X/Twitter bookmarks using Bird or optional X API v2. | [docs/x-bookmarks.md](docs/x-bookmarks.md) |
+| `chatgpt-pro-review` | Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repo evidence. | [docs/chatgpt-pro-review.md](docs/chatgpt-pro-review.md) |
 
 ## Install
 
@@ -32,7 +33,8 @@ After installing, invoke the skill through your agent target:
 Claude Code: /watch-video:watch <video-url-or-path>
 Claude Code: /codex-reset-credit:codex-reset-credit
 Claude Code: /x-bookmarks:x-bookmarks digest
-Codex/Cursor/OpenCode: ask the agent to use watch-video, codex-reset-credit, or x-bookmarks
+Claude Code: /chatgpt-pro-review:chatgpt-pro-review implementation
+Codex/Cursor/OpenCode: ask the agent to use watch-video, codex-reset-credit, x-bookmarks, or chatgpt-pro-review
 ```
 
 Skill-specific requirements, examples, and safety notes live in:
@@ -40,6 +42,7 @@ Skill-specific requirements, examples, and safety notes live in:
 - [docs/watch-video.md](docs/watch-video.md)
 - [docs/codex-reset-credit.md](docs/codex-reset-credit.md)
 - [docs/x-bookmarks.md](docs/x-bookmarks.md)
+- [docs/chatgpt-pro-review.md](docs/chatgpt-pro-review.md)
 
 ## Repo Shape
 

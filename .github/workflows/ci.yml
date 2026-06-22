@@ -26,20 +26,5 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 
-      - name: Python tests
-        run: make test
-
-      - name: Syntax check scripts
-        run: make syntax
-
-      - name: Build package artifacts and indexes
-        run: make build-packages
-
-      - name: Verify public packages
-        run: make verify-packages
-
-      - name: Verify skill metadata
-        run: make verify-skill-metadata
-
-      - name: Verify source indexes are current
-        run: make verify-source-clean
+      - name: Public readiness check
+        run: make public-check

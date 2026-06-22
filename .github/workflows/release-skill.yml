@@ -29,28 +29,20 @@ jobs:
 
       - name: Bump selected skill version
         id: bump
+        env:
+          SKILL: ${{ inputs.skill }}
         run: |
-          version="$(python3 scripts/bump-skill-version.py "${{ inputs.skill }}")"
+          version="$(python3 scripts/bump-skill-version.py "${SKILL}")"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "Released version: ${version}"
 
-      - name: Build package artifacts and indexes
-        run: make build-packages
-
-      - name: Run tests
-        run: make test
-
-      - name: Syntax check scripts
-        run: make syntax
-
-      - name: Verify public packages
-        run: make verify-packages
-
-      - name: Verify skill metadata
-        run: make verify-skill-metadata
+      - name: Release readiness check
+        run: make release-check
 
       - name: Stage expected release outputs
-        run: git add "packages/${{ inputs.skill }}/.claude-plugin/plugin.json" .claude-plugin/marketplace.json skillshare-hub.json
+        env:
+          SKILL: ${{ inputs.skill }}
+        run: git add "packages/${SKILL}/.claude-plugin/plugin.json" .claude-plugin/marketplace.json skillshare-hub.json
 
       - name: Verify source indexes are current
         run: make verify-source-clean
@@ -60,6 +52,9 @@ jobs:
 
       - name: Commit release
         id: commit
+        env:
+          SKILL: ${{ inputs.skill }}
+          VERSION: ${{ steps.bump.outputs.version }}
         run: |
           if git diff --cached --quiet; then
             echo "No release changes to commit."
@@ -67,8 +62,8 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "packages/${{ inputs.skill }}/.claude-plugin/plugin.json" .claude-plugin/marketplace.json skillshare-hub.json
-          git commit -m "Release ${{ inputs.skill }} ${{ steps.bump.outputs.version }}"
+          git add "packages/${SKILL}/.claude-plugin/plugin.json" .claude-plugin/marketplace.json skillshare-hub.json
+          git commit -m "Release ${SKILL} ${VERSION}"
           commit_sha="$(git rev-parse HEAD)"
           echo "commit_sha=${commit_sha}" >> "$GITHUB_OUTPUT"
           git push origin HEAD:${GITHUB_REF_NAME}

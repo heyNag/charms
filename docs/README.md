@@ -24,8 +24,8 @@ Before structural changes, read:
 - Release a public skill version: follow `releasing-a-skill.md`.
 - Optional Skillshare hub installs: read `skillshare.md`.
 - Security, credentials, or local auth: read `security.md`.
-- Package-specific work: read `watch-video.md`, `codex-reset-credit.md`, or
-  `x-bookmarks.md`.
+- Package-specific work: read `watch-video.md`, `codex-reset-credit.md`,
+  `x-bookmarks.md`, or `chatgpt-pro-review.md`.
 
 ## Core Rule
 

@@ -6,18 +6,18 @@
   "type": "module",
   "main": ".opencode/plugins/agent-tools.js",
   "scripts": {
-    "test": "for dir in packages/*/tests; do [ -d \"$dir\" ] || continue; PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s \"$dir\" -p 'test_*.py'; done",
-    "syntax": "files=\"$(find packages scripts -path '*/__pycache__' -prune -o -name '*.py' -print)\"; PYTHONDONTWRITEBYTECODE=1 python3 scripts/check-python-syntax.py $files && bash -n scripts/*.sh packages/*/skills/*/scripts/*.sh",
-    "build:packages": "./scripts/build-packages.sh",
-    "build:root-indexes": "./scripts/build-root-indexes.sh",
-    "build:marketplace": "./scripts/build-marketplace.sh",
-    "build:skillshare-hub": "python3 scripts/build-skillshare-hub.py",
-    "build:claude-custom-skill": "./scripts/build-claude-custom-skill.sh",
-    "verify:packages": "./scripts/verify-packages.sh",
-    "verify:skill-metadata": "python3 scripts/verify-skill-metadata.py",
+    "test": "make test",
+    "syntax": "make syntax",
+    "build:packages": "make build-packages",
+    "build:root-indexes": "make build-root-indexes",
+    "build:marketplace": "make build-marketplace",
+    "build:skillshare-hub": "make build-skillshare-hub",
+    "build:claude-custom-skill": "make build-claude-custom-skill",
+    "verify:packages": "make verify-packages",
+    "verify:skill-metadata": "make verify-skill-metadata",
     "verify:source-clean": "make verify-source-clean",
     "public-check": "make public-check",
-    "install:dry-run": "DRY_RUN=1 ./scripts/install-all.sh"
+    "install:dry-run": "make install-dry-run"
   },
   "license": "MIT"
 }

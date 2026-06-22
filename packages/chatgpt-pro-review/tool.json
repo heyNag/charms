@@ -1,0 +1,10 @@
+{
+  "name": "chatgpt-pro-review",
+  "description": "Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repo evidence.",
+  "tags": ["review", "chatgpt", "pro", "planning", "code-review"],
+  "targets": ["claude", "codex", "cursor", "generic"],
+  "surfaces": ["claude-code", "claude-desktop", "codex", "cursor", "opencode"],
+  "agent_agnostic": true,
+  "has_mcp": false,
+  "public": true
+}

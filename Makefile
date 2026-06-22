@@ -1,4 +1,4 @@
-.PHONY: test syntax doctor install install-dry-run groq-test clean-artifacts build-root-indexes build-marketplace build-skillshare-hub build-claude-custom-skill build-packages verify-skill-metadata verify-packages verify-source-clean release-dry-run public-check ci-local
+.PHONY: test syntax doctor install install-dry-run groq-test clean-artifacts build-root-indexes build-marketplace build-skillshare-hub build-claude-custom-skill build-packages verify-skill-metadata verify-packages verify-source-clean verify-rebuilt-clean release-dry-run release-check public-check ci-local
 
 AUDIO ?=
 PYTHON ?= python3
@@ -47,7 +47,7 @@ build-marketplace:
 	./scripts/build-marketplace.sh
 
 build-skillshare-hub:
-	$(PYTHON) scripts/build-skillshare-hub.py
+	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) scripts/build-skillshare-hub.py
 
 build-root-indexes:
 	./scripts/build-root-indexes.sh
@@ -59,7 +59,7 @@ build-packages:
 	./scripts/build-packages.sh
 
 verify-skill-metadata:
-	$(PYTHON) scripts/verify-skill-metadata.py
+	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) scripts/verify-skill-metadata.py
 
 verify-packages:
 	./scripts/verify-packages.sh
@@ -78,6 +78,16 @@ verify-source-clean:
 	diff -u "$$tmp_dir/root-indexes.before" "$$tmp_dir/root-indexes.after"; \
 	echo "source package indexes are current"
 
+verify-rebuilt-clean:
+	@set -e; \
+	dirty="$$(git status --porcelain -- .claude-plugin/marketplace.json skillshare-hub.json skills commands)"; \
+	if [ -n "$$dirty" ]; then \
+		echo "$$dirty" >&2; \
+		echo "generated package indexes changed after rebuild; run make build-packages and commit the results" >&2; \
+		exit 1; \
+	fi; \
+	echo "rebuilt package indexes match committed source"
+
 release-dry-run:
 	@if [ -z "$(SKILL)" ]; then \
 		echo "usage: make release-dry-run SKILL=watch-video"; \
@@ -85,7 +95,7 @@ release-dry-run:
 	fi
 	$(PYTHON) scripts/bump-skill-version.py "$(SKILL)" --dry-run
 
-public-check:
+release-check:
 	$(MAKE) test
 	$(MAKE) syntax
 	$(MAKE) clean-artifacts
@@ -95,5 +105,9 @@ public-check:
 	$(MAKE) verify-source-clean
 	git diff --check
 	$(MAKE) install-dry-run
+
+public-check:
+	$(MAKE) release-check
+	$(MAKE) verify-rebuilt-clean
 
 ci-local: public-check

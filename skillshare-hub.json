@@ -4,6 +4,18 @@
   "sourcePath": "heyNag/agent-tools",
   "skills": [
     {
+      "name": "chatgpt-pro-review",
+      "description": "Use when the user asks for ChatGPT Pro review, Extended Pro review, external second-pass review, plan hardening, implementation review, PR review, code-review comment resolution, or review of another agent's work.",
+      "source": "packages/chatgpt-pro-review/skills/chatgpt-pro-review",
+      "tags": [
+        "chatgpt",
+        "code-review",
+        "planning",
+        "pro",
+        "review"
+      ]
+    },
+    {
       "name": "codex-reset-credit",
       "description": "Use when the user explicitly asks about Codex reset credits, credit expiry, quota usage, local rate-limit windows, or when Codex limits reset.",
       "source": "packages/codex-reset-credit/skills/codex-reset-credit",

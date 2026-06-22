@@ -11,9 +11,9 @@ packages/<name>
 packages/<name>/skills/<name>
 ```
 
-Keep `watch-video`, `codex-reset-credit`, and `x-bookmarks` easy to install in
-Claude Code, Codex, Cursor, Claude Desktop custom skills, OpenCode, and
-optional Skillshare.
+Keep `watch-video`, `codex-reset-credit`, `x-bookmarks`, and
+`chatgpt-pro-review` easy to install in Claude Code, Codex, Cursor, Claude
+Desktop custom skills, OpenCode, and optional Skillshare.
 
 ## Phase 2: Better Reports And Fallbacks
 

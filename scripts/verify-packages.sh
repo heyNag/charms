@@ -283,6 +283,28 @@ print("true" if sys.argv[2] in targets else "false")
 PY
 }
 
+SECRET_PATTERN='gsk_[A-Za-z0-9_-]{12,}|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY=[[:space:]]*sk-[A-Za-z0-9_-]{12,}|GROQ_API_KEY=[[:space:]]*gsk_[A-Za-z0-9_-]{12,}'
+
+scan_tracked_repo() {
+  local secret_hits
+  secret_hits="$(git -C "$ROOT" grep -I -l -E "$SECRET_PATTERN" -- . 2>/dev/null || true)"
+  if [[ -n "$secret_hits" ]]; then
+    echo "$secret_hits" >&2
+    fail "possible secret value found in tracked files; only file paths are shown"
+  fi
+
+  local artifact_hits
+  artifact_hits="$(
+    git -C "$ROOT" ls-files | grep -E \
+      '(^|/)(\.env|\.env\.local|\.watch-video|\.x-bookmarks|\.codex|\.dist|__pycache__|\.pytest_cache|\.mypy_cache|\.ruff_cache|\.venv|node_modules|dist|frames)(/|$)|(^|/)(auth\.json|tokens\.json|state\.json|bookmarks\.json|bookmarks\.jsonl|bookmarks\.ndjson|search-index\.json|metadata\.json|transcript\.json|transcript\.md|report\.md|groq_transcript\.raw\.json|rollout-.*\.jsonl)$|(^|/)frame_.*\.(jpg|jpeg|png|webp)$|\.(sqlite|sqlite3|db|mp3|wav|m4a|aac|mp4|mov|mkv|webm|avi|flv|wmv)$' \
+      || true
+  )"
+  if [[ -n "$artifact_hits" ]]; then
+    echo "$artifact_hits" >&2
+    fail "forbidden local artifact is tracked"
+  fi
+}
+
 scan_tree() {
   local scan_dir="$1"
   [[ -d "$scan_dir" ]] || return 0
@@ -316,6 +338,10 @@ scan_tree() {
         -name "transcript.json" -o \
         -name "transcript.md" -o \
         -name "report.md" -o \
+        -iname "frame_*.jpg" -o \
+        -iname "frame_*.jpeg" -o \
+        -iname "frame_*.png" -o \
+        -iname "frame_*.webp" -o \
         -iname "*.sqlite" -o \
         -iname "*.sqlite3" -o \
         -iname "*.db" -o \
@@ -337,12 +363,14 @@ scan_tree() {
     fail "forbidden local artifact found under ${scan_dir#$ROOT/}"
   fi
 
-  if grep -R -I -n -E 'gsk_[A-Za-z0-9_-]{12,}|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY=[[:space:]]*sk-[A-Za-z0-9_-]{12,}|GROQ_API_KEY=[[:space:]]*gsk_[A-Za-z0-9_-]{12,}' "$scan_dir" >/tmp/agent-tools-secret-scan.$$ 2>/dev/null; then
-    cat /tmp/agent-tools-secret-scan.$$ >&2
-    rm -f /tmp/agent-tools-secret-scan.$$
-    fail "possible secret value found under ${scan_dir#$ROOT/}"
+  local secret_hits
+  secret_hits="$(
+    grep -R -I -l -E "$SECRET_PATTERN" "$scan_dir" 2>/dev/null || true
+  )"
+  if [[ -n "$secret_hits" ]]; then
+    echo "$secret_hits" >&2
+    fail "possible secret value found under ${scan_dir#$ROOT/}; only file paths are shown"
   fi
-  rm -f /tmp/agent-tools-secret-scan.$$
 }
 
 verify_root_indexes() {
@@ -400,6 +428,7 @@ validate_root_wrappers
 validate_marketplace
 validate_skillshare_hub
 verify_root_indexes
+scan_tracked_repo
 
 shopt -s nullglob
 found=0

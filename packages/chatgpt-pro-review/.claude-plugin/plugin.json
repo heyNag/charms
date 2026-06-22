@@ -1,0 +1,10 @@
+{
+  "name": "chatgpt-pro-review",
+  "version": "0.1.0",
+  "description": "Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repo evidence.",
+  "author": {
+    "name": "Nagarjuna Boddu"
+  },
+  "repository": "https://github.com/heyNag/agent-tools",
+  "license": "MIT"
+}

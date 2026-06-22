@@ -30,6 +30,7 @@ Current packages:
 packages/watch-video
 packages/codex-reset-credit
 packages/x-bookmarks
+packages/chatgpt-pro-review
 ```
 
 Each package is directly consumable as a Claude Code plugin source and contains

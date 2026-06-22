@@ -95,3 +95,11 @@ state, print secrets, or expose raw account/auth data.
 
 `x-bookmarks` prefers Bird cookie auth because it uses the user's local browser
 session and avoids paid X API credits. X API v2 remains optional.
+
+## ChatGPT Pro Review Boundary
+
+`chatgpt-pro-review` is a reviewer/reconciler workflow. It prepares scoped
+packets for ChatGPT Pro or Extended Pro and then verifies the response against
+local evidence. It must not send private repo context, secrets, auth material,
+customer data, or unrelated private files to ChatGPT unless the user explicitly
+approves that specific context.

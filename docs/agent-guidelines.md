@@ -49,6 +49,8 @@ Then verify:
 - No real API keys are staged.
 - `.env.local` is ignored and untracked.
 - No `.watch-video/` or `.x-bookmarks/` state is staged.
+- Privacy-sensitive review packets or ChatGPT responses are not staged unless
+  they are intentional public fixtures.
 - No `.dist/`, media, transcripts, frames, caches, `.venv/`, or `node_modules/`
   are staged.
 - `.claude-plugin/marketplace.json`, `skillshare-hub.json`, `skills/`, and

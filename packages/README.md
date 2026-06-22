@@ -17,6 +17,7 @@ Current packages:
 - `watch-video`
 - `codex-reset-credit`
 - `x-bookmarks`
+- `chatgpt-pro-review`
 
 Install commands live in [docs/installing-skills.md](../docs/installing-skills.md);
 package README files focus on the skill-specific requirements and usage.

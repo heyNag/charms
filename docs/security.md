@@ -12,6 +12,10 @@ Secret-handling rules:
 - X/Twitter tokens, cookies, bookmark exports, and search indexes stay outside
   the repo.
 - Local `.dist/` artifacts and ZIPs stay ignored.
+- Secret scanners and verification scripts should report only file paths for
+  suspected secrets, not matching secret text.
+- ChatGPT review packets and responses can contain private context. Do not
+  commit them unless they are intentional sanitized public fixtures.
 
 Safe key shape check:
 

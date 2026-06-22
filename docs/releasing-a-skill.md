@@ -56,6 +56,7 @@ Change `SKILL` to the package you are releasing.
 watch-video
 codex-reset-credit
 x-bookmarks
+chatgpt-pro-review
 ```
 
 The workflow validates the package name by loading

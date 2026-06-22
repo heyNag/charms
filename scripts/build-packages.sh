@@ -28,7 +28,7 @@ done
 
 "$ROOT/scripts/build-root-indexes.sh"
 "$ROOT/scripts/build-marketplace.sh"
-python3 "$ROOT/scripts/build-skillshare-hub.py" "$ROOT"
+PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/build-skillshare-hub.py" "$ROOT"
 
 if [[ "$found" -eq 0 ]]; then
   echo "no package manifests found under packages/*/tool.json"

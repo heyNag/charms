@@ -34,6 +34,7 @@ Direct installs use canonical source skill folders:
 skillshare install heyNag/agent-tools/packages/watch-video/skills/watch-video --track
 skillshare install heyNag/agent-tools/packages/codex-reset-credit/skills/codex-reset-credit --track
 skillshare install heyNag/agent-tools/packages/x-bookmarks/skills/x-bookmarks --track
+skillshare install heyNag/agent-tools/packages/chatgpt-pro-review/skills/chatgpt-pro-review --track
 skillshare sync
 ```
 

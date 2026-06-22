@@ -1,6 +1,6 @@
 {
   "name": "agent-tools",
-  "description": "Agent skills for video inspection, Codex quota checks, and X/Twitter bookmark review.",
+  "description": "Agent skills for video inspection, Codex quota checks, X/Twitter bookmarks, and ChatGPT Pro review.",
   "version": "0.1.0",
   "author": {
     "name": "Nagarjuna Boddu"
@@ -13,6 +13,7 @@
     "agents",
     "video",
     "codex",
-    "bookmarks"
+    "bookmarks",
+    "review"
   ]
 }
