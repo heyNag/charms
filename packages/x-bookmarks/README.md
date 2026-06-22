@@ -18,6 +18,9 @@ all use that same skill folder directly or through the root `skills/` symlink
 index. Claude Desktop custom-skill ZIP contents are built locally under
 `.dist/claude/custom-skills/x-bookmarks`.
 
+Install commands for each target live in
+[docs/installing-skills.md](../../docs/installing-skills.md).
+
 ## Requirements
 
 Preferred no-credit backend:

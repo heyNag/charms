@@ -1,220 +1,68 @@
 # agent-tools
 
-`agent-tools` is a public workspace for agent skills, commands, helper scripts,
-Claude Code plugins, and optional Skillshare discovery.
+`agent-tools` is a public workspace for portable agent skills, Claude Code
+plugins, helper commands, and local workflow scripts.
 
-Current public skills:
+## Skills
 
-- `watch-video` - inspect short videos, tutorials, demos, screen recordings,
-  and UI bug videos.
-- `codex-reset-credit` - check Codex reset credits and local rate-limit reset
-  windows without exposing auth secrets.
-- `x-bookmarks` - fetch, search, and digest X/Twitter bookmarks using Bird
-  cookie auth or optional X API v2.
+| Skill | Use It For | Start Here |
+|---|---|---|
+| `watch-video` | Inspect YouTube URLs, local videos, demos, tutorials, screen recordings, and UI bug videos. | [docs/watch-video.md](docs/watch-video.md) |
+| `codex-reset-credit` | Check Codex reset credits and local rate-limit reset windows without exposing auth secrets. | [docs/codex-reset-credit.md](docs/codex-reset-credit.md) |
+| `x-bookmarks` | Fetch, search, and digest X/Twitter bookmarks using Bird or optional X API v2. | [docs/x-bookmarks.md](docs/x-bookmarks.md) |
 
-## Source-Only Shape
+## Install
 
-This repo follows a source-only package layout that exposes one shared skills
-tree to multiple agent targets.
+Pick your target and follow [docs/installing-skills.md](docs/installing-skills.md).
+
+Quick orientation:
+
+- Claude Code installs packages from the marketplace catalog.
+- Codex, OpenCode, generic Agent Skills, and Skillshare consume
+  `packages/<name>/skills/<name>`.
+- Cursor and root plugin wrappers use the root `skills/` symlink index.
+- Claude Desktop / claude.ai custom skills are built locally under ignored
+  `.dist/` artifacts.
+
+## Use
+
+After installing, invoke the skill through your agent target:
+
+```text
+Claude Code: /watch-video:watch <video-url-or-path>
+Claude Code: /codex-reset-credit:codex-reset-credit
+Claude Code: /x-bookmarks:x-bookmarks digest
+Codex/Cursor/OpenCode: ask the agent to use watch-video, codex-reset-credit, or x-bookmarks
+```
+
+Skill-specific requirements, examples, and safety notes live in:
+
+- [docs/watch-video.md](docs/watch-video.md)
+- [docs/codex-reset-credit.md](docs/codex-reset-credit.md)
+- [docs/x-bookmarks.md](docs/x-bookmarks.md)
+
+## Repo Shape
 
 ```text
 packages/<name>/                 package source and Claude Code plugin root
-packages/<name>/skills/<name>/   portable skill folder for Codex/OpenCode/etc.
+packages/<name>/skills/<name>/   portable skill folder
 packages/<name>/commands/        optional Claude Code slash commands
-skills/<name>                    root symlink index for Codex/Cursor/OpenCode
-commands/*.md                    root symlink index for umbrella Claude commands
-.claude-plugin/marketplace.json  Claude Code marketplace catalog
-.claude-plugin/plugin.json       root/umbrella Claude plugin metadata
-.codex-plugin/plugin.json        Codex plugin metadata
-.cursor-plugin/plugin.json       Cursor plugin metadata
-.opencode/plugins/agent-tools.js OpenCode plugin wrapper
+skills/<name>                    root symlink index to package skill source
+commands/*.md                    root symlink index to package commands
+.claude-plugin/                  Claude Code marketplace and root metadata
+.codex-plugin/                   Codex plugin metadata
+.cursor-plugin/                  Cursor plugin metadata
+.opencode/                       OpenCode plugin wrapper
 skillshare-hub.json              optional Skillshare hub index
 .dist/                           ignored local build artifacts
-docs/                            project memory and onboarding docs
+docs/                            project docs and runbooks
 scripts/                         build, install, test, and release helpers
 ```
 
-There is no committed `generated/` target-copy folder. Claude Code installs
-`packages/<name>` directly for per-skill plugins. Codex, Cursor, and OpenCode
-can use the root `skills/` symlink index or copy
-`packages/<name>/skills/<name>` directly. Claude Desktop custom-skill bundles
-are built locally under `.dist/` when needed.
+Normal edits happen under `packages/<name>/`. Root `skills/` and `commands/`
+are maintained symlink indexes; do not edit through them.
 
-Normal edits happen under `packages/<name>/`.
-
-## Install For Claude Code
-
-```text
-/plugin marketplace add heyNag/agent-tools
-/plugin install watch-video@agent-tools
-/plugin install codex-reset-credit@agent-tools
-/plugin install x-bookmarks@agent-tools
-```
-
-After installing, try:
-
-```text
-/watch-video:watch <video-url-or-path>
-/codex-reset-credit:codex-reset-credit
-/x-bookmarks:x-bookmarks digest
-```
-
-If your Claude Code version shows a different command name, run `/plugin list`
-or `/plugin details <plugin>@agent-tools`.
-
-## Install For Codex
-
-```sh
-git clone https://github.com/heyNag/agent-tools.git
-cd agent-tools
-mkdir -p ~/.codex/skills
-rm -rf ~/.codex/skills/watch-video
-cp -R packages/watch-video/skills/watch-video ~/.codex/skills/watch-video
-rm -rf ~/.codex/skills/codex-reset-credit
-cp -R packages/codex-reset-credit/skills/codex-reset-credit ~/.codex/skills/codex-reset-credit
-rm -rf ~/.codex/skills/x-bookmarks
-cp -R packages/x-bookmarks/skills/x-bookmarks ~/.codex/skills/x-bookmarks
-```
-
-Local development shortcut:
-
-```sh
-./scripts/install-codex.sh
-```
-
-## Install For Cursor
-
-Cursor support is exposed through `.cursor-plugin/plugin.json`, which points at
-the root `skills/` symlink index.
-
-Use a checkout-based Cursor plugin flow by pointing Cursor at this repo root.
-The manifest reads skills through `./skills/`, which is maintained as symlinks
-to package source:
-
-```sh
-git clone https://github.com/heyNag/agent-tools.git
-cd agent-tools
-make build-root-indexes
-```
-
-If your Cursor version expects manually copied skills instead, copy
-`packages/<name>/skills/<name>` into the skill location that Cursor documents
-for that version.
-
-## Install For OpenCode
-
-Plugin install:
-
-```json
-{
-  "plugin": ["agent-tools@git+https://github.com/heyNag/agent-tools.git"]
-}
-```
-
-Restart OpenCode after editing `opencode.json`.
-
-Direct copy fallback:
-
-```sh
-git clone https://github.com/heyNag/agent-tools.git
-cd agent-tools
-mkdir -p ~/.config/opencode/skills
-rm -rf ~/.config/opencode/skills/watch-video
-cp -R packages/watch-video/skills/watch-video ~/.config/opencode/skills/watch-video
-rm -rf ~/.config/opencode/skills/codex-reset-credit
-cp -R packages/codex-reset-credit/skills/codex-reset-credit ~/.config/opencode/skills/codex-reset-credit
-rm -rf ~/.config/opencode/skills/x-bookmarks
-cp -R packages/x-bookmarks/skills/x-bookmarks ~/.config/opencode/skills/x-bookmarks
-```
-
-## Install For Claude Desktop Or Claude.ai Skills
-
-Claude custom skills use lowercase `skill.md`, so this repo builds local
-artifacts under ignored `.dist/`:
-
-```sh
-git clone https://github.com/heyNag/agent-tools.git
-cd agent-tools
-make build-packages
-cd .dist/claude/custom-skills
-zip -r watch-video.zip watch-video
-zip -r codex-reset-credit.zip codex-reset-credit
-zip -r x-bookmarks.zip x-bookmarks
-```
-
-Upload the ZIP in Claude's `Customize > Skills` flow. Do not commit `.dist/` or
-ZIP files.
-
-## Optional Skillshare
-
-If you already use Skillshare, use the curated hub:
-
-```text
-https://raw.githubusercontent.com/heyNag/agent-tools/main/skillshare-hub.json
-```
-
-In the Skillshare web UI, use `Search > Hub`, add/select that hub URL, then
-search for `watch`, `codex`, `bookmarks`, or another keyword.
-
-CLI users can install directly from the canonical skill folders:
-
-```sh
-skillshare install heyNag/agent-tools/packages/watch-video/skills/watch-video --track
-skillshare install heyNag/agent-tools/packages/codex-reset-credit/skills/codex-reset-credit --track
-skillshare install heyNag/agent-tools/packages/x-bookmarks/skills/x-bookmarks --track
-skillshare sync
-```
-
-## Requirements
-
-`watch-video` needs local video tooling:
-
-```sh
-brew install yt-dlp ffmpeg jq
-python3 packages/watch-video/skills/watch-video/scripts/doctor.py
-```
-
-Groq is optional but recommended when captions are missing or incomplete:
-
-```sh
-export GROQ_API_KEY="..."
-export GROQ_MODEL="whisper-large-v3-turbo"
-```
-
-`codex-reset-credit` uses local Codex auth/session files when available. It is
-read-only and must not print tokens, account IDs, raw auth contents, or modify
-Codex state.
-
-`x-bookmarks` prefers the `bird` CLI for no-credit local X/Twitter bookmark
-access and can use X API v2 OAuth state when requested.
-
-## Quick Tests
-
-`watch-video`:
-
-```sh
-python3 packages/watch-video/skills/watch-video/scripts/watch.py \
-  "https://www.youtube.com/watch?v=DTCyvo6cC54" \
-  --duration 30 \
-  --transcriber none \
-  --frame-mode auto \
-  --max-frames 8
-```
-
-`codex-reset-credit`:
-
-```sh
-python3 packages/codex-reset-credit/skills/codex-reset-credit/scripts/check_reset_credits.py --no-live
-```
-
-`x-bookmarks`:
-
-```sh
-command -v bird >/dev/null && bird check --plain
-python3 packages/x-bookmarks/skills/x-bookmarks/scripts/x_api_auth.py --status
-```
-
-## Development Checks
+## Development
 
 ```sh
 make build-packages
@@ -222,18 +70,14 @@ make public-check
 git status
 ```
 
-`make build-packages` refreshes root symlink indexes, `.claude-plugin/marketplace.json`,
-`skillshare-hub.json`, and ignored Claude custom-skill artifacts under `.dist/`.
-`make public-check` runs tests, syntax checks, package verification, metadata
-verification, source-index drift checks, and install dry-runs.
+`make build-packages` refreshes root symlink indexes, marketplace/hub indexes,
+and ignored Claude custom-skill artifacts under `.dist/`. `make public-check`
+runs the repo’s publishability checks and install dry-runs.
 
-## Docs
+For architecture, onboarding, updates, releases, and target differences, start
+with [docs/README.md](docs/README.md).
 
-Start with [docs/README.md](docs/README.md). Future agents should read
-`docs/architecture.md`, `docs/package-shape.md`, and
-`docs/agent-guidelines.md` before structural changes.
-
-## Search URLs
+## Public URLs
 
 GitHub/Search URL:
 

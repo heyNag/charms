@@ -12,6 +12,9 @@ packages/codex-reset-credit/skills/codex-reset-credit
 
 ## Install Paths
 
+Full install commands for each target are in
+[`installing-skills.md`](installing-skills.md).
+
 - Claude Code: `/plugin install codex-reset-credit@agent-tools`
 - Codex: copy `packages/codex-reset-credit/skills/codex-reset-credit`
 - Cursor: root `skills/codex-reset-credit` symlink through `.cursor-plugin/plugin.json`

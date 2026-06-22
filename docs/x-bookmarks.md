@@ -12,6 +12,9 @@ packages/x-bookmarks/skills/x-bookmarks
 
 ## Install Paths
 
+Full install commands for each target are in
+[`installing-skills.md`](installing-skills.md).
+
 - Claude Code: `/plugin install x-bookmarks@agent-tools`
 - Codex: copy `packages/x-bookmarks/skills/x-bookmarks`
 - Cursor: root `skills/x-bookmarks` symlink through `.cursor-plugin/plugin.json`

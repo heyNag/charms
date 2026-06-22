@@ -33,6 +33,9 @@ frames/
 
 ## Install Paths
 
+Full install commands for each target are in
+[`installing-skills.md`](installing-skills.md).
+
 - Claude Code: `/plugin install watch-video@agent-tools`
 - Codex: copy `packages/watch-video/skills/watch-video`
 - Cursor: root `skills/watch-video` symlink through `.cursor-plugin/plugin.json`

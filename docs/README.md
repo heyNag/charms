@@ -9,12 +9,13 @@ Before structural changes, read:
 1. `architecture.md`
 2. `package-shape.md`
 3. `agent-guidelines.md`
-4. `distribution-targets.md`
-5. `target-tool-mapping.md`
+4. `installing-skills.md`
+5. `distribution-targets.md`
+6. `target-tool-mapping.md`
 
 ## Task Map
 
-- Install a public tool: use the root `README.md`.
+- Install a public tool: use `installing-skills.md`.
 - Understand source layout: read `architecture.md` and `package-shape.md`.
 - Understand target-specific install behavior: read `distribution-targets.md`
   and `target-tool-mapping.md`.
