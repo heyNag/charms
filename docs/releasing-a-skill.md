@@ -4,13 +4,22 @@ Use this guide when publishing a public version of an existing skill.
 
 ## Release Model
 
-Releases are per skill. A release updates only:
+Releases are per skill. A release updates:
 
 ```text
-packages/<name>/.claude-plugin/plugin.json
-.claude-plugin/marketplace.json
-skillshare-hub.json
+packages/<name>/.claude-plugin/plugin.json   the released skill's version
+.claude-plugin/marketplace.json              regenerated index
+skillshare-hub.json                          regenerated index
+package.json                                  umbrella/workspace version,
+pyproject.toml                                synced to the latest release
+.claude-plugin/plugin.json                    date (monotonic, never moves
+.codex-plugin/plugin.json                     backward)
+.cursor-plugin/plugin.json
 ```
+
+The umbrella/workspace manifests carry a single workspace-level version. The
+workflow runs `scripts/sync-umbrella-version.py` so that value tracks the most
+recent release date; it is independent of the per-skill package versions.
 
 Root `skills/` and `commands/` indexes are refreshed from package source during
 the workflow. Claude Desktop custom-skill folders are local `.dist/` artifacts
@@ -68,13 +77,14 @@ repo shape, the workflow can release it.
 
 1. Computes the next UTC date version.
 2. Updates `packages/<name>/.claude-plugin/plugin.json`.
-3. Runs `make build-packages`.
-4. Runs tests, syntax checks, package verification, and skill metadata
+3. Syncs the umbrella manifest versions to the latest release date.
+4. Runs `make build-packages`.
+5. Runs tests, syntax checks, package verification, and skill metadata
    verification.
-5. Verifies source indexes are current.
-6. Commits the release metadata.
-7. Pushes to `main`.
-8. Creates a GitHub Release tagged `<skill>@<version>`.
+6. Verifies source indexes are current.
+7. Commits the release metadata.
+8. Pushes to `main`.
+9. Creates a GitHub Release tagged `<skill>@<version>`.
 
 ## New Skill Release Readiness
 

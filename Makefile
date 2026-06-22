@@ -1,4 +1,4 @@
-.PHONY: test syntax doctor install install-dry-run groq-test clean-artifacts build-root-indexes build-marketplace build-skillshare-hub build-claude-custom-skill build-packages verify-skill-metadata verify-packages verify-source-clean verify-rebuilt-clean release-dry-run release-check public-check ci-local
+.PHONY: test syntax doctor install install-dry-run groq-test clean-artifacts build-root-indexes build-marketplace build-skillshare-hub build-claude-custom-skill build-packages sync-umbrella-version verify-skill-metadata verify-packages verify-source-clean verify-rebuilt-clean release-dry-run release-check public-check ci-local
 
 AUDIO ?=
 PYTHON ?= python3
@@ -57,6 +57,9 @@ build-claude-custom-skill:
 
 build-packages:
 	./scripts/build-packages.sh
+
+sync-umbrella-version:
+	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) scripts/sync-umbrella-version.py
 
 verify-skill-metadata:
 	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) scripts/verify-skill-metadata.py

@@ -36,13 +36,16 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "Released version: ${version}"
 
+      - name: Sync umbrella manifest versions
+        run: python3 scripts/sync-umbrella-version.py
+
       - name: Release readiness check
         run: make release-check
 
       - name: Stage expected release outputs
         env:
           SKILL: ${{ inputs.skill }}
-        run: git add "packages/${SKILL}/.claude-plugin/plugin.json" .claude-plugin/marketplace.json skillshare-hub.json
+        run: git add "packages/${SKILL}/.claude-plugin/plugin.json" .claude-plugin/marketplace.json skillshare-hub.json package.json pyproject.toml .claude-plugin/plugin.json .codex-plugin/plugin.json .cursor-plugin/plugin.json
 
       - name: Verify source indexes are current
         run: make verify-source-clean
@@ -62,7 +65,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "packages/${SKILL}/.claude-plugin/plugin.json" .claude-plugin/marketplace.json skillshare-hub.json
+          git add "packages/${SKILL}/.claude-plugin/plugin.json" .claude-plugin/marketplace.json skillshare-hub.json package.json pyproject.toml .claude-plugin/plugin.json .codex-plugin/plugin.json .cursor-plugin/plugin.json
           git commit -m "Release ${SKILL} ${VERSION}"
           commit_sha="$(git rev-parse HEAD)"
           echo "commit_sha=${commit_sha}" >> "$GITHUB_OUTPUT"
