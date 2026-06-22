@@ -14,8 +14,8 @@ Current public skills:
 
 ## Source-Only Shape
 
-This repo follows a source-only package layout inspired by projects that expose
-one shared skills tree to multiple agent targets.
+This repo follows a source-only package layout that exposes one shared skills
+tree to multiple agent targets.
 
 ```text
 packages/<name>/                 package source and Claude Code plugin root
