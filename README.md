@@ -74,8 +74,8 @@ git status
 and ignored Claude custom-skill artifacts under `.dist/`. `make public-check`
 runs the repo’s publishability checks and install dry-runs.
 
-For architecture, onboarding, updates, releases, and target differences, start
-with [docs/README.md](docs/README.md).
+For architecture, installation, onboarding, updates, releases, and target
+differences, start with [docs/README.md](docs/README.md).
 
 ## Public URLs
 

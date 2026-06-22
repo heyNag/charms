@@ -4,13 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       skill:
-        description: Skill/package to release
+        description: Skill/package to release, for example watch-video
         required: true
-        type: choice
-        options:
-          - watch-video
-          - codex-reset-credit
-          - x-bookmarks
+        type: string
 
 permissions:
   contents: write

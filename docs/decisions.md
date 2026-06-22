@@ -72,6 +72,9 @@ The workflow computes a UTC date-based package version, updates
 verifies, commits, pushes, and creates a skill-scoped GitHub Release with a tag
 named `<skill>@<version>`.
 
+The workflow accepts a package name string and validates the package from repo
+source. New skills do not need release workflow configuration changes.
+
 GitHub Packages are intentionally unused until there is a real package artifact
 such as an npm package, Docker image, or binary.
 

@@ -24,7 +24,9 @@ packages/awesome-skill/
   tests/             recommended
 ```
 
-Do not create a committed `generated/` folder.
+Do not create a committed `generated/` folder. Do not hand-edit root
+`skills/`, root `commands/`, `.claude-plugin/marketplace.json`, or
+`skillshare-hub.json`; the build scripts refresh those from package source.
 
 With the standard targets, this one source package supports:
 
@@ -131,12 +133,7 @@ If the skill has Claude Code slash commands, add them under:
 packages/awesome-skill/commands/
 ```
 
-## Step 6: Register Release Workflow
-
-Add `awesome-skill` to `.github/workflows/release-skill.yml` under the
-`workflow_dispatch.inputs.skill.options` list.
-
-## Step 7: Build And Verify
+## Step 6: Build And Verify
 
 ```sh
 make build-packages
@@ -148,11 +145,19 @@ git status
 `skillshare-hub.json`, root `skills/` and `commands/` symlink indexes, and
 ignored `.dist/` Claude custom-skill artifacts.
 
-## Step 8: Commit
+## Step 7: Commit
 
-Commit the source package, docs, updated indexes, tests, and workflow change.
-Do not commit `.dist/`, ZIPs, local state, credentials, media, transcripts, or
-caches.
+Commit the source package, docs, refreshed indexes, and tests. Do not commit
+`.dist/`, ZIPs, local state, credentials, media, transcripts, or caches.
+
+## Step 8: Release Later
+
+No release workflow registration is required for a new package. The manual
+`Release Skill` workflow accepts a package name and validates it from
+`packages/<name>/.claude-plugin/plugin.json`.
+
+When the skill is ready for a public version, follow
+[`releasing-a-skill.md`](releasing-a-skill.md).
 
 ## New Skill Checklist
 
@@ -162,5 +167,9 @@ caches.
 - No root `packages/awesome-skill/SKILL.md` exists.
 - Tags match between `tool.json` and `SKILL.md`.
 - `skills/awesome-skill` is a symlink created by `make build-packages`.
+- `.claude-plugin/marketplace.json` includes the package when `targets`
+  includes `claude`.
+- `skillshare-hub.json` includes the package when it is public and
+  agent-compatible.
 - Docs mention source paths and install paths.
 - `make public-check` passes.

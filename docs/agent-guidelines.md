@@ -21,7 +21,8 @@ Rules for future AI agents working in this repo:
   `packages/<name>` source files instead.
 - Keep skill frontmatter tags aligned with `tool.json` tags.
 - Do not manually edit package versions. Public skill releases go through the
-  manual GitHub Actions `Release Skill` workflow.
+  manual GitHub Actions `Release Skill` workflow with the package name as the
+  workflow input.
 - Keep skills agent-agnostic when possible. Put target-specific details in
   docs or target wrappers.
 - Do not commit secrets, local auth files, media, transcripts, frames, `.dist/`,
@@ -39,6 +40,7 @@ Run:
 ```sh
 make build-packages
 make public-check
+make release-dry-run SKILL=<name>   # only when preparing a release
 git status
 ```
 

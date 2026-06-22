@@ -20,7 +20,8 @@ Before structural changes, read:
 - Understand target-specific install behavior: read `distribution-targets.md`
   and `target-tool-mapping.md`.
 - Add a new skill package: follow `adding-a-skill.md`.
-- Update or release a skill: follow `updating-a-skill.md`.
+- Update a skill: follow `updating-a-skill.md`.
+- Release a public skill version: follow `releasing-a-skill.md`.
 - Optional Skillshare hub installs: read `skillshare.md`.
 - Security, credentials, or local auth: read `security.md`.
 - Package-specific work: read `watch-video.md`, `codex-reset-credit.md`, or

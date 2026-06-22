@@ -1,7 +1,8 @@
-.PHONY: test syntax doctor install install-dry-run groq-test clean-artifacts build-root-indexes build-marketplace build-skillshare-hub build-claude-custom-skill build-packages verify-skill-metadata verify-packages verify-source-clean public-check ci-local
+.PHONY: test syntax doctor install install-dry-run groq-test clean-artifacts build-root-indexes build-marketplace build-skillshare-hub build-claude-custom-skill build-packages verify-skill-metadata verify-packages verify-source-clean release-dry-run public-check ci-local
 
 AUDIO ?=
 PYTHON ?= python3
+SKILL ?=
 
 test:
 	@set -e; \
@@ -76,6 +77,13 @@ verify-source-clean:
 	find skills commands -mindepth 1 -maxdepth 1 -type l -print -exec readlink {} \; | sort > "$$tmp_dir/root-indexes.after"; \
 	diff -u "$$tmp_dir/root-indexes.before" "$$tmp_dir/root-indexes.after"; \
 	echo "source package indexes are current"
+
+release-dry-run:
+	@if [ -z "$(SKILL)" ]; then \
+		echo "usage: make release-dry-run SKILL=watch-video"; \
+		exit 2; \
+	fi
+	$(PYTHON) scripts/bump-skill-version.py "$(SKILL)" --dry-run
 
 public-check:
 	$(MAKE) test

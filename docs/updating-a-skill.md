@@ -37,6 +37,10 @@ commands/*.md                    symlink index when package commands exist
 .dist/claude/custom-skills/<name>  ignored local artifact
 ```
 
+These outputs are driven by `packages/<name>/tool.json`,
+`packages/<name>/.claude-plugin/plugin.json`, and
+`packages/<name>/skills/<name>/SKILL.md`. Do not update target indexes by hand.
+
 ## Versioning And Releases
 
 Versions are per skill. Public releases use UTC date versions:
@@ -56,9 +60,10 @@ Do not manually edit:
 packages/<name>/.claude-plugin/plugin.json
 ```
 
-Use the manual GitHub Actions `Release Skill` workflow. It bumps the selected
-skill version, refreshes indexes/artifacts, verifies, commits, pushes, and
-creates a GitHub Release tagged:
+Use the manual GitHub Actions `Release Skill` workflow. Enter the package name
+as the `skill` input. The workflow bumps the selected skill version, refreshes
+indexes/artifacts, verifies, commits, pushes, and creates a GitHub Release
+tagged:
 
 ```text
 <skill>@<version>
@@ -104,6 +109,7 @@ zip -r x-bookmarks.zip x-bookmarks
 
 - Source changes are under `packages/<name>`.
 - Version bump is not manual.
+- `make release-dry-run SKILL=<name>` prints the expected next version.
 - `make public-check` passes.
 - The manual `Release Skill` workflow is used for public version bumps.
 - No `.dist/`, ZIPs, credentials, local state, media, transcripts, frames, or
