@@ -12,23 +12,19 @@ Use it for:
 - eval or reporting methodology review
 - external second-pass review of another agent's work
 
-## Source
+The package root is a Claude Code plugin source. The portable skill source is:
 
 ```text
 packages/chatgpt-pro-review/skills/chatgpt-pro-review
 ```
 
-The package root `packages/chatgpt-pro-review` is also the Claude Code plugin
-root.
+Codex, Cursor, OpenCode, generic Agent Skills, and optional Skillshare installs
+all use that same skill folder directly or through the root `skills/` symlink
+index. Claude Desktop custom-skill ZIP contents are built locally under
+`.dist/claude/custom-skills/chatgpt-pro-review`.
 
-## Install Targets
-
-- Claude Code: `/plugin install chatgpt-pro-review@charms`
-- Codex: copy `packages/chatgpt-pro-review/skills/chatgpt-pro-review`
-- Cursor: root `skills/chatgpt-pro-review` symlink through `.cursor-plugin/plugin.json`
-- OpenCode: root plugin wrapper or copy `packages/chatgpt-pro-review/skills/chatgpt-pro-review`
-- Claude Desktop: build `.dist/claude/custom-skills/chatgpt-pro-review`
-- Skillshare: install `heyNag/charms/packages/chatgpt-pro-review/skills/chatgpt-pro-review`
+Install commands for each target live in
+[docs/installing-skills.md](../../docs/installing-skills.md).
 
 ## Privacy
 
@@ -37,7 +33,18 @@ sensitive unpublished code to ChatGPT unless the user explicitly approves that
 specific context. When in doubt, prepare a paste packet and ask the user before
 submitting it.
 
-## Local Development
+## Package Files
+
+```text
+.claude-plugin/plugin.json                       Claude Code plugin metadata
+skills/chatgpt-pro-review/SKILL.md               skill instructions
+skills/chatgpt-pro-review/agents/                display metadata for agent UIs
+commands/chatgpt-pro-review.md                   Claude Code slash command prompt
+tests/                                           offline tests
+tool.json                                        package manifest
+```
+
+After editing source:
 
 ```sh
 make build-packages
