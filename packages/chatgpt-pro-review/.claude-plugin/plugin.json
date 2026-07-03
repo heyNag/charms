@@ -1,6 +1,6 @@
 {
   "name": "chatgpt-pro-review",
-  "version": "2026.6.22",
+  "version": "2026.7.3",
   "description": "Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repo evidence.",
   "author": {
     "name": "Nagarjuna Boddu"
