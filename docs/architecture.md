@@ -13,6 +13,7 @@ commands/             symlink index to package Claude command sources
 .codex-plugin/        Codex plugin metadata
 .cursor-plugin/       Cursor plugin metadata
 .opencode/            OpenCode plugin wrapper
+.agents/plugins/      Agent Skills marketplace listing
 skillshare-hub.json   optional Skillshare hub index
 .dist/                ignored local build artifacts
 scripts/              install, build, test, and release helpers

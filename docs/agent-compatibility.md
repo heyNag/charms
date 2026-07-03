@@ -25,6 +25,15 @@ commands/*.md -> ../packages/<name>/commands/*.md
 
 ## Surface Map
 
+Agent Skills CLI (Codex, Cursor, Copilot, Gemini CLI, and 50+ hosts):
+
+```sh
+npx skills add heyNag/charms
+```
+
+The repo also ships an Agent Skills marketplace listing at
+`.agents/plugins/marketplace.json`.
+
 Claude Code:
 
 ```text

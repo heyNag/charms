@@ -283,7 +283,7 @@ print("true" if sys.argv[2] in targets else "false")
 PY
 }
 
-SECRET_PATTERN='gsk_[A-Za-z0-9_-]{12,}|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY=[[:space:]]*sk-[A-Za-z0-9_-]{12,}|GROQ_API_KEY=[[:space:]]*gsk_[A-Za-z0-9_-]{12,}'
+SECRET_PATTERN='gsk_[A-Za-z0-9_-]{12,}|sk-[A-Za-z0-9_-]{12,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|OPENAI_API_KEY=[[:space:]]*sk-[A-Za-z0-9_-]{12,}|GROQ_API_KEY=[[:space:]]*gsk_[A-Za-z0-9_-]{12,}'
 
 scan_tracked_repo() {
   local secret_hits
@@ -422,8 +422,10 @@ PY
 
 check_file "$ROOT/.claude-plugin/marketplace.json"
 check_file "$ROOT/skillshare-hub.json"
+check_file "$ROOT/.agents/plugins/marketplace.json"
 valid_json "$ROOT/.claude-plugin/marketplace.json"
 valid_json "$ROOT/skillshare-hub.json"
+valid_json "$ROOT/.agents/plugins/marketplace.json"
 validate_root_wrappers
 validate_marketplace
 validate_skillshare_hub

@@ -126,6 +126,41 @@ copy_commands() {
   shopt -u nullglob
 }
 
+# Preflight: find every unmanaged target first so a conflict midway cannot
+# leave a partial install. With FORCE=1 all of them are replaced.
+conflicts=()
+shopt -s nullglob
+for tool_json in "${repo_root}"/packages/*/tool.json; do
+  if [[ "$(package_has_target "${tool_json}" claude)" != "true" ]]; then
+    continue
+  fi
+  package="$(basename "$(dirname "${tool_json}")")"
+  skill_target="${skills_root}/${package}"
+  if [[ -e "${skill_target}" && ! -f "${skill_target}/${marker_name}" ]]; then
+    conflicts+=("${skill_target}")
+  fi
+  if [[ -d "${repo_root}/packages/${package}/commands" ]]; then
+    for command_file in "${repo_root}/packages/${package}"/commands/*.md; do
+      [[ -f "${command_file}" ]] || continue
+      command_target="${commands_target}/$(basename "${command_file}")"
+      if [[ -e "${command_target}" ]] && \
+         ! grep -Fq "charms-managed: ${package} command" "${command_target}" 2>/dev/null; then
+        conflicts+=("${command_target}")
+      fi
+    done
+  fi
+done
+shopt -u nullglob
+
+if [[ ${#conflicts[@]} -gt 0 && "${FORCE:-0}" != "1" && "${DRY_RUN:-0}" != "1" ]]; then
+  echo "Refusing to install: ${#conflicts[@]} existing unmanaged target(s):" >&2
+  for conflict in "${conflicts[@]}"; do
+    echo "  ${conflict}" >&2
+  done
+  echo "fix: inspect or move them aside, or rerun with FORCE=1 to replace all of them." >&2
+  exit 2
+fi
+
 installed=0
 shopt -s nullglob
 for tool_json in "${repo_root}"/packages/*/tool.json; do
