@@ -116,7 +116,11 @@ def require_tool(name: str, fix: str) -> None:
 
 
 def run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, capture_output=True, text=True, check=False)
+    # Explicit UTF-8: yt-dlp/ffmpeg emit UTF-8, but Windows would otherwise
+    # decode subprocess output with the legacy locale codepage and crash.
+    return subprocess.run(
+        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+    )
 
 
 def pick_video(media_dir: Path) -> Path | None:
@@ -931,6 +935,8 @@ def build_report(
             "- Summarize the transcript unless the user asks for the full text.",
             "- Cite timestamps when describing actions, UI state, tools, or commands.",
             "- For follow-up questions, answer from evidence already in context; do not re-run.",
+            "- Delete this run directory when finished (media is large); keep it only if a "
+            "--from-run second pass is likely.",
         ]
     )
     return "\n".join(lines).rstrip() + "\n"

@@ -27,7 +27,8 @@ from groq_transcribe import (  # noqa: E402
 MIN_PYTHON = (3, 11)
 ENV_LOCAL = ".env" + ".local"
 # Key checks are advisory: watch-video still works caption/frames-only.
-ADVISORY_CHECKS = {"GROQ_API_KEY", "OPENAI_API_KEY", "whisper-config"}
+ADVISORY_CHECKS = {"GROQ_API_KEY", "OPENAI_API_KEY", "whisper-config", "run-artifacts"}
+RUN_ARTIFACTS_WARN_BYTES = 500 * 1024 * 1024
 
 
 def install_hints() -> dict[str, list[str]]:
@@ -144,6 +145,13 @@ def check_config_file() -> dict[str, object]:
             "exists": False,
             "message": f"no stored keys ({path} not created yet)",
         }
+    if os.name != "posix":
+        return {
+            "name": "whisper-config",
+            "ok": True,
+            "exists": True,
+            "message": "ok (permission bits are not enforced on this platform)",
+        }
     try:
         mode = path.stat().st_mode & 0o777
     except OSError:
@@ -156,6 +164,55 @@ def check_config_file() -> dict[str, object]:
         "mode": f"{mode:o}" if mode is not None else None,
         "message": "ok" if private else f"{path} is readable by other users",
         "fix": f"chmod 600 {path}",
+    }
+
+
+def _dir_size_bytes(path: Path) -> int:
+    total = 0
+    try:
+        for entry in path.rglob("*"):
+            try:
+                if entry.is_file():
+                    total += entry.stat().st_size
+            except OSError:
+                continue
+    except OSError:
+        return total
+    return total
+
+
+def check_run_artifacts() -> dict[str, object]:
+    """Advisory disk check: downloaded media accumulates under run dirs."""
+    roots: list[Path] = []
+    cwd_runs = Path.cwd() / ".watch-video" / "runs"
+    if cwd_runs.is_dir():
+        roots.append(cwd_runs)
+    repo = find_repo_root()
+    if repo is not None:
+        repo_runs = repo / ".watch-video" / "runs"
+        if repo_runs.is_dir() and repo_runs not in roots:
+            roots.append(repo_runs)
+
+    if not roots:
+        return {
+            "name": "run-artifacts",
+            "ok": True,
+            "size_bytes": 0,
+            "message": "no local run artifacts found",
+        }
+
+    total = sum(_dir_size_bytes(root) for root in roots)
+    ok = total < RUN_ARTIFACTS_WARN_BYTES
+    size_mb = total / (1024 * 1024)
+    return {
+        "name": "run-artifacts",
+        "ok": ok,
+        "size_bytes": total,
+        "message": (
+            f"{size_mb:.0f} MB of run artifacts under .watch-video/runs"
+            + ("" if ok else " - old runs are piling up")
+        ),
+        "fix": "delete old run directories, or use --cleanup on one-shot analyses",
     }
 
 
@@ -176,6 +233,8 @@ def is_gitignored(repo_root: Path, path: Path) -> bool | None:
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
     except (OSError, ValueError):
@@ -216,6 +275,7 @@ def collect_status() -> dict[str, object]:
         check_whisper_key("groq"),
         check_whisper_key("openai"),
         check_config_file(),
+        check_run_artifacts(),
         check_env_local(),
     ]
     required_ok = all(

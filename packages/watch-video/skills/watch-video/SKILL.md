@@ -57,6 +57,9 @@ Microsoft Store stub).
   `--frame-format png --resolution 1024`.
 - If a follow-up question arrives about a video you already watched, answer
   from the frames and transcript already in context. Do not re-run the script.
+- Run artifacts (downloaded media, frames) accumulate under
+  `.watch-video/runs/`. Once follow-ups are done, delete the run directory or
+  use `--cleanup`; keep the media when a `--from-run` second pass is likely.
 
 ## Detail Dial
 

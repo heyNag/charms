@@ -589,7 +589,8 @@ try doing this yourself without this skill, it just gives up
                 path = groq.set_stored_key("GROQ_API_KEY", "gsk_stored1")
 
                 self.assertEqual(path, Path(tmp) / ".env")
-                self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+                if os.name == "posix":
+                    self.assertEqual(path.stat().st_mode & 0o777, 0o600)
                 self.assertEqual(groq.read_stored_key("GROQ_API_KEY"), "gsk_stored1")
 
                 # The environment variable must win over the stored key.

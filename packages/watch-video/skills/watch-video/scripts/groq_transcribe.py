@@ -41,6 +41,8 @@ def config_env_path() -> Path:
 
 
 def _warn_loose_permissions(path: Path) -> None:
+    if os.name != "posix":
+        return
     key = str(path)
     if key in _PERM_WARNED:
         return
@@ -216,7 +218,9 @@ def extract_audio_clip(
         ]
     )
 
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+    )
     if result.returncode != 0:
         detail = result.stderr.strip() or "unknown ffmpeg error"
         raise RuntimeError(f"ffmpeg audio extraction failed: {detail}")
@@ -428,6 +432,8 @@ def audio_duration_seconds(audio_path: Path) -> float:
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     if result.returncode != 0:
@@ -495,7 +501,9 @@ def split_audio(
             "copy",
             str(out_path),
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        result = subprocess.run(
+        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+    )
         if result.returncode != 0 or not out_path.exists() or out_path.stat().st_size == 0:
             raise RuntimeError(
                 f"ffmpeg failed to split audio chunk {index + 1}: {result.stderr.strip()}"

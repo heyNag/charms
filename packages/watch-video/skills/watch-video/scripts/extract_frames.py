@@ -355,7 +355,9 @@ def _seek_args(
 
 
 def _run_ffmpeg(cmd: list[str], frame_format: str) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+    )
     if result.returncode != 0:
         detail = result.stderr.strip() or "unknown ffmpeg error"
         if frame_format == "webp" and "webp" in detail.lower():
@@ -862,7 +864,9 @@ def extract_at_timestamps(
             *_quality_args(frame_format),
             str(path),
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+        )
         if result.returncode == 0 and path.exists():
             frames.append(
                 {
