@@ -12,7 +12,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from skill_metadata import load_json, normalized_tags, read_frontmatter
+from skill_metadata import load_json, normalized_tags, read_frontmatter  # noqa: E402
 
 
 DEFAULT_HUB_SOURCE_PATH = "heyNag/charms"

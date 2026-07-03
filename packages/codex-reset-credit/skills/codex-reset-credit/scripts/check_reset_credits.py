@@ -8,7 +8,6 @@ import dataclasses
 import datetime as dt
 import json
 import os
-import sys
 import urllib.error
 import urllib.request
 from pathlib import Path

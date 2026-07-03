@@ -26,7 +26,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from skill_metadata import load_json
+from skill_metadata import load_json  # noqa: E402
 
 VERSION_DATE_RE = re.compile(r"^(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\.\d+)?$")
 TOML_VERSION_RE = re.compile(r'^version = "[^"]*"$', re.MULTILINE)

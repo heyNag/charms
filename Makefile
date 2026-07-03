@@ -1,4 +1,4 @@
-.PHONY: test syntax doctor install install-dry-run groq-test clean-artifacts build-root-indexes build-marketplace build-skillshare-hub build-claude-custom-skill build-packages sync-umbrella-version verify-skill-metadata verify-packages verify-source-clean verify-rebuilt-clean release-dry-run release-check public-check ci-local
+.PHONY: test syntax lint doctor install install-dry-run groq-test clean-artifacts build-root-indexes build-marketplace build-skillshare-hub build-claude-custom-skill build-packages sync-umbrella-version verify-skill-metadata verify-packages verify-source-clean verify-rebuilt-clean release-dry-run release-check public-check ci-local
 
 AUDIO ?=
 PYTHON ?= python3
@@ -22,6 +22,14 @@ syntax:
 	bash -n scripts/*.sh packages/*/skills/*/scripts/*.sh
 	@if command -v node >/dev/null 2>&1 && [ -f .opencode/plugins/charms.js ]; then \
 		node --check .opencode/plugins/charms.js; \
+	fi
+
+lint:
+	@if command -v ruff >/dev/null 2>&1; then \
+		ruff check .; \
+	else \
+		echo "ruff is not installed; fix: python3 -m pip install ruff"; \
+		exit 2; \
 	fi
 
 doctor:
