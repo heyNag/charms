@@ -19,11 +19,12 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
+          fetch-tags: true
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
 
@@ -107,12 +108,30 @@ jobs:
         run: |
           tag="${SKILL}@${VERSION}"
           title="${SKILL} ${VERSION}"
+
+          # Per-skill changelog: commits touching this package since its last tag.
+          prev_tag="$(git tag --list "${SKILL}@*" --sort=-version:refname | head -n 1)"
+          if [ -n "${prev_tag}" ]; then
+            changes="$(git log --no-merges --format='- %s' "${prev_tag}..HEAD" -- "packages/${SKILL}" | head -n 30)"
+            if [ -z "${changes}" ]; then
+              changes="- Metadata-only release; no package source changes since \`${prev_tag}\`."
+            fi
+            changes_heading="Changes since \`${prev_tag}\`:"
+          else
+            changes="- First tagged release."
+            changes_heading="Changes:"
+          fi
+
           notes_file="$(mktemp)"
           cat > "${notes_file}" <<EOF
           Public skill release for \`${SKILL}\`.
 
           Version: \`${VERSION}\`
           Source: \`packages/${SKILL}\`
+
+          ${changes_heading}
+
+          ${changes}
 
           Source package:
 
