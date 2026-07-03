@@ -53,6 +53,41 @@ class XBookmarksHelpersTest(unittest.TestCase):
 
         self.assertEqual(api.since_last(items, state, "all"), [{"id": "3"}])
 
+    def test_since_last_falls_back_to_created_at_when_id_removed(self) -> None:
+        api = load_module("fetch_bookmarks_api_removed", SCRIPTS / "fetch_bookmarks_api.py")
+        items = [
+            {"id": "5", "created_at": "2026-07-02T10:00:00.000Z"},
+            {"id": "4", "created_at": "2026-07-01T10:00:00.000Z"},
+            {"id": "3", "created_at": "2026-06-30T10:00:00.000Z"},
+        ]
+        state = {
+            "scopes": {
+                "all": {
+                    "last_seen_id": "removed-id",
+                    "last_seen_created_at": "2026-07-01T00:00:00.000Z",
+                }
+            }
+        }
+
+        self.assertEqual(
+            [item["id"] for item in api.since_last(items, state, "all")],
+            ["5", "4"],
+        )
+
+        # Without a stored created_at, the old everything-again behavior remains.
+        legacy_state = {"scopes": {"all": {"last_seen_id": "removed-id"}}}
+        self.assertEqual(len(api.since_last(items, legacy_state, "all")), 3)
+
+    def test_update_last_seen_records_created_at(self) -> None:
+        api = load_module("fetch_bookmarks_api_update", SCRIPTS / "fetch_bookmarks_api.py")
+
+        state = api.update_last_seen({}, "all", "9", "2026-07-02T10:00:00.000Z")
+
+        entry = state["scopes"]["all"]
+        self.assertEqual(entry["last_seen_id"], "9")
+        self.assertEqual(entry["last_seen_created_at"], "2026-07-02T10:00:00.000Z")
+        self.assertEqual(state["last_seen_id"], "9")
+
     def test_pkce_pair_shape(self) -> None:
         auth = load_module("x_api_auth", SCRIPTS / "x_api_auth.py")
         verifier, challenge = auth.pkce_pair()

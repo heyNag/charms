@@ -480,19 +480,36 @@ def state_last_seen_id(state: dict[str, Any], scope: str) -> str | None:
     return None
 
 
-def update_last_seen(state: dict[str, Any], scope: str, newest_id: str) -> dict[str, Any]:
+def state_last_seen_created_at(state: dict[str, Any], scope: str) -> str | None:
+    scopes = state.get("scopes")
+    if isinstance(scopes, dict):
+        entry = scopes.get(scope)
+        if isinstance(entry, dict) and entry.get("last_seen_created_at"):
+            return str(entry["last_seen_created_at"])
+    return None
+
+
+def update_last_seen(
+    state: dict[str, Any],
+    scope: str,
+    newest_id: str,
+    newest_created_at: str | None = None,
+) -> dict[str, Any]:
     updated = dict(state)
     scopes = updated.get("scopes")
     if not isinstance(scopes, dict):
         scopes = {}
-    scopes[scope] = {
+    entry: dict[str, Any] = {
         "last_seen_id": newest_id,
         "updated_at": utc_now(),
     }
+    if newest_created_at:
+        entry["last_seen_created_at"] = newest_created_at
+    scopes[scope] = entry
     updated["scopes"] = scopes
     if scope == "all":
         updated["last_seen_id"] = newest_id
-        updated["updated_at"] = scopes[scope]["updated_at"]
+        updated["updated_at"] = entry["updated_at"]
     return updated
 
 
@@ -503,9 +520,15 @@ def since_last(items: list[dict[str, Any]], state: dict[str, Any], scope: str) -
     result: list[dict[str, Any]] = []
     for item in items:
         if str(item.get("id")) == str(last_seen_id):
-            break
+            return result
         result.append(item)
-    return result
+    # The last-seen bookmark was removed; fall back to its creation time so an
+    # un-bookmarked cutoff does not silently return the entire list again.
+    # ISO-8601 UTC strings from the API compare correctly as text.
+    created_cutoff = state_last_seen_created_at(state, scope)
+    if created_cutoff:
+        return [item for item in items if str(item.get("created_at") or "") > created_cutoff]
+    return items
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -577,12 +600,20 @@ def main(argv: list[str]) -> int:
             scope = state_scope(args.folder_id)
             fetched_items = list(items)
             newest_id = str(fetched_items[0]["id"]) if fetched_items else None
+            newest_created_at = (
+                str(fetched_items[0].get("created_at"))
+                if fetched_items and fetched_items[0].get("created_at")
+                else None
+            )
             pre_filter_count = len(fetched_items)
             if args.since_last:
                 items = since_last(items, state, scope)
             items = filter_query(items, args.query)
             if args.update_state and newest_id:
-                save_state(args.state_file, update_last_seen(state, scope, newest_id))
+                save_state(
+                    args.state_file,
+                    update_last_seen(state, scope, newest_id, newest_created_at),
+                )
 
             output = {
                 "data": items,

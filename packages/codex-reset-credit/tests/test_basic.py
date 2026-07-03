@@ -90,6 +90,43 @@ class CodexResetCreditTests(unittest.TestCase):
         self.assertEqual(snapshot.thread_id, "thread-123")
         self.assertEqual(snapshot.rate_limits["plan_type"], "pro")
 
+    def test_normalize_reset_credits_handles_camel_case_payload(self) -> None:
+        import datetime as dt
+
+        summary = reset_credit.normalize_reset_credits(
+            {
+                "availableResetCredits": 2,
+                "totalEarnedCount": 5,
+                "resetCredits": [
+                    {"state": "available", "expiresAt": "2026-07-10T00:00:00Z"},
+                    {"state": "used", "expiresAt": "2026-07-01T00:00:00Z"},
+                ],
+            },
+            dt.timezone.utc,
+        )
+
+        self.assertEqual(summary["available"], "2")
+        self.assertEqual(summary["total_earned"], "5")
+        self.assertEqual(len(summary["credits"]), 2)
+        # Credits sort by expiry; the available one is picked as next expiring.
+        self.assertEqual(summary["next_expiring_credit"]["status"], "available")
+
+    def test_parse_datetime_accepts_epoch_millis_and_iso(self) -> None:
+        millis = reset_credit._parse_datetime(1_780_000_000_000)
+        seconds = reset_credit._parse_datetime(1_780_000_000)
+        iso = reset_credit._parse_datetime("2026-07-02T10:00:00Z")
+
+        self.assertIsNotNone(millis)
+        self.assertEqual(millis, seconds)
+        self.assertIsNotNone(iso)
+        assert iso is not None
+        self.assertEqual(iso.year, 2026)
+
+    def test_display_window_minutes_humanizes(self) -> None:
+        self.assertEqual(reset_credit._display_window_minutes(1440), "1d (1440 minutes)")
+        self.assertEqual(reset_credit._display_window_minutes(300), "5h (300 minutes)")
+        self.assertEqual(reset_credit._display_window_minutes(90), "90 minutes")
+
     def test_format_report_does_not_need_live_data(self) -> None:
         report = reset_credit.format_report(
             {
