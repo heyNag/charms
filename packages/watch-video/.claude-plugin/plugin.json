@@ -1,6 +1,6 @@
 {
   "name": "watch-video",
-  "version": "2026.7.3",
+  "version": "2026.7.3.1",
   "description": "Inspect short video clips using transcripts, timestamps, frames, and Groq Whisper fallback.",
   "author": {
     "name": "Nagarjuna Boddu"
