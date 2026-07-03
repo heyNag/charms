@@ -59,6 +59,10 @@ brew install yt-dlp ffmpeg jq
 python3 packages/watch-video/skills/watch-video/scripts/doctor.py
 ```
 
+`doctor.py --install` installs missing binaries (brew on macOS, printed
+commands elsewhere); `doctor.py --set-key groq` stores a Whisper key once in
+`~/.config/watch-video/.env`.
+
 Default Groq model:
 
 ```text

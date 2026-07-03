@@ -164,7 +164,9 @@ CLI option surface:
 - `--resolution` (alias `--frame-width`), default 512
 - `--frame-format jpeg|png|webp`
 - `--sub-langs` yt-dlp caption selector (default English variants)
-- `--no-dedup`, `--no-frames`, `--frame-mode interval`, `--fps` (uniform overrides)
+- `--no-dedup`, `--no-frames`; `--frame-mode interval` with `--frame-interval`,
+  or `--fps` (uniform-sampling overrides)
+- `--out-dir DIR` for the run-artifact base (default `.watch-video/runs`)
 - `--cleanup` and `--cleanup-frames`
 
 The script writes a run directory under `.watch-video/runs/<run-id>/` and

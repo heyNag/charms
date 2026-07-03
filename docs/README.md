@@ -39,10 +39,13 @@ Do not create committed target-copy folders. This repo is source-only for public
 targets:
 
 - Claude Code marketplace entries point directly at `packages/<name>`.
+- The Agent Skills CLI (`npx skills add heyNag/charms`) copies
+  `packages/<name>/skills/<name>` into detected hosts.
 - Codex and OpenCode can copy `packages/<name>/skills/<name>`.
 - Cursor, root Codex plugin metadata, and the OpenCode plugin wrapper use the
   root `skills/` symlink index.
-- Claude Desktop custom-skill folders are local `.dist/` artifacts.
+- Claude Desktop custom-skill ZIPs ship on skill releases and build locally
+  under `.dist/`.
 - Skillshare hub entries point at `packages/<name>/skills/<name>`.
 
 After source changes:

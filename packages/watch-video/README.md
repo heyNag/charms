@@ -99,7 +99,9 @@ Common options:
 - `--max-frames N` (hard caps: 100, or 300 in `full` detail)
 - `--resolution` as an alias for `--frame-width` (default 512; 1024 for UI text)
 - `--frame-format jpeg|png|webp`
-- `--no-dedup`, `--frame-mode interval`, `--fps` (uniform-sampling overrides)
+- `--no-dedup`; `--frame-mode interval` with `--frame-interval`, or `--fps`
+  (uniform-sampling overrides)
+- `--start/--end/--duration` for focused ranges, `--out-dir` for artifacts
 - `--cleanup` and `--cleanup-frames`
 
 Whisper fallback audio larger than the 24 MB upload cap is chunked, stitched

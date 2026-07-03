@@ -60,6 +60,7 @@ commands/*.md                    root symlink index to package commands
 .codex-plugin/                   Codex plugin metadata
 .cursor-plugin/                  Cursor plugin metadata
 .opencode/                       OpenCode plugin wrapper
+.agents/plugins/                 Agent Skills marketplace listing
 skillshare-hub.json              optional Skillshare hub index
 .dist/                           ignored local build artifacts
 docs/                            project docs and runbooks

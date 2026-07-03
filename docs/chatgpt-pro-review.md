@@ -31,7 +31,8 @@ packages/chatgpt-pro-review/skills/chatgpt-pro-review
 
 This skill can prepare a packet without submitting it anywhere. Before sending
 private repo context to ChatGPT, the agent should confirm that the user
-authorized sending that specific context.
+authorized sending that specific context - with `AskUserQuestion` where the
+harness provides it.
 
 Never include:
 

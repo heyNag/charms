@@ -40,6 +40,7 @@ Run:
 ```sh
 make build-packages
 make public-check
+make lint                           # requires ruff; CI runs it on every push
 make release-dry-run SKILL=<name>   # only when preparing a release
 git status
 ```

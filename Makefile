@@ -121,4 +121,4 @@ public-check:
 	$(MAKE) release-check
 	$(MAKE) verify-rebuilt-clean
 
-ci-local: public-check
+ci-local: lint public-check

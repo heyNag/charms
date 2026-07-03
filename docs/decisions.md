@@ -70,7 +70,9 @@ Public skill releases use the manual `Release Skill` GitHub Actions workflow.
 The workflow computes a UTC date-based package version, updates
 `packages/<name>/.claude-plugin/plugin.json`, refreshes indexes/artifacts,
 verifies, commits, pushes, and creates a skill-scoped GitHub Release with a tag
-named `<skill>@<version>`.
+named `<skill>@<version>`, a changelog of commits touching the package since
+its previous tag, and a ready-to-upload Claude Desktop custom-skill ZIP when
+the skill targets that surface.
 
 The workflow accepts a package name string and validates the package from repo
 source. New skills do not need release workflow configuration changes.

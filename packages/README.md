@@ -5,6 +5,8 @@
 Each package is directly consumable:
 
 - Claude Code installs the package directory as a plugin source.
+- The Agent Skills CLI (`npx skills add heyNag/charms`) copies the package's
+  `skills/<name>` folder into detected hosts.
 - Codex can copy the package's `skills/<name>` folder or use the root
   `.codex-plugin` wrapper.
 - Cursor uses the root `.cursor-plugin` wrapper and `skills/` symlink index.

@@ -8,6 +8,7 @@
   "scripts": {
     "test": "make test",
     "syntax": "make syntax",
+    "lint": "make lint",
     "build:packages": "make build-packages",
     "build:root-indexes": "make build-root-indexes",
     "build:marketplace": "make build-marketplace",

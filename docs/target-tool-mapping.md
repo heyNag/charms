@@ -14,7 +14,8 @@ Cursor
 OpenCode / generic Agent Skills
 ```
 
-Skillshare is an optional installer/discovery path, not a runtime target.
+Skillshare and the Agent Skills CLI (`npx skills add`) are installer/discovery
+paths, not runtime targets.
 
 ## Source Rule
 

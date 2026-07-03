@@ -106,6 +106,9 @@ tags: awesome, local
 allowed-tools: Bash, Read
 homepage: https://github.com/heyNag/charms
 repository: https://github.com/heyNag/charms
+author: Nagarjuna Boddu
+license: MIT
+user-invocable: true
 ---
 
 # Awesome Skill
@@ -114,7 +117,9 @@ Use this skill to ...
 ```
 
 The `name` must match the folder name and `tool.json`. Tags must match
-`tool.json`.
+`tool.json`. The `description` must start with `Use when `, and `author`,
+`license`, and `user-invocable` are required - `make verify-skill-metadata`
+enforces all of these.
 
 ## Step 5: Add Docs And Tests
 
@@ -166,6 +171,8 @@ When the skill is ready for a public version, follow
 - `packages/awesome-skill/skills/awesome-skill/SKILL.md` exists.
 - No root `packages/awesome-skill/SKILL.md` exists.
 - Tags match between `tool.json` and `SKILL.md`.
+- Frontmatter includes `author`, `license`, and `user-invocable`, and the
+  description starts with `Use when `.
 - `skills/awesome-skill` is a symlink created by `make build-packages`.
 - `.claude-plugin/marketplace.json` includes the package when `targets`
   includes `claude`.

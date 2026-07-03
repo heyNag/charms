@@ -84,7 +84,9 @@ local artifact builder creates:
 ## What Is Shared
 
 Codex, Cursor, OpenCode, generic Agent Skills, and Skillshare use the same
-source skill folder. Some root plugin wrappers reach it through the `skills/`
+source skill folder. The Agent Skills CLI (`npx skills add heyNag/charms`,
+listed via `.agents/plugins/marketplace.json`) copies that folder into
+whatever hosts it detects. Some root plugin wrappers reach it through the `skills/`
 symlink index. Claude Code uses the package root for per-skill marketplace
 plugins because it also needs plugin metadata and commands. Claude Desktop uses
 a local artifact because its filename expectation differs.

@@ -61,6 +61,7 @@ Target mapping:
 
 ```text
 Claude Code marketplace source  -> packages/<name>
+Agent Skills CLI source         -> packages/<name>/skills/<name>
 Codex skill source              -> packages/<name>/skills/<name>
 Codex/Cursor root plugin source -> skills/<name> symlink index
 OpenCode/generic skill source   -> packages/<name>/skills/<name>
