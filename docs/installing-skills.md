@@ -7,6 +7,7 @@ watch-video
 codex-reset-credit
 x-bookmarks
 chatgpt-pro-review
+mnemosyne-memory
 ```
 
 For skill-specific requirements and examples, read:
@@ -15,6 +16,7 @@ For skill-specific requirements and examples, read:
 - [codex-reset-credit.md](codex-reset-credit.md)
 - [x-bookmarks.md](x-bookmarks.md)
 - [chatgpt-pro-review.md](chatgpt-pro-review.md)
+- [mnemosyne-memory.md](mnemosyne-memory.md)
 
 ## Pick A Target
 
@@ -43,6 +45,7 @@ Install the skill you want:
 /plugin install codex-reset-credit@charms
 /plugin install x-bookmarks@charms
 /plugin install chatgpt-pro-review@charms
+/plugin install mnemosyne-memory@charms
 ```
 
 Invoke:
@@ -52,6 +55,7 @@ Invoke:
 /codex-reset-credit:codex-reset-credit
 /x-bookmarks:x-bookmarks digest
 /chatgpt-pro-review:chatgpt-pro-review implementation
+Ask Claude to use mnemosyne-memory for project continuity.
 ```
 
 If command names differ in your Claude Code version, run `/plugin list` or
@@ -85,8 +89,8 @@ rm -rf "$HOME/.codex/skills/$SKILL"
 cp -R "packages/$SKILL/skills/$SKILL" "$HOME/.codex/skills/$SKILL"
 ```
 
-Change `SKILL` to `codex-reset-credit`, `x-bookmarks`, or
-`chatgpt-pro-review` for the other skills.
+Change `SKILL` to `codex-reset-credit`, `x-bookmarks`,
+`chatgpt-pro-review`, or `mnemosyne-memory` for the other skills.
 
 Local development shortcut from this repo:
 
@@ -163,7 +167,7 @@ https://raw.githubusercontent.com/heyNag/charms/main/skillshare-hub.json
 ```
 
 In the Skillshare web UI, use `Search > Hub`, add/select that hub URL, then
-search for `watch`, `codex`, `bookmarks`, or another keyword.
+search for `watch`, `codex`, `bookmarks`, `memory`, or another keyword.
 
 Direct CLI install:
 
@@ -172,6 +176,7 @@ skillshare install heyNag/charms/packages/watch-video/skills/watch-video --track
 skillshare install heyNag/charms/packages/codex-reset-credit/skills/codex-reset-credit --track
 skillshare install heyNag/charms/packages/x-bookmarks/skills/x-bookmarks --track
 skillshare install heyNag/charms/packages/chatgpt-pro-review/skills/chatgpt-pro-review --track
+skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory --track
 skillshare sync
 ```
 

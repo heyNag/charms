@@ -13,6 +13,7 @@ Practical charms for coding agents.
 | `codex-reset-credit` | Check Codex reset credits and local rate-limit reset windows without exposing auth secrets. | [docs/codex-reset-credit.md](docs/codex-reset-credit.md) |
 | `x-bookmarks` | Fetch, search, and digest X/Twitter bookmarks using Bird or optional X API v2. | [docs/x-bookmarks.md](docs/x-bookmarks.md) |
 | `chatgpt-pro-review` | Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repo evidence. | [docs/chatgpt-pro-review.md](docs/chatgpt-pro-review.md) |
+| `mnemosyne-memory` | Use Mnemosyne MCP for selective recall, durable project memory, and cross-session handoffs. | [docs/mnemosyne-memory.md](docs/mnemosyne-memory.md) |
 
 ## Install
 
@@ -38,7 +39,8 @@ Claude Code: /watch-video:watch <video-url-or-path>
 Claude Code: /codex-reset-credit:codex-reset-credit
 Claude Code: /x-bookmarks:x-bookmarks digest
 Claude Code: /chatgpt-pro-review:chatgpt-pro-review implementation
-Codex/Cursor/OpenCode: ask the agent to use watch-video, codex-reset-credit, x-bookmarks, or chatgpt-pro-review
+Claude Code: ask it to use mnemosyne-memory for project continuity
+Codex/Cursor/OpenCode: ask the agent to use watch-video, codex-reset-credit, x-bookmarks, chatgpt-pro-review, or mnemosyne-memory
 ```
 
 Skill-specific requirements, examples, and safety notes live in:
@@ -47,6 +49,7 @@ Skill-specific requirements, examples, and safety notes live in:
 - [docs/codex-reset-credit.md](docs/codex-reset-credit.md)
 - [docs/x-bookmarks.md](docs/x-bookmarks.md)
 - [docs/chatgpt-pro-review.md](docs/chatgpt-pro-review.md)
+- [docs/mnemosyne-memory.md](docs/mnemosyne-memory.md)
 
 ## Repo Shape
 

@@ -14,7 +14,7 @@ In the Skillshare web UI:
 1. Open `Search`.
 2. Choose `Hub`.
 3. Add or select the hub URL above.
-4. Search for `watch`, `codex`, `bookmarks`, or another keyword.
+4. Search for `watch`, `codex`, `bookmarks`, `memory`, or another keyword.
 5. Install the matching skill.
 
 Do not paste the hub URL into the keyword search box. The URL selects the hub;
@@ -35,6 +35,7 @@ skillshare install heyNag/charms/packages/watch-video/skills/watch-video --track
 skillshare install heyNag/charms/packages/codex-reset-credit/skills/codex-reset-credit --track
 skillshare install heyNag/charms/packages/x-bookmarks/skills/x-bookmarks --track
 skillshare install heyNag/charms/packages/chatgpt-pro-review/skills/chatgpt-pro-review --track
+skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory --track
 skillshare sync
 ```
 

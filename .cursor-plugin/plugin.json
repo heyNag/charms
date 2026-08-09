@@ -1,7 +1,7 @@
 {
   "name": "charms",
   "displayName": "Charms",
-  "description": "Agent skills for video inspection, Codex quota checks, X/Twitter bookmarks, and ChatGPT Pro review.",
+  "description": "Agent skills for video inspection, Codex quota checks, X/Twitter bookmarks, ChatGPT Pro review, and Mnemosyne memory.",
   "version": "2026.7.3",
   "author": {
     "name": "Nagarjuna Boddu"
@@ -15,7 +15,8 @@
     "video",
     "codex",
     "bookmarks",
-    "review"
+    "review",
+    "memory"
   ],
   "skills": "./skills/"
 }

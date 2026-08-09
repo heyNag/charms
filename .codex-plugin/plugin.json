@@ -1,7 +1,7 @@
 {
   "name": "charms",
   "version": "2026.7.3",
-  "description": "Agent skills for video inspection, Codex quota checks, X/Twitter bookmarks, and ChatGPT Pro review.",
+  "description": "Agent skills for video inspection, Codex quota checks, X/Twitter bookmarks, ChatGPT Pro review, and Mnemosyne memory.",
   "author": {
     "name": "Nagarjuna Boddu",
     "url": "https://github.com/heyNag"
@@ -15,13 +15,14 @@
     "video",
     "codex",
     "bookmarks",
-    "review"
+    "review",
+    "memory"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Charms",
-    "shortDescription": "Local skills for video, quota, bookmarks, and review",
-    "longDescription": "Use Charms skills to inspect short videos, check Codex reset-credit status, fetch or digest X/Twitter bookmarks, and prepare scoped ChatGPT Pro review packets.",
+    "shortDescription": "Local skills for video, quota, bookmarks, review, and memory",
+    "longDescription": "Use Charms skills to inspect short videos, check Codex reset-credit status, fetch or digest X/Twitter bookmarks, prepare scoped ChatGPT Pro review packets, and maintain selective Mnemosyne project memory.",
     "developerName": "Nagarjuna Boddu",
     "category": "Productivity",
     "capabilities": [
@@ -32,7 +33,8 @@
       "Use watch-video to inspect this video.",
       "Check my Codex reset-credit status.",
       "Digest my latest X/Twitter bookmarks.",
-      "Use chatgpt-pro-review to review this implementation."
+      "Use chatgpt-pro-review to review this implementation.",
+      "Use mnemosyne-memory to continue this project from prior context."
     ],
     "websiteURL": "https://github.com/heyNag/charms"
   }

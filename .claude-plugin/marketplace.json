@@ -28,6 +28,17 @@
       "license": "MIT"
     },
     {
+      "name": "mnemosyne-memory",
+      "source": "./packages/mnemosyne-memory",
+      "description": "Use Mnemosyne MCP as a selective, project-aware memory and handoff layer across agent sessions.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Nagarjuna Boddu"
+      },
+      "repository": "https://github.com/heyNag/charms",
+      "license": "MIT"
+    },
+    {
       "name": "watch-video",
       "source": "./packages/watch-video",
       "description": "Inspect short video clips using transcripts, timestamps, frames, and Groq Whisper fallback.",

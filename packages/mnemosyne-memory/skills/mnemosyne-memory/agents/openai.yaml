@@ -1,0 +1,11 @@
+interface:
+  display_name: "Mnemosyne Memory"
+  short_description: "Build reliable continuity with Mnemosyne."
+  default_prompt: "Use $mnemosyne-memory to recall relevant context and maintain a concise handoff for this project."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "mnemosyne"
+      description: "Mnemosyne MCP server with memory tools"
+policy:
+  allow_implicit_invocation: true

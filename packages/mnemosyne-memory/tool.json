@@ -1,0 +1,10 @@
+{
+  "name": "mnemosyne-memory",
+  "description": "Use Mnemosyne MCP as a selective, project-aware memory and handoff layer across agent sessions.",
+  "tags": ["memory", "mnemosyne", "mcp", "handoff", "continuity"],
+  "targets": ["claude", "codex", "cursor", "generic"],
+  "surfaces": ["claude-code", "claude-desktop", "codex", "cursor", "opencode"],
+  "agent_agnostic": true,
+  "has_mcp": false,
+  "public": true
+}

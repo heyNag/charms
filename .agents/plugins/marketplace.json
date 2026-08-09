@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "charms",
-      "description": "Agent skills for video inspection, Codex quota checks, X/Twitter bookmarks, and ChatGPT Pro review.",
+      "description": "Agent skills for video inspection, Codex quota checks, X/Twitter bookmarks, ChatGPT Pro review, and Mnemosyne memory.",
       "source": {
         "source": "url",
         "url": "https://github.com/heyNag/charms.git"

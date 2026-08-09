@@ -25,7 +25,7 @@ Before structural changes, read:
 - Optional Skillshare hub installs: read `skillshare.md`.
 - Security, credentials, or local auth: read `security.md`.
 - Package-specific work: read `watch-video.md`, `codex-reset-credit.md`,
-  `x-bookmarks.md`, or `chatgpt-pro-review.md`.
+  `x-bookmarks.md`, `chatgpt-pro-review.md`, or `mnemosyne-memory.md`.
 
 ## Core Rule
 
