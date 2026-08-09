@@ -31,13 +31,19 @@ skillshare search --hub charms bookmarks
 Direct installs use canonical source skill folders:
 
 ```sh
-skillshare install heyNag/charms/packages/watch-video/skills/watch-video --track
-skillshare install heyNag/charms/packages/codex-reset-credit/skills/codex-reset-credit --track
-skillshare install heyNag/charms/packages/x-bookmarks/skills/x-bookmarks --track
-skillshare install heyNag/charms/packages/chatgpt-pro-review/skills/chatgpt-pro-review --track
-skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory --track
+skillshare install heyNag/charms/packages/watch-video/skills/watch-video
+skillshare install heyNag/charms/packages/codex-reset-credit/skills/codex-reset-credit
+skillshare install heyNag/charms/packages/x-bookmarks/skills/x-bookmarks
+skillshare install heyNag/charms/packages/chatgpt-pro-review/skills/chatgpt-pro-review
+skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory
 skillshare sync
 ```
+
+These are remote-backed GitHub subdirectory installs. Skillshare records their
+source, commit, tree hash, and file hashes, so each skill can be checked and
+updated by name. Do not add `--track` to these commands: that mode preserves a
+Git checkout for the broader Charms repository instead of installing one
+independently updateable package skill.
 
 ## Hub Ownership
 
@@ -68,21 +74,21 @@ make public-check
 Use the hub search when you want the curated public skill list. The hub points
 at canonical source skill files under `packages/*/skills/*`.
 
-`.skillignore` hides `.dist/`, `skills/`, and `commands/` so local Skillshare
-discovery does not index build artifacts or root symlink indexes as separate
-skills.
+`.skillignore` uses root-anchored `/.dist/`, `/skills/`, and `/commands/`
+patterns so local Skillshare discovery skips build artifacts and root symlink
+indexes without hiding canonical nested `packages/*/skills/*` source.
 
 ## Update Flow
 
-For tracked installs:
+For a remote-backed skill:
 
 ```sh
-skillshare check
+skillshare check <skill-name>
 skillshare update <skill-name>
 skillshare sync
 ```
 
-For all tracked skills:
+For all remote-backed skills and tracked repositories:
 
 ```sh
 skillshare update --all

@@ -22,7 +22,16 @@ server installation and configuration.
 ## Install with Skillshare
 
 ```sh
-skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory --track
+skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory
+skillshare sync
+```
+
+This creates a metadata-backed GitHub subdirectory install. Update it later
+without keeping a checkout of the broader Charms repository:
+
+```sh
+skillshare check mnemosyne-memory
+skillshare update mnemosyne-memory
 skillshare sync
 ```
 

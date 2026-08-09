@@ -35,14 +35,18 @@ packages/mnemosyne-memory/skills/mnemosyne-memory
 - Codex/OpenCode: copy the portable skill folder or use a supported installer
 - Cursor: root `skills/mnemosyne-memory` symlink through the plugin wrapper
 - Claude Desktop: build or download the custom-skill artifact
-- Skillshare: install the canonical source path with `--track`
+- Skillshare: install the canonical GitHub source path
 
 Skillshare command:
 
 ```sh
-skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory --track
+skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory
 skillshare sync
 ```
+
+Skillshare records the GitHub source metadata for later
+`skillshare check mnemosyne-memory` and `skillshare update mnemosyne-memory`
+operations; a tracked checkout is not required.
 
 ## Automatic use
 

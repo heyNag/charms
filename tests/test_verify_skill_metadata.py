@@ -107,7 +107,7 @@ class VerifySkillMetadataTests(unittest.TestCase):
         self.assertTrue(any("frontmatter license is required" in error for error in errors))
         self.assertTrue(any("user-invocable" in error for error in errors))
 
-    def test_skillignore_requires_dist(self):
+    def test_skillignore_requires_root_anchored_build_indexes(self):
         module = load_module()
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
@@ -118,10 +118,46 @@ class VerifySkillMetadataTests(unittest.TestCase):
         self.assertEqual(
             errors,
             [
-                ".skillignore: must include .dist/",
-                ".skillignore: must include skills/",
-                ".skillignore: must include commands/",
+                ".skillignore: must include /.dist/",
+                ".skillignore: must include /skills/",
+                ".skillignore: must include /commands/",
             ],
+        )
+
+    def test_skillignore_rejects_unanchored_directory_patterns(self):
+        module = load_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / ".skillignore").write_text(
+                ".dist/\nskills/\ncommands/\n",
+                encoding="utf-8",
+            )
+
+            errors = module.validate_skillignore(root)
+
+        self.assertEqual(
+            errors,
+            [
+                ".skillignore: replace unanchored .dist/ with /.dist/",
+                ".skillignore: replace unanchored skills/ with /skills/",
+                ".skillignore: replace unanchored commands/ with /commands/",
+            ],
+        )
+
+    def test_skillignore_rejects_unanchored_pattern_even_with_anchored_form(self):
+        module = load_module()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / ".skillignore").write_text(
+                "/.dist/\n/skills/\nskills/\n/commands/\n",
+                encoding="utf-8",
+            )
+
+            errors = module.validate_skillignore(root)
+
+        self.assertEqual(
+            errors,
+            [".skillignore: replace unanchored skills/ with /skills/"],
         )
 
 

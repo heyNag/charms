@@ -172,13 +172,17 @@ search for `watch`, `codex`, `bookmarks`, `memory`, or another keyword.
 Direct CLI install:
 
 ```sh
-skillshare install heyNag/charms/packages/watch-video/skills/watch-video --track
-skillshare install heyNag/charms/packages/codex-reset-credit/skills/codex-reset-credit --track
-skillshare install heyNag/charms/packages/x-bookmarks/skills/x-bookmarks --track
-skillshare install heyNag/charms/packages/chatgpt-pro-review/skills/chatgpt-pro-review --track
-skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory --track
+skillshare install heyNag/charms/packages/watch-video/skills/watch-video
+skillshare install heyNag/charms/packages/codex-reset-credit/skills/codex-reset-credit
+skillshare install heyNag/charms/packages/x-bookmarks/skills/x-bookmarks
+skillshare install heyNag/charms/packages/chatgpt-pro-review/skills/chatgpt-pro-review
+skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory
 skillshare sync
 ```
+
+Direct package installs remain updateable from their recorded GitHub source;
+`--track` is unnecessary and would preserve a checkout of the broader Charms
+repository rather than one independently named package skill.
 
 ## Update Later
 

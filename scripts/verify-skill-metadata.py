@@ -170,8 +170,14 @@ def validate_skillignore(root: Path) -> list[str]:
         if line.strip() and not line.lstrip().startswith("#")
     ]
     errors: list[str] = []
-    for required in [".dist/", "skills/", "commands/"]:
-        if required not in lines and required.rstrip("/") not in lines:
+    for directory in [".dist", "skills", "commands"]:
+        required = f"/{directory}/"
+        unanchored = {directory, f"{directory}/"}
+        if unanchored.intersection(lines):
+            errors.append(
+                f".skillignore: replace unanchored {directory}/ with {required}"
+            )
+        elif required not in lines:
             errors.append(f".skillignore: must include {required}")
     return errors
 
