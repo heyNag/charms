@@ -1,6 +1,6 @@
 {
   "name": "charms",
-  "version": "2026.7.3",
+  "version": "2026.8.9",
   "private": true,
   "description": "Public workspace of practical, installable charms: agent skills, commands, and Claude Code plugins.",
   "type": "module",

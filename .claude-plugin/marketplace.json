@@ -31,7 +31,7 @@
       "name": "mnemosyne-memory",
       "source": "./packages/mnemosyne-memory",
       "description": "Use Mnemosyne MCP as a selective, project-aware memory and handoff layer across agent sessions.",
-      "version": "0.1.0",
+      "version": "2026.8.9",
       "author": {
         "name": "Nagarjuna Boddu"
       },
