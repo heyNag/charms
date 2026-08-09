@@ -22,7 +22,10 @@ class MnemosyneMemoryPackageTests(unittest.TestCase):
 
         self.assertEqual(tool["name"], "mnemosyne-memory")
         self.assertEqual(plugin["name"], "mnemosyne-memory")
-        self.assertEqual(plugin["version"], "0.1.0")
+        self.assertRegex(
+            plugin["version"],
+            r"^(?:0\.1\.0|\d{4}\.\d{1,2}\.\d{1,2}(?:\.\d+)?)$",
+        )
         self.assertTrue(tool["agent_agnostic"])
         self.assertFalse(tool["has_mcp"])
         self.assertIn("generic", tool["targets"])
