@@ -20,6 +20,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | sed -n '1p'
 
       - name: Lint with ruff
         run: |
@@ -39,12 +40,8 @@ jobs:
       - name: Public readiness check
         run: make public-check
 
-  cross-platform-tests:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  macos-tests:
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
@@ -57,11 +54,10 @@ jobs:
         run: |
           if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
             echo "ffmpeg already present"
-          elif [ "$RUNNER_OS" = "macOS" ]; then
-            brew install ffmpeg
           else
-            choco install ffmpeg -y --no-progress
+            brew install ffmpeg
           fi
+          ffmpeg -version | sed -n '1p'
 
       - name: Run offline test suites
         shell: bash
@@ -73,3 +69,46 @@ jobs:
             echo "testing ${test_dir}"
             python -m unittest discover -s "${test_dir}" -p 'test_*.py'
           done
+
+  ffmpeg-post-vsync-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - name: Install pinned FFmpeg build without -vsync
+        env:
+          FFMPEG_ARCHIVE: ffmpeg-N-126000-g1e0279143d-linux64-gpl.tar.xz
+          FFMPEG_SHA256: 46ebdb3fe6918a200382dd5d8f06c75b3973fb171c65061bc1e26f92d0aae6a8
+        run: |
+          install_dir="${RUNNER_TEMP}/ffmpeg-post-vsync"
+          archive_path="${RUNNER_TEMP}/${FFMPEG_ARCHIVE}"
+          curl --fail --location --silent --show-error \
+            --output "${archive_path}" \
+            "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-09-13-03/${FFMPEG_ARCHIVE}"
+          echo "${FFMPEG_SHA256}  ${archive_path}" | sha256sum --check --strict
+          mkdir -p "${install_dir}"
+          tar --extract --xz --file "${archive_path}" --directory "${install_dir}" \
+            --strip-components=1
+          echo "${install_dir}/bin" >> "${GITHUB_PATH}"
+
+      - name: Verify post-vsync FFmpeg capabilities
+        run: |
+          ffmpeg -version | sed -n '1p'
+          help_output="$(ffmpeg -hide_banner -h full 2>&1)"
+          case "${help_output}" in
+            *-fps_mode*) ;;
+            *) echo "Expected -fps_mode support" >&2; exit 1 ;;
+          esac
+          case "${help_output}" in
+            *-vsync*) echo "Expected a build with -vsync removed" >&2; exit 1 ;;
+            *) ;;
+          esac
+
+      - name: Run watch-video tests
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m unittest discover -s packages/watch-video/tests -p 'test_*.py'

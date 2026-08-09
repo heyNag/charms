@@ -31,6 +31,8 @@ Install commands for each target live in
 
 ## Requirements
 
+Supported operating systems: macOS and Linux.
+
 ```sh
 brew install yt-dlp ffmpeg jq   # or: python3 .../scripts/doctor.py --install
 python3 packages/watch-video/skills/watch-video/scripts/doctor.py

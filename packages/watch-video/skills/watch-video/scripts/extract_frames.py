@@ -15,6 +15,7 @@ files they drop, so the frame budget is spent on distinct content.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import math
 import re
@@ -318,6 +319,28 @@ def _quality_args(frame_format: str) -> list[str]:
     if frame_format == "webp":
         return ["-quality", "82"]
     raise ValueError("--frame-format must be jpeg, png, or webp")
+
+
+@functools.lru_cache(maxsize=1)
+def _vfr_output_args() -> tuple[str, str]:
+    """Use modern FFmpeg VFR output mode with a legacy compatibility fallback."""
+    result = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-h", "full"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    help_text = f"{result.stdout}\n{result.stderr}"
+    if "-fps_mode" in help_text:
+        return "-fps_mode", "vfr"
+    if "-vsync" in help_text:
+        return "-vsync", "vfr"
+    raise RuntimeError(
+        "unable to detect FFmpeg frame-rate mode support; "
+        "expected -fps_mode or legacy -vsync in `ffmpeg -h full`"
+    )
 
 
 def _require_ffmpeg() -> None:
@@ -640,8 +663,7 @@ def extract_keyframes(
         *post_seek,
         "-vf",
         f"{scale_filter(width)},showinfo",
-        "-vsync",
-        "vfr",
+        *_vfr_output_args(),
         *_quality_args(frame_format),
         raw_pattern,
     ]
@@ -741,8 +763,7 @@ def extract_scene_frames(
         *post_seek,
         "-vf",
         f"{select},{scale_filter(width)},showinfo",
-        "-vsync",
-        "vfr",
+        *_vfr_output_args(),
         *_quality_args(frame_format),
         raw_pattern,
     ]

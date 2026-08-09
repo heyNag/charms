@@ -54,13 +54,15 @@ Full install commands for each target are in
 
 ## Requirements
 
+Supported operating systems: macOS and Linux.
+
 ```sh
 brew install yt-dlp ffmpeg jq
 python3 packages/watch-video/skills/watch-video/scripts/doctor.py
 ```
 
-`doctor.py --install` installs missing binaries (brew on macOS, printed
-commands elsewhere); `doctor.py --set-key groq` stores a Whisper key once in
+`doctor.py --install` installs missing binaries with Homebrew on macOS and
+prints exact commands on Linux; `doctor.py --set-key groq` stores a Whisper key once in
 `~/.config/watch-video/.env`.
 
 Default Groq model:

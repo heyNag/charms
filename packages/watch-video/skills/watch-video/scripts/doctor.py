@@ -35,22 +35,33 @@ def install_hints() -> dict[str, list[str]]:
     return {
         "macOS": ["brew install yt-dlp ffmpeg jq"],
         "Linux": ["sudo apt install ffmpeg", "pipx install yt-dlp"],
-        "Windows": ["winget install Gyan.FFmpeg", "winget install yt-dlp.yt-dlp"],
     }
 
 
-def current_platform() -> str:
-    system = platform.system()
+def current_platform(system: str | None = None) -> str:
+    system = system or platform.system()
     if system == "Darwin":
         return "macOS"
-    if system == "Windows":
-        return "Windows"
-    return "Linux"
+    if system == "Linux":
+        return "Linux"
+    return "Unsupported"
 
 
 def platform_hints() -> list[str]:
     hints = install_hints()
-    return hints.get(current_platform(), hints["Linux"])
+    return hints.get(current_platform(), ["watch-video supports macOS and Linux only"])
+
+
+def check_platform(system: str | None = None) -> dict[str, object]:
+    name = current_platform(system)
+    ok = name != "Unsupported"
+    return {
+        "name": "platform",
+        "ok": ok,
+        "platform": name,
+        "message": "ok" if ok else "unsupported operating system",
+        "fix": "Use watch-video on macOS or Linux.",
+    }
 
 
 def check_python_version(version_info: tuple[int, int, int] | None = None) -> dict[str, object]:
@@ -268,6 +279,7 @@ def check_env_local(repo_root: Path | None = None) -> dict[str, object]:
 
 def collect_status() -> dict[str, object]:
     checks = [
+        check_platform(),
         check_python_version(),
         check_binary("yt-dlp"),
         check_binary("ffmpeg"),
@@ -324,7 +336,7 @@ def _brew_packages(missing: list[str]) -> list[str]:
 
 
 def install_missing() -> int:
-    """Opt-in installer: brew on macOS, exact commands elsewhere. Never sudo."""
+    """Opt-in installer: brew on macOS, exact Linux commands. Never sudo."""
     missing = [name for name in ("yt-dlp", "ffmpeg", "ffprobe") if shutil.which(name) is None]
     if not missing:
         print("all required binaries are already installed")
@@ -383,7 +395,7 @@ def main() -> int:
     parser.add_argument(
         "--install",
         action="store_true",
-        help="Install missing binaries (brew on macOS; prints commands elsewhere; never sudo)",
+        help="Install missing binaries (brew on macOS; prints Linux commands; never sudo)",
     )
     args = parser.parse_args()
 

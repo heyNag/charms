@@ -23,9 +23,8 @@ Every command below runs a script under this skill's `scripts/` directory,
 which always sits next to this SKILL.md — in the installed copy and in this
 repo (`packages/watch-video/skills/watch-video/scripts/`). Resolve the
 directory of the SKILL.md you just read and run scripts relative to it; do not
-rely on a harness-specific environment variable. On Windows, invoke scripts
-with `python` instead of `python3` (the `python3` command there is usually the
-Microsoft Store stub).
+rely on a harness-specific environment variable. Supported platforms are macOS
+and Linux.
 
 ## Operating Rules
 
@@ -230,7 +229,8 @@ setup steps, decisions, and a compact implementation checklist.
   checks.
 - Missing `yt-dlp`, `ffmpeg`, or `ffprobe`: run
   `python3 scripts/doctor.py --install` (installs via Homebrew on macOS,
-  prints exact commands elsewhere, never uses sudo).
+  prints exact commands on Linux, never uses sudo). Other operating systems are
+  reported as unsupported.
 - Missing Whisper key when transcription is needed: run the ask-once flow in
   "Whisper Key Setup"; if the user declines, continue with captions/frames
   and note that transcription was skipped.

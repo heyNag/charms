@@ -116,8 +116,7 @@ def require_tool(name: str, fix: str) -> None:
 
 
 def run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-    # Explicit UTF-8: yt-dlp/ffmpeg emit UTF-8, but Windows would otherwise
-    # decode subprocess output with the legacy locale codepage and crash.
+    # Explicit UTF-8 keeps yt-dlp/ffmpeg output deterministic across locales.
     return subprocess.run(
         cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
     )

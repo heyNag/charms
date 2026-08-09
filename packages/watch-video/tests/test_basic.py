@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -110,6 +111,53 @@ class WatchVideoBasicTests(unittest.TestCase):
         self.assertEqual(extract_frames.frame_mime_type("webp"), "image/webp")
         with self.assertRaisesRegex(ValueError, "frame-format"):
             extract_frames.frame_extension("gif")
+
+    def test_vfr_output_uses_modern_ffmpeg_option_when_available(self) -> None:
+        extract_frames = importlib.import_module("extract_frames")
+        extract_frames._vfr_output_args.cache_clear()
+        self.addCleanup(extract_frames._vfr_output_args.cache_clear)
+        help_result = subprocess.CompletedProcess(
+            args=["ffmpeg"],
+            returncode=0,
+            stdout="-fps_mode[:stream_specifier] set framerate mode",
+            stderr="",
+        )
+
+        with mock.patch.object(extract_frames.subprocess, "run", return_value=help_result):
+            args = extract_frames._vfr_output_args()
+
+        self.assertEqual(args, ("-fps_mode", "vfr"))
+
+    def test_vfr_output_falls_back_for_legacy_ffmpeg(self) -> None:
+        extract_frames = importlib.import_module("extract_frames")
+        extract_frames._vfr_output_args.cache_clear()
+        self.addCleanup(extract_frames._vfr_output_args.cache_clear)
+        help_result = subprocess.CompletedProcess(
+            args=["ffmpeg"],
+            returncode=0,
+            stdout="-vsync set video sync method globally",
+            stderr="",
+        )
+
+        with mock.patch.object(extract_frames.subprocess, "run", return_value=help_result):
+            args = extract_frames._vfr_output_args()
+
+        self.assertEqual(args, ("-vsync", "vfr"))
+
+    def test_vfr_output_rejects_unrecognized_ffmpeg_help(self) -> None:
+        extract_frames = importlib.import_module("extract_frames")
+        extract_frames._vfr_output_args.cache_clear()
+        self.addCleanup(extract_frames._vfr_output_args.cache_clear)
+        help_result = subprocess.CompletedProcess(
+            args=["ffmpeg"],
+            returncode=1,
+            stdout="",
+            stderr="unrecognized option",
+        )
+
+        with mock.patch.object(extract_frames.subprocess, "run", return_value=help_result):
+            with self.assertRaisesRegex(RuntimeError, "unable to detect"):
+                extract_frames._vfr_output_args()
 
     def test_safe_run_id_is_stable_shape(self) -> None:
         watch = importlib.import_module("watch")
@@ -407,6 +455,15 @@ Next idea starts here
         self.assertFalse(doctor.key_shape_status(None)["ok"])
         self.assertFalse(doctor.key_shape_status("abc")["ok"])
         self.assertTrue(doctor.key_shape_status("gsk_" + "x" * 30)["ok"])
+
+    def test_doctor_supports_macos_and_linux_only(self) -> None:
+        doctor = importlib.import_module("doctor")
+
+        self.assertEqual(set(doctor.install_hints()), {"macOS", "Linux"})
+        self.assertEqual(doctor.current_platform("Darwin"), "macOS")
+        self.assertEqual(doctor.current_platform("Linux"), "Linux")
+        self.assertEqual(doctor.current_platform("Windows"), "Unsupported")
+        self.assertFalse(doctor.check_platform("Windows")["ok"])
 
     def test_groq_missing_key_error(self) -> None:
         groq = importlib.import_module("groq_transcribe")
