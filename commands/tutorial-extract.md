@@ -1,1 +1,0 @@
-../packages/watch-video/commands/tutorial-extract.md

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "chatgpt-pro-review",
+  "version": "1.0.0",
+  "description": "Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repository evidence.",
+  "author": {
+    "name": "Nagarjuna Boddu",
+    "url": "https://github.com/heyNag"
+  },
+  "homepage": "https://github.com/heyNag/charms/tree/main/packages/chatgpt-pro-review",
+  "repository": "https://github.com/heyNag/charms",
+  "license": "MIT",
+  "keywords": [
+    "review",
+    "chatgpt",
+    "planning",
+    "code-review"
+  ]
+}

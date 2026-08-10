@@ -1,66 +1,38 @@
-# Packages
+# Plugin packages
 
-`packages/` contains the canonical source packages for this repo.
-
-Each package is directly consumable:
-
-- Claude Code installs the package directory as a plugin source.
-- The Agent Skills CLI (`npx skills add heyNag/charms`) copies the package's
-  `skills/<name>` folder into detected hosts.
-- Codex can copy the package's `skills/<name>` folder or use the root
-  `.codex-plugin` wrapper.
-- Cursor uses the root `.cursor-plugin` wrapper and `skills/` symlink index.
-- OpenCode/generic Agent Skills can use the root OpenCode plugin wrapper or
-  copy the same `skills/<name>` folder.
-- Claude Desktop custom-skill ZIP folders are built locally under `.dist/`.
-
-Current packages:
-
-- `watch-video`
-- `codex-reset-credit`
-- `x-bookmarks`
-- `chatgpt-pro-review`
-- `mnemosyne-memory`
-
-Install commands live in [docs/installing-skills.md](../docs/installing-skills.md);
-package README files focus on the skill-specific requirements and usage.
-
-## Package Shape
+Each immediate child of this directory is a complete Agent Plugin v1 root and
+an independently versioned product:
 
 ```text
-packages/<name>/
-  README.md
-  SOURCE.md
-  tool.json
-  .claude-plugin/
-    plugin.json
-  skills/
-    <name>/
-      SKILL.md
-      scripts/       optional
-      references/    optional
-      agents/        optional
-  commands/          optional Claude Code slash commands
-  tests/             optional offline tests
+packages/
+├── chatgpt-pro-review/
+├── codex-reset-credit/
+├── mnemosyne-memory/
+├── watch-video/
+└── x-bookmarks/
 ```
 
-The source skill is:
+Every plugin follows this repository contract:
 
 ```text
-packages/<name>/skills/<name>/SKILL.md
+<name>/
+├── plugin.json
+├── LICENSE
+├── README.md
+├── skills/
+│   └── <name>/
+│       ├── SKILL.md
+│       ├── scripts/       optional
+│       ├── references/    optional
+│       └── assets/        optional
+└── tests/
 ```
 
-Do not create a second root-level `packages/<name>/SKILL.md`. If a package
-grows to multiple skills, add another `skills/<other-skill>/SKILL.md` and update
-the package manifest/build checks in the same change.
+`plugin.json` is the only plugin manifest and version source. The sole skill
+is an immediate child of `skills/` and has the same name as the plugin.
+Charms currently bundles no MCP servers, so its plugin roots do not contain
+`mcp.json`.
 
-## Normal Edit Flow
-
-Edit source under `packages/<name>/`, then refresh indexes and local artifacts:
-
-```sh
-make build-packages
-make public-check
-```
-
-Do not commit `.dist/` artifacts.
+See [Plugin format](../docs/plugin-format.md) for the complete package
+invariants and [Development](../docs/development.md) for the validation
+workflow.

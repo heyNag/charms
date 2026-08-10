@@ -128,7 +128,7 @@ class WatchVideoBasicTests(unittest.TestCase):
 
         self.assertEqual(args, ("-fps_mode", "vfr"))
 
-    def test_vfr_output_falls_back_for_legacy_ffmpeg(self) -> None:
+    def test_vfr_output_uses_vsync_when_fps_mode_is_unavailable(self) -> None:
         extract_frames = importlib.import_module("extract_frames")
         extract_frames._vfr_output_args.cache_clear()
         self.addCleanup(extract_frames._vfr_output_args.cache_clear)
@@ -180,6 +180,28 @@ class WatchVideoBasicTests(unittest.TestCase):
             self.assertEqual(second.name, "fixed-run-01")
             self.assertTrue(first.exists())
             self.assertTrue(second.exists())
+
+    def test_default_run_root_uses_user_state_outside_the_plugin(self) -> None:
+        watch = importlib.import_module("watch")
+
+        self.assertEqual(
+            watch.default_run_root(env={}, home=Path("/home/example")),
+            Path("/home/example/.local/state/watch-video/runs"),
+        )
+        self.assertEqual(
+            watch.default_run_root(
+                env={"XDG_STATE_HOME": "/state"},
+                home=Path("/home/example"),
+            ),
+            Path("/state/watch-video/runs"),
+        )
+        self.assertEqual(
+            watch.default_run_root(
+                env={"WATCH_VIDEO_RUNS_DIR": "/custom/runs"},
+                home=Path("/home/example"),
+            ),
+            Path("/custom/runs"),
+        )
 
     def test_pick_caption_prefers_english(self) -> None:
         watch = importlib.import_module("watch")
@@ -464,6 +486,21 @@ Next idea starts here
         self.assertEqual(doctor.current_platform("Linux"), "Linux")
         self.assertEqual(doctor.current_platform("Windows"), "Unsupported")
         self.assertFalse(doctor.check_platform("Windows")["ok"])
+        self.assertNotIn("jq", " ".join(doctor.install_hints()["macOS"]))
+
+    def test_doctor_checks_the_user_state_run_root(self) -> None:
+        doctor = importlib.import_module("doctor")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            run_root = Path(tmp) / "watch-video" / "runs"
+            run_root.mkdir(parents=True)
+            (run_root / "artifact.bin").write_bytes(b"run-data")
+
+            status = doctor.check_run_artifacts(run_root)
+
+        self.assertTrue(status["ok"])
+        self.assertEqual(status["size_bytes"], len(b"run-data"))
+        self.assertIn(str(run_root), status["message"])
 
     def test_groq_missing_key_error(self) -> None:
         groq = importlib.import_module("groq_transcribe")

@@ -323,7 +323,7 @@ def _quality_args(frame_format: str) -> list[str]:
 
 @functools.lru_cache(maxsize=1)
 def _vfr_output_args() -> tuple[str, str]:
-    """Use modern FFmpeg VFR output mode with a legacy compatibility fallback."""
+    """Use -fps_mode when available, with a -vsync capability fallback."""
     result = subprocess.run(
         ["ffmpeg", "-hide_banner", "-h", "full"],
         capture_output=True,
@@ -339,7 +339,7 @@ def _vfr_output_args() -> tuple[str, str]:
         return "-vsync", "vfr"
     raise RuntimeError(
         "unable to detect FFmpeg frame-rate mode support; "
-        "expected -fps_mode or legacy -vsync in `ffmpeg -h full`"
+        "expected -fps_mode or -vsync support in `ffmpeg -h full`"
     )
 
 

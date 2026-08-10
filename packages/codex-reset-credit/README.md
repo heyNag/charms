@@ -14,32 +14,29 @@ It can:
 It must never print tokens, account IDs, raw auth file contents, or edit local
 Codex files.
 
-The package root is a Claude Code plugin source. The portable skill source is:
+This directory is an [Agent Plugins v1](https://agent-plugins.org/specification)
+plugin root. A compatible client loads `plugin.json` here and discovers the
+skill from the standard fixed location:
 
 ```text
-packages/codex-reset-credit/skills/codex-reset-credit
+skills/codex-reset-credit
 ```
 
-Codex, Cursor, OpenCode, generic Agent Skills, and optional Skillshare installs
-all use that same skill folder directly or through the root `skills/` symlink
-index. Claude Desktop custom-skill ZIP contents are built locally under
-`.dist/claude/custom-skills/codex-reset-credit`.
-
-Install commands for each target live in
-[docs/installing-skills.md](../../docs/installing-skills.md).
+The plugin is independently versioned. Installation and update behavior is
+defined by the client loading this package.
 
 ## Usage
 
-From the repo root:
+From the plugin root:
 
 ```sh
-python3 packages/codex-reset-credit/skills/codex-reset-credit/scripts/check_reset_credits.py --no-live
+python3 skills/codex-reset-credit/scripts/check_reset_credits.py --no-live
 ```
 
 From the skill folder:
 
 ```sh
-cd packages/codex-reset-credit/skills/codex-reset-credit
+cd skills/codex-reset-credit
 python3 scripts/check_reset_credits.py
 ```
 
@@ -48,8 +45,8 @@ Useful options:
 ```sh
 python3 scripts/check_reset_credits.py --json
 python3 scripts/check_reset_credits.py --no-live
-python3 scripts/check_reset_credits.py --thread-id <thread-id>
-python3 scripts/check_reset_credits.py --session-file <absolute-path-to-rollout.jsonl>
+python3 scripts/check_reset_credits.py --thread-id THREAD_ID
+python3 scripts/check_reset_credits.py --session-file /absolute/path/to/rollout.jsonl
 python3 scripts/check_reset_credits.py --timezone UTC
 ```
 
@@ -60,20 +57,20 @@ python3 scripts/check_reset_credits.py --timezone UTC
 - Local session snapshots may be stale if Codex has not emitted recent usage
   events.
 
-## Package Files
+## Portable package files
 
 ```text
-.claude-plugin/plugin.json                       Claude Code plugin metadata
+plugin.json                                      Agent Plugins v1 manifest
+LICENSE                                          MIT license terms
+README.md                                        usage and safety guidance
 skills/codex-reset-credit/SKILL.md               skill instructions
 skills/codex-reset-credit/scripts/               read-only helper CLI
-commands/codex-reset-credit.md                   Claude Code slash command prompt
-tests/                                           offline helper tests
-tool.json                                        package manifest
 ```
 
-After editing source:
+## Development
+
+In a Charms source checkout, run the package tests from the repository root:
 
 ```sh
-make build-packages
-make public-check
+python3 -m unittest discover -s packages/codex-reset-credit/tests -p 'test_*.py'
 ```

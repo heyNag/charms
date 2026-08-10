@@ -1,14 +1,8 @@
 ---
 name: watch-video
 description: Use when the user asks to inspect a YouTube URL, local video, screen recording, tutorial, demo, UI bug video, or visible/spoken video evidence.
-argument-hint: "<video-url-or-path> [--detail LEVEL] [--start T] [--end T] [question]"
-tags: video, youtube, transcription, frames, local
-allowed-tools: Bash, Read, AskUserQuestion
-homepage: https://github.com/heyNag/charms
-repository: https://github.com/heyNag/charms
-author: Nagarjuna Boddu
 license: MIT
-user-invocable: true
+compatibility: Requires Python 3.11+, yt-dlp, ffmpeg, and ffprobe on macOS or Linux; remote videos and optional Groq or OpenAI transcription require network access.
 ---
 
 # watch-video
@@ -23,7 +17,7 @@ Every command below runs a script under this skill's `scripts/` directory,
 which always sits next to this SKILL.md — in the installed copy and in this
 repo (`packages/watch-video/skills/watch-video/scripts/`). Resolve the
 directory of the SKILL.md you just read and run scripts relative to it; do not
-rely on a harness-specific environment variable. Supported platforms are macOS
+rely on a client-specific environment variable. Supported platforms are macOS
 and Linux.
 
 ## Operating Rules
@@ -56,9 +50,11 @@ and Linux.
   `--frame-format png --resolution 1024`.
 - If a follow-up question arrives about a video you already watched, answer
   from the frames and transcript already in context. Do not re-run the script.
-- Run artifacts (downloaded media, frames) accumulate under
-  `.watch-video/runs/`. Once follow-ups are done, delete the run directory or
-  use `--cleanup`; keep the media when a `--from-run` second pass is likely.
+- Run artifacts (downloaded media and frames) accumulate outside the plugin
+  under `$WATCH_VIDEO_RUNS_DIR` when set, otherwise under
+  `$XDG_STATE_HOME/watch-video/runs/` or `~/.local/state/watch-video/runs/`.
+  Once follow-ups are done, delete the run directory or use `--cleanup`; keep
+  the media when a `--from-run` second pass is likely.
 
 ## Detail Dial
 
@@ -81,8 +77,8 @@ only when the user needs literally every sampled frame.
 ## Ask The Detail Level First
 
 Before running the script on a new video, ask the user which detail level to
-use - with `AskUserQuestion` where the harness provides it, otherwise a short
-chat question. Present the four levels lightest to heaviest so the order
+use through the host's normal user-input mechanism. Present the four levels
+lightest to heaviest so the order
 itself reads as the cost dial, keep the recommendation label on `balanced`
 even though it is not first, and include the cost hints:
 
@@ -104,19 +100,20 @@ Skip the question and just run when:
   say so when you report back.
 
 For videos longer than 10 minutes, fold the focused-range question into the
-same `AskUserQuestion` call instead of asking twice.
+same prompt instead of asking twice.
 
 ## Whisper Key Setup (Ask Once)
 
 A key is needed only when a video has no usable captions and transcription
 matters. When that happens and no key is available (environment or stored),
-ask the user once - `AskUserQuestion` where available - with three options:
+ask the user once through the host's normal user-input mechanism with three
+options:
 
 1. Groq key (Recommended - cheaper and faster; console.groq.com/keys)
 2. OpenAI key (platform.openai.com/api-keys)
 3. Skip transcription for this video (captions/frames only)
 
-If they provide a key, store it once so every future run on any harness can
+If they provide a key, store it once so every future run on any client can
 use it:
 
 ```sh
@@ -165,12 +162,14 @@ CLI option surface:
 - `--sub-langs` yt-dlp caption selector (default English variants)
 - `--no-dedup`, `--no-frames`; `--frame-mode interval` with `--frame-interval`,
   or `--fps` (uniform-sampling overrides)
-- `--out-dir DIR` for the run-artifact base (default `.watch-video/runs`)
+- `--out-dir DIR` for a custom run-artifact base; `WATCH_VIDEO_RUNS_DIR` or
+  `XDG_STATE_HOME` can set the default base
 - `--cleanup` and `--cleanup-frames`
 
-The script writes a run directory under `.watch-video/runs/<run-id>/` and
-prints the final `report.md`. Quote URLs in zsh and other shells where `?` may
-be treated as a glob.
+The script writes a run directory outside the plugin under
+`$WATCH_VIDEO_RUNS_DIR`, `$XDG_STATE_HOME/watch-video/runs/`, or the fallback
+`~/.local/state/watch-video/runs/`, then prints the final `report.md`. Quote
+URLs in zsh and other shells where `?` may be treated as a glob.
 
 ## Transcript-Cue Frames
 
@@ -202,9 +201,9 @@ already have.
 
 ## Evidence To Use
 
-Read `report.md` first. If frames were extracted, Read every frame image
-before answering visual questions - batch the Read calls in parallel in one
-message; frames are chronological and timestamped in the filename. Use
+Inspect `report.md` first. If frames were extracted, inspect every frame image
+before answering visual questions, in parallel when the host supports it;
+frames are chronological and timestamped in the filename. Use
 `transcript.md` for spoken content, but summarize and cite timestamp ranges
 rather than dumping the full transcript.
 

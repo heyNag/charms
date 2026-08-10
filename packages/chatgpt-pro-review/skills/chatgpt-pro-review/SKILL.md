@@ -1,14 +1,8 @@
 ---
 name: chatgpt-pro-review
 description: Use when the user asks for ChatGPT Pro review, Extended Pro review, external second-pass review, plan hardening, implementation review, PR review, code-review comment resolution, or review of another agent's work.
-argument-hint: "[plan|implementation|pr|eval] [context]"
-tags: review, chatgpt, pro, planning, code-review
-allowed-tools: Read, Grep, Bash, AskUserQuestion
-homepage: https://github.com/heyNag/charms
-repository: https://github.com/heyNag/charms
-author: Nagarjuna Boddu
 license: MIT
-user-invocable: true
+compatibility: Requires access to ChatGPT Pro or Extended Pro through an approved browser or user-mediated transport; local file, Git, and test access improve evidence reconciliation.
 ---
 
 # ChatGPT Pro Review
@@ -27,9 +21,9 @@ it.
 - Redact secrets, auth tokens, customer data, unrelated private files, and large
   irrelevant context.
 - Before submitting private repo context to ChatGPT, confirm the user authorized
-  sending that specific context. If approval is unclear, ask first - with
-  `AskUserQuestion` where the harness provides it (summarize what the packet
-  contains and offer send / edit / cancel).
+  sending that specific context. If approval is unclear, use the host's normal
+  user-input mechanism to summarize what the packet contains and offer send,
+  edit, or cancel choices.
 - Ask before implementing feedback that changes product behavior, architecture,
   security posture, data handling, or scope.
 - If no approved browser or ChatGPT transport is available, prepare a

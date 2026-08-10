@@ -1,13 +1,8 @@
 ---
 name: mnemosyne-memory
 description: Use when Mnemosyne MCP memory is available and a task needs cross-session continuity, project handoffs, recall of prior decisions or preferences, durable memory capture, correction of stale memories, or an applicable AGENTS.md requires the Mnemosyne lifecycle; do not use for ordinary in-session notes or unrelated memory and database questions.
-argument-hint: "[remember|recall|handoff] [context]"
-tags: memory, mnemosyne, mcp, handoff, continuity
-homepage: https://github.com/mnemosyne-oss/mnemosyne
-repository: https://github.com/heyNag/charms
-author: Nagarjuna Boddu
 license: MIT
-user-invocable: true
+compatibility: Requires a host-configured Mnemosyne MCP server that exposes mnemosyne_* tools; this skill does not install, start, or configure the server.
 ---
 
 # Mnemosyne Memory

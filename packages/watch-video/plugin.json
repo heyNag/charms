@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "watch-video",
+  "version": "1.0.0",
+  "description": "Inspect videos with transcripts, timestamps, scene-aware frames, and optional transcription fallbacks.",
+  "author": {
+    "name": "Nagarjuna Boddu",
+    "url": "https://github.com/heyNag"
+  },
+  "homepage": "https://github.com/heyNag/charms/tree/main/packages/watch-video",
+  "repository": "https://github.com/heyNag/charms",
+  "license": "MIT",
+  "keywords": [
+    "video",
+    "youtube",
+    "transcription",
+    "frames",
+    "local"
+  ]
+}

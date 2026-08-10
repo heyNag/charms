@@ -12,19 +12,16 @@ Use it for:
 - eval or reporting methodology review
 - external second-pass review of another agent's work
 
-The package root is a Claude Code plugin source. The portable skill source is:
+This directory is an [Agent Plugins v1](https://agent-plugins.org/specification)
+plugin root. A compatible client loads `plugin.json` here and discovers the
+skill from the standard fixed location:
 
 ```text
-packages/chatgpt-pro-review/skills/chatgpt-pro-review
+skills/chatgpt-pro-review
 ```
 
-Codex, Cursor, OpenCode, generic Agent Skills, and optional Skillshare installs
-all use that same skill folder directly or through the root `skills/` symlink
-index. Claude Desktop custom-skill ZIP contents are built locally under
-`.dist/claude/custom-skills/chatgpt-pro-review`.
-
-Install commands for each target live in
-[docs/installing-skills.md](../../docs/installing-skills.md).
+The plugin is independently versioned. Installation and update behavior is
+defined by the client loading this package.
 
 ## Privacy
 
@@ -33,20 +30,19 @@ sensitive unpublished code to ChatGPT unless the user explicitly approves that
 specific context. When in doubt, prepare a paste packet and ask the user before
 submitting it.
 
-## Package Files
+## Portable package files
 
 ```text
-.claude-plugin/plugin.json                       Claude Code plugin metadata
+plugin.json                                      Agent Plugins v1 manifest
+LICENSE                                          MIT license terms
+README.md                                        usage and safety guidance
 skills/chatgpt-pro-review/SKILL.md               skill instructions
-skills/chatgpt-pro-review/agents/                display metadata for agent UIs
-commands/chatgpt-pro-review.md                   Claude Code slash command prompt
-tests/                                           offline tests
-tool.json                                        package manifest
 ```
 
-After editing source:
+## Development
+
+In a Charms source checkout, run the package tests from the repository root:
 
 ```sh
-make build-packages
-make public-check
+python3 -m unittest discover -s packages/chatgpt-pro-review/tests -p 'test_*.py'
 ```

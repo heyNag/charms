@@ -1,110 +1,75 @@
 # Charms
 
-`charms` is a public workspace for practical, installable charms: portable
-agent skills, Claude Code plugins, helper commands, and local workflow scripts.
+Charms is a monorepo of five independent, portable
+[Agent Plugins v1](https://agent-plugins.org/specification). Each plugin has a
+root `plugin.json` manifest and one
+[Agent Skill](https://agentskills.io/specification) under `skills/`.
 
-Practical charms for coding agents.
+| Plugin | Purpose | Plugin root |
+| --- | --- | --- |
+| `chatgpt-pro-review` | Prepare scoped ChatGPT Pro review packets and reconcile the result with local evidence. | [`packages/chatgpt-pro-review/`](packages/chatgpt-pro-review/) |
+| `codex-reset-credit` | Report Codex reset credits and local rate-limit windows without exposing authentication data. | [`packages/codex-reset-credit/`](packages/codex-reset-credit/) |
+| `mnemosyne-memory` | Apply a selective Mnemosyne recall, persistence, correction, and project-handoff workflow. | [`packages/mnemosyne-memory/`](packages/mnemosyne-memory/) |
+| `watch-video` | Inspect video metadata, captions or transcripts, and representative frames. | [`packages/watch-video/`](packages/watch-video/) |
+| `x-bookmarks` | Fetch, search, and digest saved X/Twitter posts through Bird or X API v2. | [`packages/x-bookmarks/`](packages/x-bookmarks/) |
 
-## Skills
+The repository root is development and release infrastructure, not an
+installable plugin. Every directory in `packages/` is its own installation,
+version, security, and release boundary.
 
-| Skill | Use It For | Start Here |
-|---|---|---|
-| `watch-video` | Inspect YouTube URLs, local videos, demos, tutorials, screen recordings, and UI bug videos. | [docs/watch-video.md](docs/watch-video.md) |
-| `codex-reset-credit` | Check Codex reset credits and local rate-limit reset windows without exposing auth secrets. | [docs/codex-reset-credit.md](docs/codex-reset-credit.md) |
-| `x-bookmarks` | Fetch, search, and digest X/Twitter bookmarks using Bird or optional X API v2. | [docs/x-bookmarks.md](docs/x-bookmarks.md) |
-| `chatgpt-pro-review` | Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repo evidence. | [docs/chatgpt-pro-review.md](docs/chatgpt-pro-review.md) |
-| `mnemosyne-memory` | Use Mnemosyne MCP for selective recall, durable project memory, and cross-session handoffs. | [docs/mnemosyne-memory.md](docs/mnemosyne-memory.md) |
+## Install a plugin
 
-## Install
-
-Pick your target and follow [docs/installing-skills.md](docs/installing-skills.md).
-
-Quick orientation:
-
-- Claude Code installs packages from the marketplace catalog.
-- `npx skills add heyNag/charms` installs into Codex, Cursor, Copilot,
-  Gemini CLI, and other Agent Skills hosts.
-- Codex, OpenCode, generic Agent Skills, and Skillshare consume
-  `packages/<name>/skills/<name>`.
-- Cursor and root plugin wrappers use the root `skills/` symlink index.
-- Claude Desktop / claude.ai custom skills ship as ZIPs on each skill's
-  GitHub release (or build locally under ignored `.dist/`).
-
-## Use
-
-After installing, invoke the skill through your agent target:
-
-```text
-Claude Code: /watch-video:watch <video-url-or-path>
-Claude Code: /codex-reset-credit:codex-reset-credit
-Claude Code: /x-bookmarks:x-bookmarks digest
-Claude Code: /chatgpt-pro-review:chatgpt-pro-review implementation
-Claude Code: ask it to use mnemosyne-memory for project continuity
-Codex/Cursor/OpenCode: ask the agent to use watch-video, codex-reset-credit, x-bookmarks, chatgpt-pro-review, or mnemosyne-memory
-```
-
-Skill-specific requirements, examples, and safety notes live in:
-
-- [docs/watch-video.md](docs/watch-video.md)
-- [docs/codex-reset-credit.md](docs/codex-reset-credit.md)
-- [docs/x-bookmarks.md](docs/x-bookmarks.md)
-- [docs/chatgpt-pro-review.md](docs/chatgpt-pro-review.md)
-- [docs/mnemosyne-memory.md](docs/mnemosyne-memory.md)
-
-## Repo Shape
-
-```text
-packages/<name>/                 package source and Claude Code plugin root
-packages/<name>/skills/<name>/   portable skill folder
-packages/<name>/commands/        optional Claude Code slash commands
-skills/<name>                    root symlink index to package skill source
-commands/*.md                    root symlink index to package commands
-.claude-plugin/                  Claude Code marketplace and root metadata
-.codex-plugin/                   Codex plugin metadata
-.cursor-plugin/                  Cursor plugin metadata
-.opencode/                       OpenCode plugin wrapper
-.agents/plugins/                 Agent Skills marketplace listing
-skillshare-hub.json              optional Skillshare hub index
-.dist/                           ignored local build artifacts
-docs/                            project docs and runbooks
-scripts/                         build, install, test, and release helpers
-```
-
-Normal edits happen under `packages/<name>/`. Root `skills/` and `commands/`
-are maintained symlink indexes; do not edit through them.
-
-## Development
+Download the plugin ZIP and matching `.sha256` file from
+[GitHub Releases](https://github.com/heyNag/charms/releases), verify it, and
+extract it:
 
 ```sh
-make build-packages
-make public-check
-git status
+PLUGIN=watch-video
+VERSION=1.0.0
+CHECKSUM="${PLUGIN}-agent-plugin-v${VERSION}.zip.sha256"
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256sum --check "$CHECKSUM"
+else
+  shasum -a 256 -c "$CHECKSUM"
+fi
+unzip "${PLUGIN}-agent-plugin-v${VERSION}.zip"
 ```
 
-`make build-packages` refreshes root symlink indexes, marketplace/hub indexes,
-and ignored Claude custom-skill artifacts under `.dist/`. `make public-check`
-runs the repo’s publishability checks and install dry-runs.
+The extracted `<plugin>/` directory is the plugin root. Point a conformant
+client at that directory using the client's local-plugin installation flow.
+Agent Plugins standardizes package loading, not distribution or client user
+interfaces; consult the
+[compatible clients list](https://agent-plugins.org/compatible-clients) for
+current client capabilities.
 
-For architecture, installation, onboarding, updates, releases, and target
-differences, start with [docs/README.md](docs/README.md).
+A source checkout works the same way: select one
+`packages/<plugin>/` directory, never the repository root.
 
-## Public URLs
+Runtime prerequisites are plugin-specific. Read the selected plugin's README
+before enabling it.
 
-GitHub/Search URL:
+## Develop
 
-```text
-https://github.com/heyNag/charms
+Charms requires Python 3.11 or newer for repository tooling:
+
+```sh
+python3 -m pip install -r requirements-dev.txt
+make check
 ```
 
-Skillshare Hub URL:
+`make check` runs conformance validation, offline behavior tests, Python and
+shell syntax checks, linting, secret and artifact checks, and repository
+whitespace checks.
 
-```text
-https://raw.githubusercontent.com/heyNag/charms/main/skillshare-hub.json
-```
+## Documentation
 
-## Security
+- [Documentation index](docs/README.md)
+- [Architecture](docs/architecture.md)
+- [Plugin format](docs/plugin-format.md)
+- [Installation](docs/installing.md)
+- [Compatibility](docs/compatibility.md)
+- [Development](docs/development.md)
+- [Security](docs/security.md)
+- [Releasing](docs/releasing.md)
 
-Do not commit real API keys, Codex auth/session files, X/Twitter cookies or
-OAuth tokens, `.env.local`, `.watch-video/` artifacts, `.x-bookmarks/` state,
-media files, transcripts, frames, caches, `.dist/`, local virtualenvs, or
-`node_modules/` outputs.
+Charms is licensed under the [MIT License](LICENSE).

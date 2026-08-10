@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mnemosyne-memory",
+  "version": "1.0.0",
+  "description": "Use Mnemosyne MCP as a selective, project-aware memory and handoff layer across agent sessions.",
+  "author": {
+    "name": "Nagarjuna Boddu",
+    "url": "https://github.com/heyNag"
+  },
+  "homepage": "https://github.com/heyNag/charms/tree/main/packages/mnemosyne-memory",
+  "repository": "https://github.com/heyNag/charms",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "mnemosyne",
+    "mcp",
+    "handoff",
+    "continuity"
+  ]
+}

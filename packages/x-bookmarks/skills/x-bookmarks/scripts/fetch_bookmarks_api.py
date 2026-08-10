@@ -475,8 +475,6 @@ def state_last_seen_id(state: dict[str, Any], scope: str) -> str | None:
         entry = scopes.get(scope)
         if isinstance(entry, dict) and entry.get("last_seen_id"):
             return str(entry["last_seen_id"])
-    if scope == "all" and state.get("last_seen_id"):
-        return str(state["last_seen_id"])
     return None
 
 
@@ -507,9 +505,6 @@ def update_last_seen(
         entry["last_seen_created_at"] = newest_created_at
     scopes[scope] = entry
     updated["scopes"] = scopes
-    if scope == "all":
-        updated["last_seen_id"] = newest_id
-        updated["updated_at"] = entry["updated_at"]
     return updated
 
 

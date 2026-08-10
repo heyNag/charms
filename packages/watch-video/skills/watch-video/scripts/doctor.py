@@ -22,6 +22,7 @@ from groq_transcribe import (  # noqa: E402
     read_stored_key,
     set_stored_key,
 )
+from watch import default_run_root  # noqa: E402
 
 
 MIN_PYTHON = (3, 11)
@@ -33,7 +34,7 @@ RUN_ARTIFACTS_WARN_BYTES = 500 * 1024 * 1024
 
 def install_hints() -> dict[str, list[str]]:
     return {
-        "macOS": ["brew install yt-dlp ffmpeg jq"],
+        "macOS": ["brew install yt-dlp ffmpeg"],
         "Linux": ["sudo apt install ffmpeg", "pipx install yt-dlp"],
     }
 
@@ -192,19 +193,11 @@ def _dir_size_bytes(path: Path) -> int:
     return total
 
 
-def check_run_artifacts() -> dict[str, object]:
+def check_run_artifacts(run_root: Path | None = None) -> dict[str, object]:
     """Advisory disk check: downloaded media accumulates under run dirs."""
-    roots: list[Path] = []
-    cwd_runs = Path.cwd() / ".watch-video" / "runs"
-    if cwd_runs.is_dir():
-        roots.append(cwd_runs)
-    repo = find_repo_root()
-    if repo is not None:
-        repo_runs = repo / ".watch-video" / "runs"
-        if repo_runs.is_dir() and repo_runs not in roots:
-            roots.append(repo_runs)
+    root = (run_root or default_run_root()).expanduser()
 
-    if not roots:
+    if not root.is_dir():
         return {
             "name": "run-artifacts",
             "ok": True,
@@ -212,7 +205,7 @@ def check_run_artifacts() -> dict[str, object]:
             "message": "no local run artifacts found",
         }
 
-    total = sum(_dir_size_bytes(root) for root in roots)
+    total = _dir_size_bytes(root)
     ok = total < RUN_ARTIFACTS_WARN_BYTES
     size_mb = total / (1024 * 1024)
     return {
@@ -220,7 +213,7 @@ def check_run_artifacts() -> dict[str, object]:
         "ok": ok,
         "size_bytes": total,
         "message": (
-            f"{size_mb:.0f} MB of run artifacts under .watch-video/runs"
+            f"{size_mb:.0f} MB of run artifacts under {root}"
             + ("" if ok else " - old runs are piling up")
         ),
         "fix": "delete old run directories, or use --cleanup on one-shot analyses",

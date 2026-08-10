@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "x-bookmarks",
+  "version": "1.0.0",
+  "description": "Fetch, search, and digest X/Twitter bookmarks using Bird or the optional X API v2 backend.",
+  "author": {
+    "name": "Nagarjuna Boddu",
+    "url": "https://github.com/heyNag"
+  },
+  "homepage": "https://github.com/heyNag/charms/tree/main/packages/x-bookmarks",
+  "repository": "https://github.com/heyNag/charms",
+  "license": "MIT",
+  "keywords": [
+    "x",
+    "twitter",
+    "bookmarks",
+    "bird",
+    "local"
+  ]
+}

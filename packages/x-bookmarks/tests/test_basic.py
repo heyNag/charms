@@ -74,9 +74,9 @@ class XBookmarksHelpersTest(unittest.TestCase):
             ["5", "4"],
         )
 
-        # Without a stored created_at, the old everything-again behavior remains.
-        legacy_state = {"scopes": {"all": {"last_seen_id": "removed-id"}}}
-        self.assertEqual(len(api.since_last(items, legacy_state, "all")), 3)
+        # An incomplete cutoff cannot safely exclude any current item.
+        incomplete_state = {"scopes": {"all": {"last_seen_id": "removed-id"}}}
+        self.assertEqual(len(api.since_last(items, incomplete_state, "all")), 3)
 
     def test_update_last_seen_records_created_at(self) -> None:
         api = load_module("fetch_bookmarks_api_update", SCRIPTS / "fetch_bookmarks_api.py")
@@ -86,7 +86,7 @@ class XBookmarksHelpersTest(unittest.TestCase):
         entry = state["scopes"]["all"]
         self.assertEqual(entry["last_seen_id"], "9")
         self.assertEqual(entry["last_seen_created_at"], "2026-07-02T10:00:00.000Z")
-        self.assertEqual(state["last_seen_id"], "9")
+        self.assertEqual(set(state), {"scopes"})
 
     def test_pkce_pair_shape(self) -> None:
         auth = load_module("x_api_auth", SCRIPTS / "x_api_auth.py")

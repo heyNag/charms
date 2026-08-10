@@ -51,6 +51,7 @@ CAPTION_SUFFIXES = {".vtt", ".srt"}
 REPORT_MODES = ("general", "tutorial", "ui-bug", "notes")
 DETAIL_MODES = ("transcript", "efficient", "balanced", "full")
 DEFAULT_DETAIL = "balanced"
+RUNS_DIR_ENV = "WATCH_VIDEO_RUNS_DIR"
 # English-preferred by default. Requesting every language ("all") fans out to
 # 100+ auto-translated tracks and gets the whole download rate-limited by the
 # source site; use --sub-langs for non-English videos instead.
@@ -77,6 +78,22 @@ def default_detail() -> str:
     """Session default detail level; override with WATCH_VIDEO_DETAIL."""
     value = (os.environ.get("WATCH_VIDEO_DETAIL") or "").strip().lower()
     return value if value in DETAIL_MODES else DEFAULT_DETAIL
+
+
+def default_run_root(
+    *,
+    env: dict[str, str] | None = None,
+    home: Path | None = None,
+) -> Path:
+    """Return a user-state run root that stays outside the installed plugin."""
+    environment = env if env is not None else os.environ
+    configured = (environment.get(RUNS_DIR_ENV) or "").strip()
+    if configured:
+        return Path(configured).expanduser()
+
+    state_home = (environment.get("XDG_STATE_HOME") or "").strip()
+    base = Path(state_home).expanduser() if state_home else (home or Path.home()) / ".local" / "state"
+    return base / "watch-video" / "runs"
 
 
 def safe_run_id(source: str) -> str:
@@ -903,9 +920,9 @@ def build_report(
     if frames:
         lines.extend(["## Frames", ""])
         lines.append(
-            "Read every frame path below with the Read tool - batch the reads "
-            "in parallel in one message. Frames are chronological; timestamps "
-            "are absolute source time."
+            "Inspect every frame path below before answering visual questions. "
+            "Process them in parallel when the host supports it. Frames are "
+            "chronological; timestamps are absolute source time."
         )
         lines.append("")
         for frame in frames[:40]:
@@ -930,7 +947,7 @@ def build_report(
             "",
             "## Agent Notes",
             "",
-            "- Read frames before answering visual questions; batch Read calls in parallel.",
+            "- Inspect frames before answering visual questions; parallelize when supported.",
             "- Summarize the transcript unless the user asks for the full text.",
             "- Cite timestamps when describing actions, UI state, tools, or commands.",
             "- For follow-up questions, answer from evidence already in context; do not re-run.",
@@ -949,8 +966,11 @@ def main() -> int:
     parser.add_argument("--duration", help="Duration as seconds or time string")
     parser.add_argument(
         "--out-dir",
-        default=".watch-video/runs",
-        help="Base directory for run artifacts (default: .watch-video/runs)",
+        default=str(default_run_root()),
+        help=(
+            "Base directory for run artifacts (default: $WATCH_VIDEO_RUNS_DIR, "
+            "then $XDG_STATE_HOME/watch-video/runs, then ~/.local/state/watch-video/runs)"
+        ),
     )
     parser.add_argument(
         "--detail",

@@ -1,112 +1,79 @@
 # Architecture
 
-`charms` is a public source-only workspace for agent skills, Claude Code
-plugins, optional Skillshare discovery, and helper scripts.
-
-## Repo Shape
-
-```text
-packages/             source packages and Claude Code plugin roots
-skills/               symlink index to package skill sources
-commands/             symlink index to package Claude command sources
-.claude-plugin/       Claude Code marketplace catalog
-.codex-plugin/        Codex plugin metadata
-.cursor-plugin/       Cursor plugin metadata
-.opencode/            OpenCode plugin wrapper
-.agents/plugins/      Agent Skills marketplace listing
-skillshare-hub.json   optional Skillshare hub index
-.dist/                ignored local build artifacts
-scripts/              install, build, test, and release helpers
-.github/workflows/    CI and manual skill release workflow
-docs/                 orientation and project memory
-```
-
-There is no committed `generated/` directory.
-
-## Packages
-
-Current packages:
+Charms is a monorepo containing five independent Agent Plugins. The repository
+root owns shared development, validation, documentation, and release tooling.
+It is not a plugin root.
 
 ```text
-packages/watch-video
-packages/codex-reset-credit
-packages/x-bookmarks
-packages/chatgpt-pro-review
+charms/
+├── packages/
+│   ├── chatgpt-pro-review/
+│   ├── codex-reset-credit/
+│   ├── mnemosyne-memory/
+│   ├── watch-video/
+│   └── x-bookmarks/
+├── schemas/
+│   └── agent-plugins/1.0.0/plugin.schema.json
+├── scripts/
+├── tests/
+├── docs/
+├── .github/workflows/
+├── Makefile
+└── requirements-dev.txt
 ```
 
-Each package is directly consumable as a Claude Code plugin source and contains
-a portable skill folder:
+## Product boundary
 
-```text
-packages/<name>/skills/<name>
-```
+Each `packages/<name>/` directory is a self-contained plugin root with:
 
-Package manifests live at:
+- one canonical `plugin.json`;
+- one skill at `skills/<name>/SKILL.md`;
+- every runtime script and reference needed by that skill;
+- plugin-specific documentation, license, and offline behavior tests.
 
-```text
-packages/<name>/tool.json
-packages/<name>/.claude-plugin/plugin.json
-```
+Each plugin has its own SemVer version, tag, release, archive, dependencies,
+permissions, and failure surface. Installing one plugin never requires loading
+the other four.
 
-## Distribution
+## Discovery
 
-Public install surfaces consume source paths:
+Agent Plugins uses fixed component locations. Clients load `plugin.json`
+first, then discover immediate skill directories under `skills/`. Charms does
+not use manifest fields to redirect discovery and does not expose a repository
+root skill index.
 
-```text
-Claude Code       -> packages/<name>
-Codex             -> packages/<name>/skills/<name>
-Cursor            -> skills/<name> symlink index
-OpenCode/generic  -> packages/<name>/skills/<name>
-Skillshare hub    -> packages/<name>/skills/<name>
-Claude Desktop    -> .dist/claude/custom-skills/<name> built locally
-```
+Charms currently ships skills only. There is no `mcp.json` because none of
+the five plugins bundles or connects an MCP server as a plugin component.
+`mnemosyne-memory` instructs an agent to use a Mnemosyne server already
+configured by the host; that runtime prerequisite is not a bundled server.
 
-The root `.claude-plugin/marketplace.json` is generated from package manifests
-and points to `./packages/<name>`. `skillshare-hub.json` is generated from
-`tool.json`, `.claude-plugin/plugin.json`, and skill frontmatter, and points to
-`packages/<name>/skills/<name>`.
+## Source of truth
 
-Root plugin wrappers use the symlink indexes:
+For each plugin:
 
-```text
-.claude-plugin/plugin.json       umbrella Claude plugin metadata
-.codex-plugin/plugin.json        skills: ./skills/
-.cursor-plugin/plugin.json       skills: ./skills/
-.opencode/plugins/charms.js registers ./skills/
-```
+- identity, version, description, author, repository, license, and keywords
+  come from `plugin.json`;
+- activation metadata and operating instructions come from
+  `skills/<name>/SKILL.md`;
+- runtime behavior comes from files inside that skill directory;
+- usage and prerequisites come from the package README;
+- expected behavior comes from package tests.
 
-The symlink indexes are maintained by `make build-root-indexes`, which is also
-run by `make build-packages`.
+There are no generated manifest mirrors, client-specific wrappers,
+marketplaces, command catalogs, or aggregate plugin manifests.
 
-Run:
+## Validation boundary
 
-```sh
-make build-packages
-make public-check
-```
+Repository validation is stricter than the portable minimum in deliberate
+ways:
 
-## MCP
+- every immediate child of `packages/` must be a plugin root;
+- the directory name, manifest name, and single skill name must match;
+- versions must be valid Semantic Versioning;
+- all discovered paths must remain inside their plugin root;
+- symlinks and special files are rejected from release archives;
+- client extension namespaces are allowed only in the v1 reverse-domain form;
+- local credentials and runtime artifacts must remain untracked.
 
-There is no MCP server in the repo today. If a future skill needs real MCP
-tools, add a focused `mcp/<name>` folder in that change and document how it is
-deployed and tested.
-
-Do not add an MCP gateway, router, proxy, or shared MCP control plane unless
-explicitly requested.
-
-There is also no global session-start bootstrap today. Current packages are
-task/domain tools invoked by users, native skill discovery, or agent judgment.
-
-## Source Of Truth
-
-Edit source paths:
-
-```text
-packages/<name>/
-scripts/
-docs/
-```
-
-The root `skills/` and `commands/` directories are symlink indexes maintained
-by `make build-packages`; do not edit through them. Installed copies, `.dist/`
-artifacts, local auth state, and run artifacts are not source of truth.
+The vendored schema gives deterministic validation. The official Agent Skills
+reference implementation validates every `SKILL.md`.

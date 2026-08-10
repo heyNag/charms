@@ -3,11 +3,10 @@
 Bird is the first-choice backend because it avoids paid X API credits by using
 the user's existing X browser session and X web endpoints.
 
-Sources:
+Project documentation:
 
 ```text
 https://bird.fast/
-https://github.com/steipete/bird
 ```
 
 Do not install npm `bird-cli`; that package is unrelated to the `bird.fast`

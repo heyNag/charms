@@ -1,60 +1,26 @@
-# Charms Docs
+# Charms documentation
 
-This `docs/` folder is the canonical orientation guide for future humans and AI
-agents working in `charms`. The root README is the front door; these files
-carry the project shape, constraints, and workflows.
+Use the shortest guide that matches the task:
 
-Before structural changes, read:
+| Task | Guide |
+| --- | --- |
+| Understand repository and product boundaries | [Architecture](architecture.md) |
+| Understand the exact portable package contract | [Plugin format](plugin-format.md) |
+| Install a released or checked-out plugin | [Installation](installing.md) |
+| Check client and runtime requirements | [Compatibility](compatibility.md) |
+| Change or add a plugin | [Development](development.md) |
+| Review trust, credentials, and artifact safety | [Security](security.md) |
+| Publish a plugin version | [Releasing](releasing.md) |
 
-1. `architecture.md`
-2. `package-shape.md`
-3. `agent-guidelines.md`
-4. `installing-skills.md`
-5. `distribution-targets.md`
-6. `target-tool-mapping.md`
+Behavior and operational details live with each plugin:
 
-## Task Map
+- [chatgpt-pro-review](../packages/chatgpt-pro-review/README.md)
+- [codex-reset-credit](../packages/codex-reset-credit/README.md)
+- [mnemosyne-memory](../packages/mnemosyne-memory/README.md)
+- [watch-video](../packages/watch-video/README.md)
+- [x-bookmarks](../packages/x-bookmarks/README.md)
 
-- Install a public tool: use `installing-skills.md`.
-- Understand source layout: read `architecture.md` and `package-shape.md`.
-- Understand target-specific install behavior: read `distribution-targets.md`
-  and `target-tool-mapping.md`.
-- Add a new skill package: follow `adding-a-skill.md`.
-- Update a skill: follow `updating-a-skill.md`.
-- Release a public skill version: follow `releasing-a-skill.md`.
-- Optional Skillshare hub installs: read `skillshare.md`.
-- Security, credentials, or local auth: read `security.md`.
-- Package-specific work: read `watch-video.md`, `codex-reset-credit.md`,
-  `x-bookmarks.md`, `chatgpt-pro-review.md`, or `mnemosyne-memory.md`.
-
-## Core Rule
-
-Edit source under:
-
-```text
-packages/<name>/
-```
-
-Do not create committed target-copy folders. This repo is source-only for public
-targets:
-
-- Claude Code marketplace entries point directly at `packages/<name>`.
-- The Agent Skills CLI (`npx skills add heyNag/charms`) copies
-  `packages/<name>/skills/<name>` into detected hosts.
-- Codex and OpenCode can copy `packages/<name>/skills/<name>`.
-- Cursor, root Codex plugin metadata, and the OpenCode plugin wrapper use the
-  root `skills/` symlink index.
-- Claude Desktop custom-skill ZIPs ship on skill releases and build locally
-  under `.dist/`.
-- Skillshare hub entries point at `packages/<name>/skills/<name>`.
-
-After source changes:
-
-```sh
-make build-packages
-make public-check
-```
-
-`make build-packages` refreshes the committed indexes and ignored local
-artifacts. `make public-check` verifies the source package shape and install
-dry-runs.
+The normative external references are the
+[Agent Plugins v1 specification](https://agent-plugins.org/specification), its
+[plugin manifest schema](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json),
+and the [Agent Skills specification](https://agentskills.io/specification).

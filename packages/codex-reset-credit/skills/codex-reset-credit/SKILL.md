@@ -1,14 +1,8 @@
 ---
 name: codex-reset-credit
 description: Use when the user explicitly asks about Codex reset credits, credit expiry, quota usage, local rate-limit windows, or when Codex limits reset.
-argument-hint: "[--json] [--no-live] [--thread-id THREAD]"
-tags: codex, quota, credits, local, safe
-allowed-tools: Bash, Read
-homepage: https://github.com/heyNag/charms
-repository: https://github.com/heyNag/charms
-author: Nagarjuna Boddu
 license: MIT
-user-invocable: true
+compatibility: Requires Python 3.11+, local Codex authentication and session data, and network access for live reset-credit checks; local-only rate-limit checks can run without network access.
 ---
 
 # codex-reset-credit
@@ -50,8 +44,8 @@ Useful options:
 ```sh
 python3 scripts/check_reset_credits.py --json
 python3 scripts/check_reset_credits.py --no-live
-python3 scripts/check_reset_credits.py --thread-id <thread-id>
-python3 scripts/check_reset_credits.py --session-file <absolute-path-to-rollout.jsonl>
+python3 scripts/check_reset_credits.py --thread-id THREAD_ID
+python3 scripts/check_reset_credits.py --session-file /absolute/path/to/rollout.jsonl
 python3 scripts/check_reset_credits.py --timezone America/Los_Angeles
 ```
 
@@ -80,8 +74,3 @@ Keep the answer short. Do not paste full JSON unless requested.
 - Missing session snapshots: say no local Codex rate-limit snapshots were found.
 - In all cases, do not reveal tokens, account IDs, auth file contents, or raw
   local auth paths.
-
-## Source Note
-
-Keep edits in this repo under `packages/codex-reset-credit`, then run
-`make build-packages` and `make public-check`.

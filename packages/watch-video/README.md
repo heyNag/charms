@@ -15,27 +15,24 @@ changes by default, keyframe-only for fast skims, uniform sampling as the
 static-footage fallback, with exact timestamps and a dedup pass that stops
 held slides from burning the frame budget.
 
-The package root is a Claude Code plugin source. The portable skill source is:
+This directory is an [Agent Plugins v1](https://agent-plugins.org/specification)
+plugin root. A compatible client loads `plugin.json` here and discovers the
+skill from the standard fixed location:
 
 ```text
-packages/watch-video/skills/watch-video
+skills/watch-video
 ```
 
-Codex, Cursor, OpenCode, generic Agent Skills, and optional Skillshare installs
-all use that same skill folder directly or through the root `skills/` symlink
-index. Claude Desktop custom-skill ZIP contents are built locally under
-`.dist/claude/custom-skills/watch-video`.
-
-Install commands for each target live in
-[docs/installing-skills.md](../../docs/installing-skills.md).
+The plugin is independently versioned. Installation and update behavior is
+defined by the client loading this package.
 
 ## Requirements
 
 Supported operating systems: macOS and Linux.
 
 ```sh
-brew install yt-dlp ffmpeg jq   # or: python3 .../scripts/doctor.py --install
-python3 packages/watch-video/skills/watch-video/scripts/doctor.py
+brew install yt-dlp ffmpeg   # or: python3 skills/watch-video/scripts/doctor.py --install
+python3 skills/watch-video/scripts/doctor.py
 ```
 
 Groq is the default transcription fallback when captions are missing or
@@ -50,7 +47,7 @@ Or store the key once (written to `~/.config/watch-video/.env`, mode 600;
 environment variables take precedence):
 
 ```sh
-python3 packages/watch-video/skills/watch-video/scripts/doctor.py --set-key groq
+python3 skills/watch-video/scripts/doctor.py --set-key groq
 ```
 
 OpenAI transcription is optional with `--transcriber openai` and
@@ -59,10 +56,10 @@ timestamps.
 
 ## Quickstart
 
-From the repo root:
+From the plugin root:
 
 ```sh
-python3 packages/watch-video/skills/watch-video/scripts/watch.py \
+python3 skills/watch-video/scripts/watch.py \
   "https://www.youtube.com/watch?v=DTCyvo6cC54" \
   --duration 30 \
   --transcriber none \
@@ -73,7 +70,7 @@ python3 packages/watch-video/skills/watch-video/scripts/watch.py \
 From the skill folder:
 
 ```sh
-cd packages/watch-video/skills/watch-video
+cd skills/watch-video
 python3 scripts/watch.py "https://www.youtube.com/watch?v=DTCyvo6cC54" --duration 30 --transcriber none
 ```
 
@@ -103,29 +100,33 @@ Common options:
 - `--frame-format jpeg|png|webp`
 - `--no-dedup`; `--frame-mode interval` with `--frame-interval`, or `--fps`
   (uniform-sampling overrides)
-- `--start/--end/--duration` for focused ranges, `--out-dir` for artifacts
+- `--start/--end/--duration` for focused ranges
+- `--out-dir` for a custom artifact directory; `WATCH_VIDEO_RUNS_DIR` or
+  `XDG_STATE_HOME` can set the default base
 - `--cleanup` and `--cleanup-frames`
 
 Whisper fallback audio larger than the 24 MB upload cap is chunked, stitched
 back into source time, and tolerates partial chunk failures. Local videos pick
 up sidecar subtitle files automatically (`video.en.vtt` next to `video.mp4`).
 
-Outputs are written under `.watch-video/runs/<run-id>/` by default.
+Outputs are written outside the plugin under `$WATCH_VIDEO_RUNS_DIR` when set,
+otherwise under `$XDG_STATE_HOME/watch-video/runs` or
+`~/.local/state/watch-video/runs`.
 
-## Package Files
+## Portable package files
 
 ```text
-.claude-plugin/plugin.json       Claude Code plugin metadata
+plugin.json                      Agent Plugins v1 manifest
+LICENSE                          MIT license terms
+README.md                        requirements and usage guidance
 skills/watch-video/SKILL.md      skill instructions
 skills/watch-video/scripts/      local helper CLIs
-commands/                        Claude Code slash command prompts
-tests/                           offline helper tests
-tool.json                        package manifest
 ```
 
-After editing source:
+## Development
+
+In a Charms source checkout, run the package tests from the repository root:
 
 ```sh
-make build-packages
-make public-check
+python3 -m unittest discover -s packages/watch-video/tests -p 'test_*.py'
 ```

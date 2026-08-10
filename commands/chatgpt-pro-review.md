@@ -1,1 +1,0 @@
-../packages/chatgpt-pro-review/commands/chatgpt-pro-review.md

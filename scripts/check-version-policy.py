@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject package version bumps outside the Release Skill workflow."""
+"""Reject Agent Plugin version changes outside the Release Plugin workflow."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ import sys
 
 
 ZERO_SHA = "0" * 40
-PLUGIN_SUFFIX = "/.claude-plugin/plugin.json"
 POLICY_PATH = "scripts/check-version-policy.py"
 RELEASE_ACTOR = "github-actions[bot]"
 
@@ -56,10 +55,15 @@ def path_exists_at(root: pathlib.Path, rev: str, path: str) -> bool:
     return run_git(root, ["cat-file", "-e", f"{rev}:{path}"], check=False).returncode == 0
 
 
+def is_package_manifest(path: str) -> bool:
+    parts = pathlib.PurePosixPath(path).parts
+    return len(parts) == 3 and parts[0] == "packages" and parts[2] == "plugin.json"
+
+
 def plugin_version_changes(root: pathlib.Path, base: str, head: str) -> list[str]:
     changes: list[str] = []
     for path in changed_files(root, base, head):
-        if not path.startswith("packages/") or not path.endswith(PLUGIN_SUFFIX):
+        if not is_package_manifest(path):
             continue
         before = json_at(root, base, path)
         after = json_at(root, head, path)
@@ -97,10 +101,18 @@ def main(argv: list[str] | None = None) -> int:
         print("version policy passed: release bot changed package versions")
         return 0
 
-    print("error: package plugin versions may only change through the GitHub Actions Release Skill workflow", file=sys.stderr)
+    print(
+        "error: Agent Plugin versions may only change through the GitHub Actions "
+        "Release Plugin workflow",
+        file=sys.stderr,
+    )
     for change in changes:
         print(f"error: {change}", file=sys.stderr)
-    print("fix: revert the version edits and run the manual Release Skill workflow from GitHub Actions", file=sys.stderr)
+    print(
+        "fix: revert the version edits and run the manual Release Plugin workflow "
+        "from GitHub Actions",
+        file=sys.stderr,
+    )
     return 1
 
 

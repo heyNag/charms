@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "codex-reset-credit",
+  "version": "1.0.0",
+  "description": "Check Codex reset credits and local rate-limit reset windows without exposing authentication secrets.",
+  "author": {
+    "name": "Nagarjuna Boddu",
+    "url": "https://github.com/heyNag"
+  },
+  "homepage": "https://github.com/heyNag/charms/tree/main/packages/codex-reset-credit",
+  "repository": "https://github.com/heyNag/charms",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "quota",
+    "credits",
+    "local",
+    "safe"
+  ]
+}

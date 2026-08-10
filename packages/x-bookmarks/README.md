@@ -7,19 +7,16 @@ actions.
 The skill format is portable; live fetching needs either the `bird` CLI with
 browser cookie access or local X API v2 OAuth state.
 
-The package root is a Claude Code plugin source. The portable skill source is:
+This directory is an [Agent Plugins v1](https://agent-plugins.org/specification)
+plugin root. A compatible client loads `plugin.json` here and discovers the
+skill from the standard fixed location:
 
 ```text
-packages/x-bookmarks/skills/x-bookmarks
+skills/x-bookmarks
 ```
 
-Codex, Cursor, OpenCode, generic Agent Skills, and optional Skillshare installs
-all use that same skill folder directly or through the root `skills/` symlink
-index. Claude Desktop custom-skill ZIP contents are built locally under
-`.dist/claude/custom-skills/x-bookmarks`.
-
-Install commands for each target live in
-[docs/installing-skills.md](../../docs/installing-skills.md).
+The plugin is independently versioned. Installation and update behavior is
+defined by the client loading this package.
 
 ## Requirements
 
@@ -33,7 +30,7 @@ bird check --plain
 Optional official API backend:
 
 ```sh
-python3 packages/x-bookmarks/skills/x-bookmarks/scripts/x_api_auth.py --status
+python3 skills/x-bookmarks/scripts/x_api_auth.py --status
 ```
 
 Local-only state lives outside this repo:
@@ -47,32 +44,20 @@ Local-only state lives outside this repo:
 
 Do not commit credentials, tokens, bookmark exports, or search indexes.
 
-## Agent UI Metadata
-
-`skills/x-bookmarks/agents/openai.yaml` gives agent UIs a human-readable
-display label while the internal package name stays crisp:
-
-```yaml
-interface:
-  display_name: "X/Twitter Bookmarks"
-  short_description: "Fetch, search, and digest saved posts"
-  default_prompt: "Use $x-bookmarks to fetch my latest X/Twitter bookmarks and summarize concrete next actions."
-```
-
 ## Quickstart
 
-From the repo root:
+From the plugin root:
 
 ```sh
-python3 packages/x-bookmarks/skills/x-bookmarks/scripts/x_api_auth.py --status
-packages/x-bookmarks/skills/x-bookmarks/scripts/fetch_bookmarks_bird.sh --count 25
-python3 packages/x-bookmarks/skills/x-bookmarks/scripts/fetch_bookmarks_api.py --count 25 --pretty
+python3 skills/x-bookmarks/scripts/x_api_auth.py --status
+skills/x-bookmarks/scripts/fetch_bookmarks_bird.sh --count 25
+python3 skills/x-bookmarks/scripts/fetch_bookmarks_api.py --count 25 --pretty
 ```
 
 From the skill folder:
 
 ```sh
-cd packages/x-bookmarks/skills/x-bookmarks
+cd skills/x-bookmarks
 python3 scripts/x_api_auth.py --status
 scripts/fetch_bookmarks_bird.sh --count 25
 python3 scripts/fetch_bookmarks_api.py --count 25 --pretty
@@ -88,22 +73,21 @@ python3 scripts/fetch_bookmarks_api.py --count 100 --since-last --update-state -
 python3 scripts/fetch_bookmarks_api.py --folders --pretty
 ```
 
-## Package Files
+## Portable package files
 
 ```text
-.claude-plugin/plugin.json       Claude Code plugin metadata
+plugin.json                      Agent Plugins v1 manifest
+LICENSE                          MIT license terms
+README.md                        requirements and usage guidance
 skills/x-bookmarks/SKILL.md      skill instructions
-skills/x-bookmarks/agents/       display metadata for agent UIs
 skills/x-bookmarks/references/   backend and API notes
 skills/x-bookmarks/scripts/      local helper CLIs
-commands/x-bookmarks.md          Claude Code slash command prompt
-tests/                           offline helper tests
-tool.json                        package manifest
 ```
 
-After editing source:
+## Development
+
+In a Charms source checkout, run the package tests from the repository root:
 
 ```sh
-make build-packages
-make public-check
+python3 -m unittest discover -s packages/x-bookmarks/tests -p 'test_*.py'
 ```

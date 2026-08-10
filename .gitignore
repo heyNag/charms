@@ -63,5 +63,5 @@ yarn-debug.log*
 yarn-error.log*
 *.egg-info/
 
-# Local Claude custom-skill archives can be rebuilt into .dist/.
+# Local release archives are reproducible build outputs.
 *.zip

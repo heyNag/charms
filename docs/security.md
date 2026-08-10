@@ -1,59 +1,77 @@
 # Security
 
-Secret-handling rules:
+Agent Plugins package instructions and executable helpers. Installing a plugin
+does not make its code safe, sandbox it, or grant it permission to access local
+data. Inspect the selected plugin and use the host's normal approval model.
 
-- Never commit real API keys.
-- Use environment variables or gitignored `.env.local`.
-- `.env.local` must remain ignored and untracked.
-- `watch-video` may store Whisper keys in `~/.config/watch-video/.env`
-  (mode 600, outside the repo), written only by `doctor.py --set-key` from
-  stdin; environment variables take precedence and stored keys are never
-  printed.
-- Do not echo full keys.
-- CI must not require secrets.
-- Live Groq verification may source `.env.local` only inside a subshell.
-- Generated run artifacts under `.watch-video/` stay ignored.
-- X/Twitter tokens, cookies, bookmark exports, and search indexes stay outside
-  the repo.
-- Local `.dist/` artifacts and ZIPs stay ignored.
-- Secret scanners and verification scripts should report only file paths for
-  suspected secrets, not matching secret text.
-- ChatGPT review packets and responses can contain private context. Do not
-  commit them unless they are intentional sanitized public fixtures.
+## Package trust
 
-Safe key shape check:
+Each Charms plugin is an independent trust boundary. Install only the plugin
+you need. Verify release checksums before extraction and inspect
+`plugin.json`, `SKILL.md`, and bundled scripts before execution.
 
-```sh
-test -n "${GROQ_API_KEY:-}"
-case "${GROQ_API_KEY:-}" in gsk_*) echo "Groq key shape ok";; *) echo "Groq key shape unexpected";; esac
-python3 - <<'PY'
-import os
-key = os.environ.get("GROQ_API_KEY", "")
-print({"exists": bool(key), "starts_with_gsk": key.startswith("gsk_"), "length": len(key)})
-PY
-```
+Charms validation enforces:
 
-Unsafe examples:
+- fixed Agent Plugins v1 component locations;
+- filesystem containment inside each plugin root;
+- strict Agent Skills frontmatter;
+- no package symlinks in release artifacts;
+- an allowlisted deterministic archive;
+- scans for tracked secrets and runtime artifacts.
 
-```sh
-echo "$GROQ_API_KEY"
-cat .env.local
-git add .env.local
-```
+## Credentials
 
-Do not commit:
+Never commit or paste into issue logs:
 
-```text
-.env.local
-.watch-video/
-.x-bookmarks/
-.dist/
-*.zip
-media files
-transcripts
-frames
-Codex auth/session files
-X/Twitter cookies or OAuth tokens
-node_modules/
-.venv/
-```
+- API keys or OAuth client secrets;
+- browser cookies or session tokens;
+- Codex authentication or rollout records;
+- X bookmark exports or OAuth state;
+- Mnemosyne databases or private memory exports;
+- private media, transcripts, frames, or reports.
+
+Skills must read credentials from the runtime environment or documented
+user-local configuration and redact them from output. A plugin must not place
+secrets in `plugin.json`, `SKILL.md`, release archives, or committed test
+fixtures.
+
+## Plugin-specific boundaries
+
+### chatgpt-pro-review
+
+Sending repository context to ChatGPT is an external disclosure. The skill
+requires authorization for the specific private context, excludes unrelated
+files and secrets, and reconciles the response against local evidence.
+
+### codex-reset-credit
+
+The helper is read-only. It sanitizes live and local results and must not print
+tokens, account identifiers, raw authentication files, or unredacted session
+records.
+
+### mnemosyne-memory
+
+The package does not bundle a server or memory database. The host's configured
+Mnemosyne profile owns data isolation. The skill excludes credentials, raw
+transcripts, noisy output, broad maintenance, and destructive memory
+operations from automatic use.
+
+### watch-video
+
+Media and derived artifacts remain local unless the user selects hosted
+transcription. Groq or OpenAI transcription sends audio to that provider.
+Generated media, transcripts, and frames must not enter source control or
+release archives.
+
+### x-bookmarks
+
+Browser cookies and OAuth tokens stay in user-local state. The skill requests
+read-only scopes by default and adds write scope only for an explicit bookmark
+mutation.
+
+## Reporting
+
+Report security issues privately through the repository owner's GitHub contact
+before public disclosure. Include the affected plugin, version, impact,
+reproduction steps, and any proposed fix without including live credentials or
+private data.

@@ -1,14 +1,8 @@
 ---
 name: x-bookmarks
 description: Use when the user asks to fetch, search, review, summarize, digest, or act on X/Twitter bookmarks, saved posts, bookmark folders, no-credit bookmark access, or recurring bookmark reviews.
-argument-hint: "[digest|search QUERY|folders|since-last] [--count N]"
-tags: x, twitter, bookmarks, bird, local
-allowed-tools: Bash, Read
-homepage: https://github.com/heyNag/charms
-repository: https://github.com/heyNag/charms
-author: Nagarjuna Boddu
 license: MIT
-user-invocable: true
+compatibility: Requires Python 3.11+ and either the Bird CLI with browser-cookie access or X API v2 OAuth credentials; live bookmark retrieval requires network access.
 ---
 
 # x-bookmarks

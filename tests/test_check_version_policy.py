@@ -33,44 +33,51 @@ class CheckVersionPolicyTests(unittest.TestCase):
         self.git(root, "config", "commit.gpgsign", "false")
 
     def write_plugin(self, root, version):
-        path = root / "packages" / "demo-skill" / ".claude-plugin" / "plugin.json"
+        path = root / "packages" / "demo-plugin" / "plugin.json"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"name": "demo-skill", "version": version}) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps({"name": "demo-plugin", "version": version}) + "\n",
+            encoding="utf-8",
+        )
+
+    def activate_policy(self, root):
+        policy = root / "scripts" / "check-version-policy.py"
+        policy.parent.mkdir(parents=True, exist_ok=True)
+        policy.write_text("policy placeholder\n", encoding="utf-8")
+
+    def commit(self, root, message):
+        self.git(root, "add", ".")
+        self.git(root, "commit", "-m", message)
+        return self.git(root, "rev-parse", "HEAD").stdout.strip()
+
+    def test_identifies_only_package_root_manifests(self):
+        self.assertTrue(self.module.is_package_manifest("packages/demo-plugin/plugin.json"))
+        self.assertFalse(self.module.is_package_manifest("packages/demo-plugin/metadata/plugin.json"))
+        self.assertFalse(self.module.is_package_manifest("plugin.json"))
+        self.assertFalse(self.module.is_package_manifest("packages/demo-plugin/skills/x/plugin.json"))
 
     def test_detects_existing_plugin_version_change(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.init_repo(root)
-            self.write_plugin(root, "2026.6.21")
-            self.git(root, "add", ".")
-            self.git(root, "commit", "-m", "initial")
-            base = self.git(root, "rev-parse", "HEAD").stdout.strip()
-
-            self.write_plugin(root, "2026.6.21.1")
-            self.git(root, "add", ".")
-            self.git(root, "commit", "-m", "manual bump")
-            head = self.git(root, "rev-parse", "HEAD").stdout.strip()
+            self.write_plugin(root, "1.0.0")
+            base = self.commit(root, "initial")
+            self.write_plugin(root, "1.0.1")
+            head = self.commit(root, "manual bump")
 
             changes = self.module.plugin_version_changes(root, base, head)
 
-        self.assertEqual(changes, ["packages/demo-skill/.claude-plugin/plugin.json: 2026.6.21 -> 2026.6.21.1"])
+        self.assertEqual(changes, ["packages/demo-plugin/plugin.json: 1.0.0 -> 1.0.1"])
 
     def test_main_rejects_human_version_change_when_policy_is_active(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.init_repo(root)
-            self.write_plugin(root, "2026.6.21")
-            policy = root / "scripts" / "check-version-policy.py"
-            policy.parent.mkdir(parents=True, exist_ok=True)
-            policy.write_text("policy placeholder\n", encoding="utf-8")
-            self.git(root, "add", ".")
-            self.git(root, "commit", "-m", "initial")
-            base = self.git(root, "rev-parse", "HEAD").stdout.strip()
-
-            self.write_plugin(root, "2026.6.21.1")
-            self.git(root, "add", ".")
-            self.git(root, "commit", "-m", "manual bump")
-            head = self.git(root, "rev-parse", "HEAD").stdout.strip()
+            self.write_plugin(root, "1.0.0")
+            self.activate_policy(root)
+            base = self.commit(root, "initial")
+            self.write_plugin(root, "1.0.1")
+            head = self.commit(root, "manual bump")
 
             with mock.patch("sys.stderr"):
                 code = self.module.main(
@@ -83,18 +90,11 @@ class CheckVersionPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.init_repo(root)
-            self.write_plugin(root, "2026.6.21")
-            policy = root / "scripts" / "check-version-policy.py"
-            policy.parent.mkdir(parents=True, exist_ok=True)
-            policy.write_text("policy placeholder\n", encoding="utf-8")
-            self.git(root, "add", ".")
-            self.git(root, "commit", "-m", "initial")
-            base = self.git(root, "rev-parse", "HEAD").stdout.strip()
-
-            self.write_plugin(root, "2026.6.21.1")
-            self.git(root, "add", ".")
-            self.git(root, "commit", "-m", "release")
-            head = self.git(root, "rev-parse", "HEAD").stdout.strip()
+            self.write_plugin(root, "1.0.0")
+            self.activate_policy(root)
+            base = self.commit(root, "initial")
+            self.write_plugin(root, "1.1.0")
+            head = self.commit(root, "release")
 
             with mock.patch("sys.stdout"):
                 code = self.module.main(
@@ -117,14 +117,24 @@ class CheckVersionPolicyTests(unittest.TestCase):
             root = pathlib.Path(tmp)
             self.init_repo(root)
             (root / "README.md").write_text("demo\n", encoding="utf-8")
-            self.git(root, "add", ".")
-            self.git(root, "commit", "-m", "initial")
-            base = self.git(root, "rev-parse", "HEAD").stdout.strip()
+            base = self.commit(root, "initial")
+            self.write_plugin(root, "1.0.0")
+            head = self.commit(root, "add plugin")
 
-            self.write_plugin(root, "0.1.0")
-            self.git(root, "add", ".")
-            self.git(root, "commit", "-m", "add skill")
-            head = self.git(root, "rev-parse", "HEAD").stdout.strip()
+            changes = self.module.plugin_version_changes(root, base, head)
+
+        self.assertEqual(changes, [])
+
+    def test_noncanonical_manifest_change_is_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self.init_repo(root)
+            path = root / "packages/demo-plugin/metadata/plugin.json"
+            path.parent.mkdir(parents=True)
+            path.write_text('{"version":"1.0.0"}\n', encoding="utf-8")
+            base = self.commit(root, "initial")
+            path.write_text('{"version":"2.0.0"}\n', encoding="utf-8")
+            head = self.commit(root, "change unrelated json")
 
             changes = self.module.plugin_version_changes(root, base, head)
 
@@ -134,18 +144,11 @@ class CheckVersionPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.init_repo(root)
-            self.write_plugin(root, "2026.6.21.1")
-            self.git(root, "add", ".")
-            self.git(root, "commit", "-m", "initial")
-            base = self.git(root, "rev-parse", "HEAD").stdout.strip()
-
-            self.write_plugin(root, "2026.6.21")
-            policy = root / "scripts" / "check-version-policy.py"
-            policy.parent.mkdir(parents=True, exist_ok=True)
-            policy.write_text("policy placeholder\n", encoding="utf-8")
-            self.git(root, "add", ".")
-            self.git(root, "commit", "-m", "add policy")
-            head = self.git(root, "rev-parse", "HEAD").stdout.strip()
+            self.write_plugin(root, "1.0.0")
+            base = self.commit(root, "initial")
+            self.write_plugin(root, "2.0.0")
+            self.activate_policy(root)
+            head = self.commit(root, "add policy")
 
             with mock.patch("sys.stdout"):
                 code = self.module.main(

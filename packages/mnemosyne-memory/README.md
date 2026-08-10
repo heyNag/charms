@@ -19,30 +19,19 @@ server.
 See the [Mnemosyne repository](https://github.com/mnemosyne-oss/mnemosyne) for
 server installation and configuration.
 
-## Install with Skillshare
+## Agent Plugin
 
-```sh
-skillshare install heyNag/charms/packages/mnemosyne-memory/skills/mnemosyne-memory
-skillshare sync
-```
-
-This creates a metadata-backed GitHub subdirectory install. Update it later
-without keeping a checkout of the broader Charms repository:
-
-```sh
-skillshare check mnemosyne-memory
-skillshare update mnemosyne-memory
-skillshare sync
-```
-
-The portable skill source is:
+This directory is an [Agent Plugins v1](https://agent-plugins.org/specification)
+plugin root. A compatible client loads `plugin.json` here and discovers the
+skill from the standard fixed location:
 
 ```text
-packages/mnemosyne-memory/skills/mnemosyne-memory
+skills/mnemosyne-memory
 ```
 
-Other target-specific install options are documented in
-[docs/installing-skills.md](../../docs/installing-skills.md).
+The plugin is independently versioned. Installation and update behavior is
+defined by the client loading this package. Its absence of `mcp.json` is
+intentional: the skill uses an MCP server already configured by the host.
 
 ## Automatic use
 
@@ -65,19 +54,19 @@ cleanup, deletion, persona changes, cross-bank transfer, or broad maintenance.
 It excludes secrets, authentication material, raw transcripts, logs, command
 output, and sensitive content whose persistence is not clearly authorized.
 
-## Package files
+## Portable package files
 
 ```text
-.claude-plugin/plugin.json                    Claude Code plugin metadata
+plugin.json                                   Agent Plugins v1 manifest
+LICENSE                                       MIT license terms
+README.md                                     usage and safety guidance
 skills/mnemosyne-memory/SKILL.md              portable skill instructions
-skills/mnemosyne-memory/agents/openai.yaml    agent UI and MCP dependency metadata
-tests/                                        offline package tests
-tool.json                                     public package manifest
 ```
 
-After editing source:
+## Development
+
+In a Charms source checkout, run the package tests from the repository root:
 
 ```sh
-make build-packages
-make public-check
+python3 -m unittest discover -s packages/mnemosyne-memory/tests -p 'test_*.py'
 ```
