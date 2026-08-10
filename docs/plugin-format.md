@@ -11,7 +11,7 @@ Agent Skill with the same name.
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "example-plugin",
-  "version": "2026.8.10.1",
+  "version": "2026.8.10",
   "description": "Short purpose statement.",
   "author": {
     "name": "Nagarjuna Boddu",

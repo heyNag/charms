@@ -18,7 +18,7 @@ Verify and extract the archive:
 
 ```sh
 PLUGIN=watch-video
-VERSION=2026.8.10.1
+VERSION=2026.8.10
 CHECKSUM="${PLUGIN}-agent-plugin-v${VERSION}.zip.sha256"
 if command -v sha256sum >/dev/null 2>&1; then
   sha256sum --check "$CHECKSUM"
