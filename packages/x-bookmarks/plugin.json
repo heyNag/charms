@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "x-bookmarks",
-  "version": "2026.8.10",
+  "version": "2026.8.10.1",
   "description": "Fetch, search, and digest X/Twitter bookmarks using Bird or the optional X API v2 backend.",
   "author": {
     "name": "Nagarjuna Boddu",
