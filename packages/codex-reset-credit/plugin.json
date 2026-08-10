@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "codex-reset-credit",
-  "version": "2026.8.10.1",
+  "version": "2026.8.10",
   "description": "Check Codex reset credits and local rate-limit reset windows without exposing authentication secrets.",
   "author": {
     "name": "Nagarjuna Boddu",
