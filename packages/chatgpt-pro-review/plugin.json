@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "chatgpt-pro-review",
-  "version": "2026.8.10",
+  "version": "2026.8.10.1",
   "description": "Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repository evidence.",
   "author": {
     "name": "Nagarjuna Boddu",
