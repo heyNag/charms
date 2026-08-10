@@ -1,6 +1,6 @@
 ---
 name: mnemosyne-memory
-description: Use when Mnemosyne MCP memory is available and a task needs cross-session continuity, project handoffs, recall of prior decisions or preferences, durable memory capture, correction of stale memories, or an applicable AGENTS.md requires the Mnemosyne lifecycle; do not use for ordinary in-session notes or unrelated memory and database questions.
+description: Use when Mnemosyne MCP memory is available and a task needs cross-session continuity, project handoffs, recall of prior decisions or preferences, durable memory capture, correction of stale memories, or applicable host or repository instructions require the Mnemosyne lifecycle; do not use for ordinary in-session notes or unrelated memory and database questions.
 license: MIT
 compatibility: Requires a host-configured Mnemosyne MCP server that exposes mnemosyne_* tools; this skill does not install, start, or configure the server.
 ---
@@ -14,11 +14,11 @@ truth.
 
 ## Governing contract
 
-1. Follow the applicable `AGENTS.md`, repository instructions, and user request
-   first. They govern whether memory is automatic, what is sensitive, and which
-   profile or bank is active.
-2. Let the configured MCP launcher choose the bank. Never guess or hardcode a
-   bank, home-directory path, database path, or profile.
+1. Follow applicable host, repository, and user instructions first. They govern
+   whether memory is automatic, what is sensitive, and which profile or bank is
+   active.
+2. Let the host-configured Mnemosyne connection choose the bank. Never guess or
+   hardcode a bank, home-directory path, database path, or profile.
 3. Use available `mnemosyne_*` tools by capability. Optional tools can vary by
    Mnemosyne version; degrade gracefully when one is absent.
 4. Keep repository files, tracked documentation, and verified live state

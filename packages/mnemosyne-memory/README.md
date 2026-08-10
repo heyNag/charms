@@ -22,8 +22,8 @@ server installation and configuration.
 ## Agent Plugin
 
 This directory is an [Agent Plugins v1](https://agent-plugins.org/specification)
-plugin root. A compatible client loads `plugin.json` here and discovers the
-skill from the standard fixed location:
+plugin root. A compatible client with Agent Skills support loads `plugin.json`
+here and discovers the skill from the standard fixed location:
 
 ```text
 skills/mnemosyne-memory
@@ -35,14 +35,14 @@ intentional: the skill uses an MCP server already configured by the host.
 
 ## Automatic use
 
-The skill can be invoked explicitly or matched implicitly. For reliable
-automatic continuity, add a short rule to the applicable `AGENTS.md` or host
-instructions requiring `mnemosyne-memory` for substantive tasks. Keep
-profile-specific bank selection, privacy rules, and retention policy in those
-governing instructions rather than in this public skill.
+Depending on the host, the skill may be invoked explicitly or selected
+implicitly. For reliable automatic continuity, add a short rule to the host's
+applicable governing instructions requiring `mnemosyne-memory` for substantive
+tasks. Keep profile-specific bank selection, privacy rules, and retention policy
+in those governing instructions rather than in this public skill.
 
-The skill never hardcodes profile names or local paths. The configured MCP
-launcher owns bank isolation.
+The skill never hardcodes profile names or local paths. The host-configured
+Mnemosyne connection owns bank isolation.
 
 ## Safety model
 

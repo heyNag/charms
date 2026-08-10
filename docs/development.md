@@ -47,9 +47,9 @@ make check
 
 ## Add a plugin
 
-Create one new immediate child of `packages/`. The package name must use
-lowercase letters, digits, and hyphens and must satisfy both the Agent Plugins
-and Agent Skills name rules.
+Create one new immediate child directory of `packages/`. The package name must
+use lowercase letters, digits, and hyphens and must satisfy both the Agent
+Plugins and Agent Skills name rules.
 
 Required files:
 
@@ -61,14 +61,14 @@ packages/<name>/skills/<name>/SKILL.md
 packages/<name>/tests/test_basic.py
 ```
 
-Start the manifest at the version that will be published and keep its
+Set the manifest to the intended publication version and keep its
 `$schema` fixed to the supported v1 identifier. The skill description must
 state its activation conditions. Add `compatibility` only for real runtime
 requirements.
 
-Add scripts or references inside the skill directory. Do not add a client
-adapter, aggregate index, command wrapper, placeholder `mcp.json`, or a
-second metadata source.
+Keep scripts and references inside the skill directory, plugin metadata in
+`plugin.json`, and skill metadata in `SKILL.md`. The current Charms package
+contract is skill-only and does not accept `mcp.json`.
 
 Update the root README, `packages/README.md`, and compatibility table so the
 repository presents a complete current inventory.

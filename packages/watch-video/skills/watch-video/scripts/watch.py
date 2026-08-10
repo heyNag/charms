@@ -950,7 +950,8 @@ def build_report(
             "- Inspect frames before answering visual questions; parallelize when supported.",
             "- Summarize the transcript unless the user asks for the full text.",
             "- Cite timestamps when describing actions, UI state, tools, or commands.",
-            "- For follow-up questions, answer from evidence already in context; do not re-run.",
+            "- For follow-up questions, reuse evidence already in context; run a focused "
+            "second pass only when new visual evidence is needed.",
             "- Delete this run directory when finished (media is large); keep it only if a "
             "--from-run second pass is likely.",
         ]
@@ -977,9 +978,10 @@ def main() -> int:
         choices=DETAIL_MODES,
         default=default_detail(),
         help=(
-            "Fidelity dial: transcript (no frames, skips media download when captions "
-            "exist), efficient (fast keyframes, cap 50), balanced (scene-aware, cap 80), "
-            "full (scene-aware, cap 300). Default: balanced or $WATCH_VIDEO_DETAIL."
+            "Fidelity dial: transcript (no sampled frames; skips media when usable captions "
+            "exist and no cue timestamps are pinned), efficient (keyframe-first with uniform "
+            "fallback, cap 50), balanced (scene-aware, cap 80), full (scene-aware, cap 300). "
+            "Default: balanced or $WATCH_VIDEO_DETAIL."
         ),
     )
     parser.add_argument(
@@ -1022,7 +1024,7 @@ def main() -> int:
     parser.add_argument(
         "--no-dedup",
         action="store_true",
-        help="Keep near-duplicate frames instead of collapsing them",
+        help="Keep near-duplicate sampled frames instead of collapsing them",
     )
     parser.add_argument(
         "--frame-mode",

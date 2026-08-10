@@ -38,7 +38,7 @@ class MnemosyneMemoryPackageTests(unittest.TestCase):
         self.assertIn("Never automatically run:", text)
         self.assertIn("consolidation or `sleep`", text)
         self.assertIn("Never hard-delete or `forget`", text)
-        self.assertIn("Let the configured MCP launcher choose the bank", text)
+        self.assertIn("Let the host-configured Mnemosyne connection choose the bank", text)
 
     def test_skill_is_public_and_profile_agnostic(self) -> None:
         text = SKILL.read_text(encoding="utf-8")

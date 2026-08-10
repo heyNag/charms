@@ -16,7 +16,7 @@ agent-plugin/<name>/v<version>
 For example:
 
 ```text
-agent-plugin/watch-video/v2026.8.10
+agent-plugin/watch-video/v2026.8.10.1
 ```
 
 The `Release Plugin` workflow accepts one plugin and one version mode:

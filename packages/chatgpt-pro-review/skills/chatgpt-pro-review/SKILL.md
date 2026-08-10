@@ -1,15 +1,14 @@
 ---
 name: chatgpt-pro-review
-description: Use when the user asks for ChatGPT Pro review, Extended Pro review, external second-pass review, plan hardening, implementation review, PR review, code-review comment resolution, or review of another agent's work.
+description: Use when the user asks for ChatGPT Pro review, external second-pass review, plan hardening, implementation review, PR review, code-review comment resolution, or review of another agent's work.
 license: MIT
-compatibility: Requires access to ChatGPT Pro or Extended Pro through an approved browser or user-mediated transport; local file, Git, and test access improve evidence reconciliation.
+compatibility: Requires access to ChatGPT Pro through an approved browser or user-mediated transport; local file, Git, and test access improve evidence reconciliation.
 ---
 
 # ChatGPT Pro Review
 
-Use this skill to prepare a focused context packet for ChatGPT Pro or Extended
-Pro, get a second-pass review, and verify the response locally before acting on
-it.
+Use this skill to prepare a focused context packet for ChatGPT Pro, get a
+second-pass review, and verify the response locally before acting on it.
 
 ## Principles
 
@@ -35,7 +34,6 @@ Choose the available path:
 
 - If the current agent has an approved browser/control integration and the user
   authorized sending the packet, open or reuse ChatGPT and submit the packet.
-- Prefer Extended Pro when the model picker is visible and the user has access.
 - If the user provides a ChatGPT thread URL, use that thread only when the
   current task fits its context. Otherwise start a clean thread or ask which
   thread to use.

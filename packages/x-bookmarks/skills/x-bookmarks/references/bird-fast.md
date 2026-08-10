@@ -9,8 +9,8 @@ Project documentation:
 https://bird.fast/
 ```
 
-Do not install npm `bird-cli`; that package is unrelated to the `bird.fast`
-project used here.
+Install Bird through `https://bird.fast/` or the user's managed toolchain, then
+verify the installed command with `bird --version`.
 
 Bird behavior:
 
@@ -45,7 +45,7 @@ Browser auth recovery:
 - If Chrome cookie extraction fails after login, ask the user to quit Chrome
   first and retry because the cookie database can be locked.
 - Firefox uses `--cookie-source firefox --firefox-profile PROFILE_NAME`.
-- Brave uses the Chrome-compatible profile directory, for example
+- On macOS, Brave uses the Chrome-compatible profile directory, for example
   `bird --cookie-source chrome --chrome-profile-dir "$HOME/Library/Application Support/BraveSoftware/Brave-Browser/Default" check --plain`.
 - A confirmed browser profile can be persisted in app-owned local state at
   `~/.config/bird/config.json5`; do not commit it to this repo.
@@ -64,18 +64,10 @@ remaining issue is usually local decryption through macOS Keychain. Ask the user
 to allow any Keychain prompt. If no prompt appears, ask the user to quit Chrome
 completely and retry.
 
-In sandboxed agent environments, Keychain lookup may fail until retried through
-an approved unsandboxed command path. If Bird still times out, prime access
-while discarding the secret:
-
-```sh
-security find-generic-password -w -a Chrome -s "Chrome Safe Storage" "$HOME/Library/Keychains/login.keychain-db" >/dev/null
-bird check --plain
-```
-
-Never print the Safe Storage password or X cookie values. Manual `auth_token`
-and `ct0` should remain a last resort and only be used if the user explicitly
-accepts that fallback.
+If Keychain access remains blocked, ask the user to run `bird check --plain` in
+a normal terminal and approve the operating-system prompt. Never ask the user
+to paste Safe Storage passwords or X cookie values into chat, commands, logs,
+or agent-visible output.
 
 Use read-only Bird commands by default. Do not tweet, reply, unbookmark, or
 perform account-changing actions unless the user explicitly asks.

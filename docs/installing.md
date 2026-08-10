@@ -18,7 +18,7 @@ Verify and extract the archive:
 
 ```sh
 PLUGIN=watch-video
-VERSION=2026.8.10
+VERSION=2026.8.10.1
 CHECKSUM="${PLUGIN}-agent-plugin-v${VERSION}.zip.sha256"
 if command -v sha256sum >/dev/null 2>&1; then
   sha256sum --check "$CHECKSUM"
@@ -38,14 +38,15 @@ The archive expands to one directory:
 └── skills/
 ```
 
-Use that `<name>/` directory as the plugin root in the client's local-plugin
-flow. See the Agent Plugins
+Install or load that `<name>/` directory using the selected client's documented
+Agent Plugin flow. See the Agent Plugins
 [compatible clients list](https://agent-plugins.org/compatible-clients) for
 the component types and transports each client currently supports.
 
-## Install from a checkout
+## Use a local checkout
 
-Clone the repository and select one package directory:
+For clients that accept a local plugin directory, clone the repository and
+select one package directory:
 
 ```sh
 git clone https://github.com/heyNag/charms.git

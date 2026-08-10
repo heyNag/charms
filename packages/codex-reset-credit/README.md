@@ -15,8 +15,8 @@ It must never print tokens, account IDs, raw auth file contents, or edit local
 Codex files.
 
 This directory is an [Agent Plugins v1](https://agent-plugins.org/specification)
-plugin root. A compatible client loads `plugin.json` here and discovers the
-skill from the standard fixed location:
+plugin root. A compatible client with Agent Skills support loads `plugin.json`
+here and discovers the skill from the standard fixed location:
 
 ```text
 skills/codex-reset-credit

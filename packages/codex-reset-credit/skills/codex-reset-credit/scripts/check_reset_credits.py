@@ -50,7 +50,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--auth-file",
         default=None,
-        help="Path to Codex auth JSON. Defaults to CODEX_HOME/auth.json, ~/.codex/auth.json, then Codex Desktop app-support auth.",
+        help=(
+            "Path to Codex auth JSON. Defaults to CODEX_HOME/auth.json, or "
+            "~/.codex/auth.json when CODEX_HOME is unset."
+        ),
     )
     parser.add_argument(
         "--sessions-root",
@@ -141,14 +144,13 @@ def load_auth(explicit_auth_file: str | None = None) -> CodexAuth:
         except json.JSONDecodeError as exc:
             raise AuthError("Codex auth file is not valid JSON.") from exc
         except OSError as exc:
-            raise AuthError(f"Could not read Codex auth file: {exc}") from exc
+            raise AuthError("Could not read Codex auth file.") from exc
 
         if not isinstance(auth_json, dict):
             raise AuthError("Codex auth file did not contain a JSON object.")
         return extract_auth(auth_json)
 
-    searched = ", ".join(_redact_home(path) for path in candidates)
-    raise AuthError(f"Codex auth file not found. Searched: {searched}")
+    raise AuthError("Codex auth file not found.")
 
 
 def auth_candidates(explicit_auth_file: str | None = None) -> list[Path]:
@@ -156,13 +158,7 @@ def auth_candidates(explicit_auth_file: str | None = None) -> list[Path]:
         return [Path(explicit_auth_file).expanduser()]
 
     codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
-    return _dedupe_paths(
-        [
-            codex_home / "auth.json",
-            Path.home() / ".codex" / "auth.json",
-            Path.home() / "Library/Application Support/Parall/Codex/.codex/auth.json",
-        ]
-    )
+    return [codex_home / "auth.json"]
 
 
 def extract_auth(auth_json: dict[str, Any]) -> CodexAuth:
@@ -202,11 +198,8 @@ def fetch_reset_credits(auth: CodexAuth, timeout: float = DEFAULT_TIMEOUT_SECOND
         headers={
             "Authorization": f"Bearer {auth.access_token}",
             "ChatGPT-Account-ID": auth.account_id,
-            "OpenAI-Beta": "codex-1",
-            "originator": "Codex Desktop",
             "Accept": "application/json",
-            "Content-Type": "application/json",
-            "User-Agent": "codex-reset-credit/0.2",
+            "User-Agent": "codex-reset-credit",
         },
         method="GET",
     )
@@ -315,13 +308,7 @@ def session_roots(explicit_root: str | None = None) -> list[Path]:
         return [Path(explicit_root).expanduser()]
 
     codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
-    return _dedupe_paths(
-        [
-            codex_home / "sessions",
-            Path.home() / ".codex" / "sessions",
-            Path.home() / "Library/Application Support/Parall/Codex/.codex/sessions",
-        ]
-    )
+    return [codex_home / "sessions"]
 
 
 def extract_snapshot(session_file: Path) -> RateLimitSnapshot | None:
@@ -591,18 +578,6 @@ def _to_aware_utc(value: dt.datetime) -> dt.datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=dt.timezone.utc)
     return value.astimezone(dt.timezone.utc)
-
-
-def _dedupe_paths(paths: list[Path]) -> list[Path]:
-    deduped: list[Path] = []
-    seen: set[str] = set()
-    for path in paths:
-        key = str(path)
-        if key in seen:
-            continue
-        deduped.append(path)
-        seen.add(key)
-    return deduped
 
 
 def _safe_mtime(path: Path) -> float:

@@ -71,7 +71,8 @@ mutation.
 
 ## Reporting
 
-Report security issues privately through the repository owner's GitHub contact
+Report security issues through
+[GitHub private vulnerability reporting](https://github.com/heyNag/charms/security/advisories/new)
 before public disclosure. Include the affected plugin, version, impact,
 reproduction steps, and any proposed fix without including live credentials or
 private data.

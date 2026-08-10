@@ -11,13 +11,13 @@ Agent Skill with the same name.
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "example-plugin",
-  "version": "2026.8.10",
+  "version": "2026.8.10.1",
   "description": "Short purpose statement.",
   "author": {
     "name": "Nagarjuna Boddu",
     "url": "https://github.com/heyNag"
   },
-  "homepage": "https://github.com/heyNag/charms/tree/main/packages/example-plugin",
+  "homepage": "https://github.com/heyNag/charms",
   "repository": "https://github.com/heyNag/charms",
   "license": "MIT",
   "keywords": ["example"]
@@ -62,8 +62,8 @@ The description states both what the skill does and when it should activate.
 Runtime requirements belong in `compatibility`, while detailed operating
 rules belong in the Markdown body.
 
-Charms does not use experimental tool preapprovals. Agents must apply their
-host's normal permission and approval model to every operation.
+Agents use their host's normal permission and approval model for every
+operation.
 
 ## Paths and containment
 
@@ -77,14 +77,12 @@ plugin package in the locations documented by the skill.
 
 ## MCP
 
-An Agent Plugin may define bundled MCP connections with a root `mcp.json`,
-but no current Charms plugin has one. Add `mcp.json` only when the plugin
-actually supplies an MCP component and can meet the v1 transport, placeholder,
-and path-containment contract.
+Agent Plugins v1 defines bundled MCP connections through a root `mcp.json`.
+The current Charms package contract is skill-only, so Charms validation does
+not accept `mcp.json`.
 
 ## Client extensions
 
-Client-specific data is permitted only through a reverse-domain key in
-`plugin.json.extensions`, a top-level directory with the same namespace, or
-both. Add an extension only against a published client contract and validate
-the portable plugin without depending on that extension.
+No current Charms plugin declares client-specific extension data. The five
+packages depend only on the portable Agent Plugins manifest and fixed Agent
+Skills component location.

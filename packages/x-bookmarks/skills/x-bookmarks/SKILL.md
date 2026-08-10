@@ -16,50 +16,71 @@ bookmark reviews.
 - Prefer Bird via `bird.fast` first because it uses the logged-in browser
   session and avoids paid X API credits.
 - Use X API v2 only when Bird cannot work, when the user explicitly asks for
-  the official API path, or when folder/API-specific behavior is needed.
-- Keep OAuth scopes read-only by default:
+  the official API path, or when API-specific behavior such as listing folders
+  is needed.
+- Bundled helpers do not change the X account. Keep OAuth scopes to:
   `tweet.read users.read bookmark.read offline.access`.
-- Add `bookmark.write` only when the user explicitly asks to create or delete
-  bookmarks.
+- Do not pass `--include-write-scope` to `x_api_auth.py` for the bundled fetch
+  workflows. Request `bookmark.write` only for a separate, explicitly
+  authorized write workflow.
 - Do not ask for browser cookies, `auth_token`, `ct0`, OAuth tokens, access
   tokens, refresh tokens, or client secrets in chat.
-- Do not print tokens, cookies, account IDs, raw local auth files, bookmark
-  exports, or search indexes.
-- Store local auth and review state outside this repo:
-  `~/.config/x-bookmarks/`, `~/.local/state/x-bookmarks/`, and
-  `~/.config/bird/`.
+- Do not print tokens, cookies, or raw local auth files. Helper JSON can contain
+  account IDs and bookmark content; keep raw output local and expose only the
+  fields needed for the user's request.
+- Default local auth and review state lives under `~/.config/x-bookmarks/`,
+  `~/.local/state/x-bookmarks/`, and `~/.config/bird/`.
+- `X_BOOKMARKS_CONFIG_DIR`, `X_BOOKMARKS_TOKEN_FILE`, and
+  `X_BOOKMARKS_STATE_FILE` can override the x-bookmarks defaults. Keep every
+  override outside the plugin and source checkout.
 - If auth fails, report the status and a safe fix command without exposing
   secrets.
 
 ## Invocation
 
-From this skill directory, check both local backends:
+From this skill directory, check the configured backend; do not require both.
+For Bird:
 
 ```sh
-command -v bird >/dev/null && bird check --plain
+bird check --plain
+```
+
+For X API v2 with saved local OAuth state:
+
+```sh
 python3 scripts/x_api_auth.py --status
 ```
 
-Fetch recent bookmarks:
+The API fetch helper can instead use an existing OAuth user access token from
+`X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN`. Never print either variable.
+
+Fetch recent bookmarks with one backend:
 
 ```sh
+# Bird
 scripts/fetch_bookmarks_bird.sh --count 25
+
+# X API v2
 python3 scripts/fetch_bookmarks_api.py --count 25 --pretty
 ```
 
-Search fetched bookmarks locally:
+Fetch bookmarks for local inspection or search. Bird emits JSON for the agent
+to inspect; the API helper also provides the bundled `--query` filter:
 
 ```sh
 scripts/fetch_bookmarks_bird.sh --all
 python3 scripts/fetch_bookmarks_api.py --all --query "agents mcp" --pretty
 ```
 
-Fetch new results since the last recorded review:
+For the API backend, fetch new results since the last recorded review:
 
 ```sh
-scripts/fetch_bookmarks_bird.sh --count 100
-python3 scripts/fetch_bookmarks_api.py --count 100 --since-last --update-state --pretty
+python3 scripts/fetch_bookmarks_api.py --all --since-last --update-state --pretty
 ```
+
+Bird can fetch a recent window with
+`scripts/fetch_bookmarks_bird.sh --count 100`, but it does not maintain a
+persisted review cutoff.
 
 List bookmark folders or fetch a folder:
 
@@ -94,11 +115,14 @@ browser auth, or no-credit backend behavior.
 
 ## X API Setup
 
-Use OAuth 2.0 Authorization Code Flow with PKCE. The local callback is:
+Use OAuth 2.0 Authorization Code Flow with PKCE. The default local callback is:
 
 ```text
 http://localhost:8739/callback
 ```
+
+Use `--redirect-uri` when the X Developer app is configured with another
+loopback callback.
 
 Required read scopes:
 
@@ -110,11 +134,28 @@ If local auth is missing and the user wants the official API path:
 
 1. Ask the user to create or select an X Developer app.
 2. Ask them to enable OAuth 2.0 / PKCE user authentication.
-3. Ask them to add the callback URL exactly.
+3. Ask them to add the selected callback URL exactly.
 4. Ask for the OAuth 2.0 Client ID.
-5. If the app has a client secret, collect it through a safe local channel.
-   Prefer a hidden local prompt and pass it with `--client-secret-stdin`.
-6. Run `python3 scripts/x_api_auth.py --client-id CLIENT_ID`.
+5. For a public client without a client secret, run:
+
+   ```sh
+   python3 scripts/x_api_auth.py --client-id CLIENT_ID
+   ```
+
+6. For a confidential client, collect the secret through a hidden local prompt
+   and pass it through standard input:
+
+   ```sh
+   read -rs X_API_CLIENT_SECRET
+   printf '\n'
+   printf '%s\n' "$X_API_CLIENT_SECRET" |
+     python3 scripts/x_api_auth.py --client-id CLIENT_ID --client-secret-stdin
+   unset X_API_CLIENT_SECRET
+   ```
+
+   The helper stores the confidential-client secret in its private local
+   configuration so it can refresh tokens.
+
 7. If the helper cannot open the browser, ask the user to open the printed URL
    and approve access.
 8. Run `python3 scripts/x_api_auth.py --status`, then a small test fetch.
@@ -133,8 +174,11 @@ Unless the user asks for a narrower format, return:
 5. Backend used and any auth/rate-limit caveats
 
 When asked to search, run a local query over fetched bookmark text, author
-metadata, links, and expanded quoted posts. If the user asks for "new",
-"since last time", or recurring review, use `--since-last --update-state`.
+metadata, links, and expanded quoted posts. For API-backed requests for "new",
+"since last time", or recurring review, use
+`--all --since-last --update-state` so the saved cutoff cannot advance past
+unfetched bookmarks.
+Bird can fetch a recent window but does not persist the last reviewed bookmark.
 
 ## Failure Handling
 
@@ -143,7 +187,7 @@ metadata, links, and expanded quoted posts. If the user asks for "new",
   and allow any browser cookie or Keychain prompt.
 - Missing X API auth: explain that API access requires a personal Developer app
   and OAuth setup.
-- X API `402`: auth is working, but the Developer account cannot fulfill API
-  bookmark requests. Use Bird unless the user explicitly wants API credits.
+- X API `402`: this usually indicates an API payment, credit, or access-plan
+  restriction. Use Bird or review the Developer account's access.
 - X API `429`: report the rate-limit reset time from the helper.
 - Missing scopes: ask the user to update scopes and rerun OAuth setup.

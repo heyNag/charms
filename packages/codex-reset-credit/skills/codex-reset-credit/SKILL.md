@@ -2,7 +2,7 @@
 name: codex-reset-credit
 description: Use when the user explicitly asks about Codex reset credits, credit expiry, quota usage, local rate-limit windows, or when Codex limits reset.
 license: MIT
-compatibility: Requires Python 3.11+, local Codex authentication and session data, and network access for live reset-credit checks; local-only rate-limit checks can run without network access.
+compatibility: Requires Python 3.11+; live reset-credit checks need local Codex authentication and network access, while local-only rate-limit checks need local Codex session data.
 ---
 
 # codex-reset-credit
@@ -11,8 +11,8 @@ Use this skill only when a user explicitly asks about Codex reset credits,
 available reset credits, reset-credit expiry, Codex quota usage, local
 rate-limit windows, or when Codex limits reset.
 
-This skill is read-only. It must not redeem credits, consume credits, modify
-Codex Desktop, edit auth/session files, or change usage-limit state.
+This skill is read-only. It must not redeem or consume credits, change Codex
+settings or usage-limit state, or modify auth/session files.
 
 ## Operating Rules
 

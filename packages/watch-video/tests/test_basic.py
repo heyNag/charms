@@ -380,6 +380,12 @@ Next idea starts here
             self.assertIn(str(tmp_path / "frames" / "frame.jpg"), report)
             self.assertIn("## Implementation Checklist", report)
             self.assertIn("## Frame Selection", report)
+            self.assertIn(
+                "For follow-up questions, reuse evidence already in context; run a focused "
+                "second pass only when new visual evidence is needed.",
+                report,
+            )
+            self.assertNotIn("do not re-run", report)
 
     def test_report_modes_include_expected_sections(self) -> None:
         watch = importlib.import_module("watch")

@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Extract timestamped preview frames from a video with ffmpeg.
 
-Three engines share one candidate pipeline:
+Three sampled-frame engines share one candidate pipeline:
 
 - scene:    ffmpeg scene-change selection with exact showinfo timestamps
-- keyframe: decode only I-frames via -skip_frame nokey (near-instant)
+- keyframe: decode I-frames first; fall back to uniform below four keyframes
 - uniform:  fixed-fps sampling driven by the duration budget
 
-Candidates flow through: extract -> perceptual dedup -> even-sample down to
-the cap -> rename to timestamped filenames. Dedup and sampling delete the
-files they drop, so the frame budget is spent on distinct content.
+Sampled-frame candidates flow through: extract -> perceptual dedup ->
+even-sample down to the cap -> rename to timestamped filenames. Dedup and
+sampling delete the files they drop, so the frame budget is spent on distinct
+content. Pinned transcript-cue frames are extracted separately and are not
+perceptually deduplicated.
 """
 
 from __future__ import annotations

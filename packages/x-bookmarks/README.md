@@ -5,11 +5,11 @@ searches, and digests saved X/Twitter posts, then turns them into useful next
 actions.
 
 The skill format is portable; live fetching needs either the `bird` CLI with
-browser cookie access or local X API v2 OAuth state.
+browser cookie access or X API v2 OAuth credentials.
 
 This directory is an [Agent Plugins v1](https://agent-plugins.org/specification)
-plugin root. A compatible client loads `plugin.json` here and discovers the
-skill from the standard fixed location:
+plugin root. A compatible client with Agent Skills support loads `plugin.json`
+here and discovers the skill from the standard fixed location:
 
 ```text
 skills/x-bookmarks
@@ -27,13 +27,18 @@ bird --version
 bird check --plain
 ```
 
-Optional official API backend:
+Optional official API backend with saved local OAuth state:
 
 ```sh
 python3 skills/x-bookmarks/scripts/x_api_auth.py --status
 ```
 
-Local-only state lives outside this repo:
+The API fetch helper can instead use an existing OAuth user access token from
+`X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN`. Do not print either variable.
+`--include-write-scope` is an option of `x_api_auth.py`, not a fetch-helper
+option, and is only for a separate workflow that changes X bookmarks.
+
+Default local-only state lives outside this repo:
 
 ```text
 ~/.config/x-bookmarks/config.json
@@ -42,24 +47,39 @@ Local-only state lives outside this repo:
 ~/.config/bird/
 ```
 
+`X_BOOKMARKS_CONFIG_DIR`, `X_BOOKMARKS_TOKEN_FILE`, and
+`X_BOOKMARKS_STATE_FILE` override the x-bookmarks defaults. Keep every override
+outside the plugin and source checkout.
+
 Do not commit credentials, tokens, bookmark exports, or search indexes.
 
 ## Quickstart
 
-From the plugin root:
+Choose one configured backend. From the plugin root, use Bird:
+
+```sh
+skills/x-bookmarks/scripts/fetch_bookmarks_bird.sh --count 25
+```
+
+Or use X API v2:
 
 ```sh
 python3 skills/x-bookmarks/scripts/x_api_auth.py --status
-skills/x-bookmarks/scripts/fetch_bookmarks_bird.sh --count 25
 python3 skills/x-bookmarks/scripts/fetch_bookmarks_api.py --count 25 --pretty
 ```
 
-From the skill folder:
+From the skill folder, use Bird with:
+
+```sh
+cd skills/x-bookmarks
+scripts/fetch_bookmarks_bird.sh --count 25
+```
+
+Or use X API v2 with:
 
 ```sh
 cd skills/x-bookmarks
 python3 scripts/x_api_auth.py --status
-scripts/fetch_bookmarks_bird.sh --count 25
 python3 scripts/fetch_bookmarks_api.py --count 25 --pretty
 ```
 
@@ -69,7 +89,7 @@ Common workflows:
 scripts/fetch_bookmarks_bird.sh --count 25
 python3 scripts/fetch_bookmarks_api.py --count 25 --pretty
 python3 scripts/fetch_bookmarks_api.py --all --query "agents mcp" --pretty
-python3 scripts/fetch_bookmarks_api.py --count 100 --since-last --update-state --pretty
+python3 scripts/fetch_bookmarks_api.py --all --since-last --update-state --pretty
 python3 scripts/fetch_bookmarks_api.py --folders --pretty
 ```
 

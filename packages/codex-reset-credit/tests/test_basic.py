@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPT = (
@@ -46,6 +48,28 @@ class CodexResetCreditTests(unittest.TestCase):
     def test_extract_auth_missing_token_raises(self) -> None:
         with self.assertRaises(reset_credit.AuthError):
             reset_credit.extract_auth({"tokens": {"account_id": "account-id"}})
+
+    def test_load_auth_errors_do_not_reveal_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "private-auth.json"
+            with self.assertRaises(reset_credit.AuthError) as missing_error:
+                reset_credit.load_auth(str(missing))
+
+            unreadable = Path(tmp) / "directory-auth.json"
+            unreadable.mkdir()
+            with self.assertRaises(reset_credit.AuthError) as read_error:
+                reset_credit.load_auth(str(unreadable))
+
+        self.assertEqual(str(missing_error.exception), "Codex auth file not found.")
+        self.assertEqual(str(read_error.exception), "Could not read Codex auth file.")
+        self.assertNotIn(str(missing), str(missing_error.exception))
+        self.assertNotIn(str(unreadable), str(read_error.exception))
+
+    def test_default_state_paths_follow_codex_home(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.dict(os.environ, {"CODEX_HOME": tmp}):
+                self.assertEqual(reset_credit.auth_candidates(), [Path(tmp) / "auth.json"])
+                self.assertEqual(reset_credit.session_roots(), [Path(tmp) / "sessions"])
 
     def test_candidate_session_file_specific_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

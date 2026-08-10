@@ -1,7 +1,7 @@
 # Plugin packages
 
-Each immediate child of this directory is a complete Agent Plugin v1 root and
-an independently versioned product:
+Each immediate child directory is a complete Agent Plugin v1 root and an
+independently versioned product:
 
 ```text
 packages/

@@ -11,12 +11,14 @@
 
 ## Auth
 
-Use OAuth 2.0 Authorization Code Flow with PKCE. The local callback used by the
-helper is:
+Use OAuth 2.0 Authorization Code Flow with PKCE. The helper's default local
+callback is:
 
 ```text
 http://localhost:8739/callback
 ```
+
+Pass `--redirect-uri` when the X Developer app uses another loopback callback.
 
 Default scopes:
 
@@ -24,8 +26,14 @@ Default scopes:
 tweet.read users.read bookmark.read offline.access
 ```
 
-Only include `bookmark.write` when the workflow needs to create or delete
-bookmarks.
+Bundled helpers do not change the X account and need only these scopes. Do not
+pass `--include-write-scope` to `x_api_auth.py` for the bundled fetch workflows.
+Request `bookmark.write` only for a separate, explicitly authorized workflow
+that creates or deletes bookmarks.
+
+The fetch helper also accepts an existing OAuth user access token from
+`X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN`. `x_api_auth.py --status` checks
+saved local OAuth files only and does not inspect either variable.
 
 ## Query Shape
 
@@ -49,8 +57,10 @@ of waiting silently.
 ## Limitations
 
 - X returns post creation time, not the time a post was bookmarked.
-- Local "new since last review" state lives in
-  `~/.local/state/x-bookmarks/state.json`.
+- Local "new since last review" state defaults to
+  `~/.local/state/x-bookmarks/state.json`; `X_BOOKMARKS_STATE_FILE` overrides
+  that default, and `--state-file PATH` overrides it for one invocation. Keep
+  the selected path outside the plugin and source checkout.
 - X API access level and pricing can change; use Bird first when paid API
   access is not desired.
 

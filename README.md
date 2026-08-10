@@ -25,7 +25,7 @@ extract it:
 
 ```sh
 PLUGIN=watch-video
-VERSION=2026.8.10
+VERSION=2026.8.10.1
 CHECKSUM="${PLUGIN}-agent-plugin-v${VERSION}.zip.sha256"
 if command -v sha256sum >/dev/null 2>&1; then
   sha256sum --check "$CHECKSUM"
@@ -35,14 +35,14 @@ fi
 unzip "${PLUGIN}-agent-plugin-v${VERSION}.zip"
 ```
 
-The extracted `<plugin>/` directory is the plugin root. Point a conformant
-client at that directory using the client's local-plugin installation flow.
+The extracted `<plugin>/` directory is the plugin root. Install or load it
+using the selected client's documented Agent Plugin flow.
 Agent Plugins standardizes package loading, not distribution or client user
 interfaces; consult the
 [compatible clients list](https://agent-plugins.org/compatible-clients) for
 current client capabilities.
 
-A source checkout works the same way: select one
+For clients that accept a local plugin directory, a source checkout can use one
 `packages/<plugin>/` directory, never the repository root.
 
 Runtime prerequisites are plugin-specific. Read the selected plugin's README
@@ -58,8 +58,8 @@ make check
 ```
 
 `make check` runs conformance validation, offline behavior tests, Python and
-shell syntax checks, linting, secret and artifact checks, and repository
-whitespace checks.
+shell syntax checks, linting, secret and artifact checks, and a working-tree
+whitespace check.
 
 ## Documentation
 

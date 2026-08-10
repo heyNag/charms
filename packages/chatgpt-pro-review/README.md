@@ -1,8 +1,8 @@
 # chatgpt-pro-review
 
-`chatgpt-pro-review` helps an agent prepare a scoped packet for ChatGPT Pro or
-Extended Pro review, then reconcile the response against local files, diffs,
-tests, pull request state, and repo conventions.
+`chatgpt-pro-review` helps an agent prepare a scoped packet for ChatGPT Pro
+review, then reconcile the response against local files, diffs, tests, pull
+request state, and repo conventions.
 
 Use it for:
 
@@ -13,8 +13,8 @@ Use it for:
 - external second-pass review of another agent's work
 
 This directory is an [Agent Plugins v1](https://agent-plugins.org/specification)
-plugin root. A compatible client loads `plugin.json` here and discovers the
-skill from the standard fixed location:
+plugin root. A compatible client with Agent Skills support loads `plugin.json`
+here and discovers the skill from the standard fixed location:
 
 ```text
 skills/chatgpt-pro-review
