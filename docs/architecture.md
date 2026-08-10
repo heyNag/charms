@@ -31,7 +31,7 @@ Each `packages/<name>/` directory is a self-contained plugin root with:
 - every runtime script and reference needed by that skill;
 - plugin-specific documentation, license, and offline behavior tests.
 
-Each plugin has its own SemVer version, tag, release, archive, dependencies,
+Each plugin has its own UTC date version, tag, release, archive, dependencies,
 permissions, and failure surface. Installing one plugin never requires loading
 the other four.
 
@@ -69,7 +69,8 @@ ways:
 
 - every immediate child of `packages/` must be a plugin root;
 - the directory name, manifest name, and single skill name must match;
-- versions must be valid Semantic Versioning;
+- versions must use valid UTC `YYYY.M.D` date versioning with an optional
+  same-day `.N` sequence;
 - all discovered paths must remain inside their plugin root;
 - symlinks and special files are rejected from release archives;
 - client extension namespaces are allowed only in the v1 reverse-domain form;

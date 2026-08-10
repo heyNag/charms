@@ -1,5 +1,5 @@
 name: Release Plugin
-run-name: Release ${{ inputs.plugin }} (${{ inputs.bump }})
+run-name: Release ${{ inputs.plugin }} (${{ inputs.mode }})
 
 on:
   workflow_dispatch:
@@ -8,16 +8,14 @@ on:
         description: Agent Plugin package name, for example watch-video
         required: true
         type: string
-      bump:
-        description: Publish the current version or apply a SemVer bump
+      mode:
+        description: Publish the current version or advance to the UTC release date
         required: true
-        default: patch
+        default: date
         type: choice
         options:
           - current
-          - major
-          - minor
-          - patch
+          - date
 
 concurrency:
   group: release-plugin-${{ inputs.plugin }}
@@ -60,19 +58,12 @@ jobs:
       - name: Prepare and validate release proposal
         id: proposal
         env:
-          BUMP: ${{ inputs.bump }}
+          MODE: ${{ inputs.mode }}
           PLUGIN: ${{ inputs.plugin }}
         run: |
           base_sha="$(git rev-parse HEAD)"
-          version="$(python3 scripts/bump-plugin-version.py "${PLUGIN}" --bump "${BUMP}")"
+          version="$(python3 scripts/bump-plugin-version.py "${PLUGIN}" --mode "${MODE}")"
           tag="agent-plugin/${PLUGIN}/v${version}"
-          version_without_build="${version%%+*}"
-          case "${version_without_build}" in
-            *-*)
-              echo "Release Plugin publishes final versions only; prerelease version ${version} is not allowed." >&2
-              exit 1
-              ;;
-          esac
 
           if git show-ref --verify --quiet "refs/tags/${tag}"; then
             echo "Tag already exists: ${tag}" >&2
@@ -93,14 +84,14 @@ jobs:
 
           expected="packages/${PLUGIN}/plugin.json"
           changed="$(git diff --name-only)"
-          if [ "${BUMP}" = "current" ]; then
+          if [ "${MODE}" = "current" ]; then
             if [ -n "${changed}" ]; then
               echo "Current-version publication unexpectedly changed tracked files:" >&2
               echo "${changed}" >&2
               exit 1
             fi
           elif [ "${changed}" != "${expected}" ]; then
-            echo "A version bump must change only ${expected}; changed paths:" >&2
+            echo "Date mode must change only ${expected}; changed paths:" >&2
             echo "${changed:-<none>}" >&2
             exit 1
           fi
@@ -117,23 +108,23 @@ jobs:
 
       - name: Verify checks preserved the proposal
         env:
-          BUMP: ${{ inputs.bump }}
+          MODE: ${{ inputs.mode }}
           PLUGIN: ${{ inputs.plugin }}
           VERSION: ${{ steps.proposal.outputs.version }}
         run: |
           expected="packages/${PLUGIN}/plugin.json"
           changed="$(git diff --name-only)"
-          if [ "${BUMP}" = "current" ] && [ -n "${changed}" ]; then
+          if [ "${MODE}" = "current" ] && [ -n "${changed}" ]; then
             echo "Repository checks changed tracked files." >&2
             echo "${changed}" >&2
             exit 1
           fi
-          if [ "${BUMP}" != "current" ] && [ "${changed}" != "${expected}" ]; then
+          if [ "${MODE}" != "current" ] && [ "${changed}" != "${expected}" ]; then
             echo "Repository checks changed files outside ${expected}." >&2
             echo "${changed:-<none>}" >&2
             exit 1
           fi
-          actual_version="$(python3 scripts/bump-plugin-version.py "${PLUGIN}" --bump current)"
+          actual_version="$(python3 scripts/bump-plugin-version.py "${PLUGIN}" --mode current)"
           if [ "${actual_version}" != "${VERSION}" ]; then
             echo "Repository checks changed the proposed manifest version." >&2
             exit 1
@@ -234,31 +225,31 @@ jobs:
       - name: Apply the validated version
         id: target
         env:
-          BUMP: ${{ inputs.bump }}
+          MODE: ${{ inputs.mode }}
           EXPECTED_VERSION: ${{ needs.validate.outputs.version }}
           PLUGIN: ${{ inputs.plugin }}
         run: |
           manifest="packages/${PLUGIN}/plugin.json"
-          version="$(python3 scripts/bump-plugin-version.py "${PLUGIN}" --bump "${BUMP}")"
+          version="$(python3 scripts/bump-plugin-version.py "${PLUGIN}" --mode "${MODE}")"
           if [ "${version}" != "${EXPECTED_VERSION}" ]; then
             echo "Version proposal changed between validation and publication." >&2
             exit 1
           fi
 
           changed="$(git diff --name-only)"
-          if [ "${BUMP}" = "current" ]; then
+          if [ "${MODE}" = "current" ]; then
             if [ -n "${changed}" ]; then
               echo "Current-version publication unexpectedly changed tracked files." >&2
               exit 1
             fi
           elif [ "${changed}" != "${manifest}" ]; then
-            echo "Version bump changed paths other than ${manifest}." >&2
+            echo "Date mode changed paths other than ${manifest}." >&2
             echo "${changed:-<none>}" >&2
             exit 1
           fi
           git diff --check
 
-          if [ "${BUMP}" != "current" ]; then
+          if [ "${MODE}" != "current" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add "${manifest}"
@@ -272,7 +263,7 @@ jobs:
           echo "commit_sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - name: Push release commit
-        if: inputs.bump != 'current'
+        if: inputs.mode != 'current'
         env:
           BASE_SHA: ${{ needs.validate.outputs.base_sha }}
           COMMIT_SHA: ${{ steps.target.outputs.commit_sha }}
@@ -356,7 +347,7 @@ jobs:
       - name: Create GitHub release
         env:
           ARCHIVE: ${{ steps.archive.outputs.archive }}
-          BUMP: ${{ inputs.bump }}
+          MODE: ${{ inputs.mode }}
           CHECKSUM: ${{ steps.archive.outputs.checksum }}
           COMMIT_SHA: ${{ steps.target.outputs.commit_sha }}
           GH_TOKEN: ${{ github.token }}
@@ -364,7 +355,7 @@ jobs:
           TAG: ${{ needs.validate.outputs.tag }}
           VERSION: ${{ needs.validate.outputs.version }}
         run: |
-          if [ "${BUMP}" = "current" ]; then
+          if [ "${MODE}" = "current" ]; then
             remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | cut -f 1)"
             if [ "${remote_sha}" != "${COMMIT_SHA}" ]; then
               echo "The default branch advanced before publication; rerun the release." >&2

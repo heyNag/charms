@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Read or bump the strict SemVer version of one Agent Plugin manifest."""
+"""Read or advance the UTC CalVer version of one Agent Plugin manifest."""
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
 import pathlib
@@ -15,35 +16,64 @@ import sys
 PLUGIN_NAME_RE = re.compile(
     r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]{0,62}[a-z0-9])?$"
 )
-SEMVER_RE = re.compile(
-    r"^(?P<major>0|[1-9]\d*)\."
-    r"(?P<minor>0|[1-9]\d*)\."
-    r"(?P<patch>0|[1-9]\d*)"
-    r"(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
-    r"(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?"
-    r"(?:\+(?P<build>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+CALVER_RE = re.compile(
+    r"^(?P<year>[0-9]{4})\."
+    r"(?P<month>[1-9]|1[0-2])\."
+    r"(?P<day>[1-9]|[12][0-9]|3[01])"
+    r"(?:\.(?P<sequence>[1-9][0-9]*))?$"
 )
-BUMP_PARTS = ("current", "major", "minor", "patch")
+VERSION_MODES = ("current", "date")
 
 
-def parse_version(value: str) -> tuple[int, int, int]:
-    match = SEMVER_RE.fullmatch(value)
+def utc_today() -> dt.date:
+    return dt.datetime.now(dt.timezone.utc).date()
+
+
+def parse_date(value: str) -> dt.date:
+    try:
+        return dt.date.fromisoformat(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("date must be YYYY-MM-DD") from exc
+
+
+def parse_version(value: str) -> tuple[dt.date, int | None]:
+    match = CALVER_RE.fullmatch(value)
     if match is None:
-        raise ValueError(f"version is not strict SemVer: {value!r}")
-    return tuple(int(match.group(part)) for part in ("major", "minor", "patch"))
+        raise ValueError(f"version is not UTC CalVer YYYY.M.D[.N]: {value!r}")
+    try:
+        version_date = dt.date(
+            int(match.group("year")),
+            int(match.group("month")),
+            int(match.group("day")),
+        )
+    except ValueError as exc:
+        raise ValueError(f"version contains an invalid calendar date: {value!r}") from exc
+    sequence = match.group("sequence")
+    return version_date, int(sequence) if sequence is not None else None
 
 
-def next_version(current: str, part: str) -> str:
-    major, minor, patch = parse_version(current)
-    if part == "current":
+def base_version(release_date: dt.date) -> str:
+    return f"{release_date.year:04d}.{release_date.month}.{release_date.day}"
+
+
+def next_version(current: str, mode: str, release_date: dt.date | None = None) -> str:
+    current_date, current_sequence = parse_version(current)
+    if mode == "current":
         return current
-    if part == "major":
-        return f"{major + 1}.0.0"
-    if part == "minor":
-        return f"{major}.{minor + 1}.0"
-    if part == "patch":
-        return f"{major}.{minor}.{patch + 1}"
-    raise ValueError(f"unsupported bump part: {part!r}")
+    if mode != "date":
+        raise ValueError(f"unsupported version mode: {mode!r}")
+
+    release_date = release_date or utc_today()
+    if release_date < current_date:
+        raise ValueError(
+            f"release date {release_date.isoformat()} precedes current version date "
+            f"{current_date.isoformat()}"
+        )
+    base = base_version(release_date)
+    if release_date == current_date:
+        sequence = 1 if current_sequence is None else current_sequence + 1
+        return f"{base}.{sequence}"
+    return base
 
 
 def package_plugin_path(root: pathlib.Path, package: str) -> pathlib.Path:
@@ -79,14 +109,20 @@ def running_in_release_workflow(env: dict[str, str] | None = None) -> bool:
     )
 
 
-def update_package(root: pathlib.Path, package: str, part: str, dry_run: bool) -> str:
+def update_package(
+    root: pathlib.Path,
+    package: str,
+    mode: str,
+    release_date: dt.date | None,
+    dry_run: bool,
+) -> str:
     path = package_plugin_path(root, package)
     for directory in (root / "packages", path.parent):
         try:
-            mode = directory.lstat().st_mode
+            directory_mode = directory.lstat().st_mode
         except FileNotFoundError as exc:
             raise FileNotFoundError(f"missing plugin directory: {directory}") from exc
-        if stat.S_ISLNK(mode) or not stat.S_ISDIR(mode):
+        if stat.S_ISLNK(directory_mode) or not stat.S_ISDIR(directory_mode):
             raise ValueError(f"plugin directory must be a real directory: {directory}")
     data = load_plugin(path)
     manifest_name = data.get("name")
@@ -97,8 +133,8 @@ def update_package(root: pathlib.Path, package: str, part: str, dry_run: bool) -
     if not isinstance(current, str) or not current:
         raise ValueError(f"{path} must contain a non-empty string version")
 
-    version = next_version(current, part)
-    if part != "current" and not dry_run:
+    version = next_version(current, mode, release_date)
+    if mode == "date" and not dry_run:
         data["version"] = version
         write_plugin(path, data)
     return version
@@ -108,10 +144,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("package", help="Plugin package name under packages/")
     parser.add_argument(
-        "--bump",
-        choices=BUMP_PARTS,
-        default="patch",
+        "--mode",
+        choices=VERSION_MODES,
+        default="date",
         help="Version action. 'current' publishes without changing the manifest.",
+    )
+    parser.add_argument(
+        "--date",
+        type=parse_date,
+        help="Override the UTC release date for tests, in YYYY-MM-DD.",
     )
     parser.add_argument(
         "--dry-run",
@@ -126,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    writes_manifest = args.bump != "current" and not args.dry_run
+    writes_manifest = args.mode == "date" and not args.dry_run
     if writes_manifest and not running_in_release_workflow():
         print(
             "error: plugin versions are changed only by the GitHub Actions "
@@ -137,7 +178,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         version = update_package(
-            args.root.resolve(), args.package, part=args.bump, dry_run=args.dry_run
+            args.root.resolve(),
+            args.package,
+            mode=args.mode,
+            release_date=args.date,
+            dry_run=args.dry_run,
         )
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)

@@ -44,7 +44,7 @@ class ValidatePluginsTests(unittest.TestCase):
         return {
             "$schema": self.module.CANONICAL_SCHEMA,
             "name": name,
-            "version": "1.0.0",
+            "version": "2026.8.10",
             "description": f"Portable {name} plugin.",
             "author": {"name": "Test Author", "url": "https://example.com/author"},
             "homepage": "https://example.com/plugins",
@@ -206,11 +206,11 @@ class ValidatePluginsTests(unittest.TestCase):
         errors = self.plugin_errors()
         self.assertTrue(any("must match plugin directory 'demo-plugin'" in error for error in errors))
 
-    def test_release_metadata_must_be_complete_and_semver(self) -> None:
+    def test_release_metadata_must_be_complete_and_calver(self) -> None:
         manifest = self.manifest("demo-plugin")
         manifest.update(
             {
-                "version": "2026.8.10.1",
+                "version": "1.0.0",
                 "description": " ",
                 "author": {},
                 "homepage": "",
@@ -222,7 +222,7 @@ class ValidatePluginsTests(unittest.TestCase):
         self.write_manifest(self.plugin, manifest)
         errors = self.plugin_errors()
         for needle in [
-            "version must be valid Semantic Versioning",
+            "version must be UTC CalVer YYYY.M.D with optional .N",
             "description must be a non-empty string",
             "author.name must be a non-empty string",
             "author.url must be a non-empty string",
@@ -232,6 +232,22 @@ class ValidatePluginsTests(unittest.TestCase):
             "keywords must not contain duplicates",
         ]:
             self.assertTrue(any(needle in error for error in errors), needle)
+
+    def test_calver_accepts_same_day_sequence_and_rejects_invalid_date(self) -> None:
+        manifest = self.manifest("demo-plugin")
+        manifest["version"] = "2026.8.10.2"
+        self.write_manifest(self.plugin, manifest)
+        self.assertEqual(self.plugin_errors(), [])
+
+        manifest["version"] = "2026.2.30"
+        self.write_manifest(self.plugin, manifest)
+        errors = self.plugin_errors()
+        self.assertTrue(any("valid UTC calendar date" in error for error in errors))
+
+        manifest["version"] = "２０２６.8.10"
+        self.write_manifest(self.plugin, manifest)
+        errors = self.plugin_errors()
+        self.assertTrue(any("UTC CalVer YYYY.M.D" in error for error in errors))
 
     def test_extension_namespaces_must_be_reverse_domain_style(self) -> None:
         manifest = self.manifest("demo-plugin")

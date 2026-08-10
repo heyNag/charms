@@ -11,7 +11,7 @@ Agent Skill with the same name.
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "example-plugin",
-  "version": "1.0.0",
+  "version": "2026.8.10",
   "description": "Short purpose statement.",
   "author": {
     "name": "Nagarjuna Boddu",
@@ -29,8 +29,9 @@ The v1 manifest schema is closed. Portable fields are limited to `$schema`,
 `license`, `keywords`, and `extensions`. Component locations are fixed,
 so the manifest does not declare a skill path.
 
-Charms requires a SemVer `version` even though the base specification permits
-other strings.
+Charms requires an unpadded UTC date version in `YYYY.M.D` form. A second
+release of the same plugin on that UTC date adds `.1`, followed by `.2`, and
+so on.
 
 ## Skill
 

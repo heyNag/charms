@@ -60,23 +60,26 @@ class CheckVersionPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.init_repo(root)
-            self.write_plugin(root, "1.0.0")
+            self.write_plugin(root, "2026.8.10")
             base = self.commit(root, "initial")
-            self.write_plugin(root, "1.0.1")
+            self.write_plugin(root, "2026.8.10.1")
             head = self.commit(root, "manual bump")
 
             changes = self.module.plugin_version_changes(root, base, head)
 
-        self.assertEqual(changes, ["packages/demo-plugin/plugin.json: 1.0.0 -> 1.0.1"])
+        self.assertEqual(
+            changes,
+            ["packages/demo-plugin/plugin.json: 2026.8.10 -> 2026.8.10.1"],
+        )
 
     def test_main_rejects_human_version_change_when_policy_is_active(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.init_repo(root)
-            self.write_plugin(root, "1.0.0")
+            self.write_plugin(root, "2026.8.10")
             self.activate_policy(root)
             base = self.commit(root, "initial")
-            self.write_plugin(root, "1.0.1")
+            self.write_plugin(root, "2026.8.10.1")
             head = self.commit(root, "manual bump")
 
             with mock.patch("sys.stderr"):
@@ -90,10 +93,10 @@ class CheckVersionPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.init_repo(root)
-            self.write_plugin(root, "1.0.0")
+            self.write_plugin(root, "2026.8.10")
             self.activate_policy(root)
             base = self.commit(root, "initial")
-            self.write_plugin(root, "1.1.0")
+            self.write_plugin(root, "2026.8.11")
             head = self.commit(root, "release")
 
             with mock.patch("sys.stdout"):
@@ -112,13 +115,60 @@ class CheckVersionPolicyTests(unittest.TestCase):
 
         self.assertEqual(code, 0)
 
+    def test_main_allows_initializing_date_version_from_non_calver(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self.init_repo(root)
+            self.write_plugin(root, "1.0.0")
+            self.activate_policy(root)
+            base = self.commit(root, "initial")
+            self.write_plugin(root, "2026.8.10")
+            head = self.commit(root, "initialize date version")
+
+            records = self.module.plugin_version_change_records(root, base, head)
+            expected = {"packages/demo-plugin/plugin.json": ("1.0.0", "2026.8.10")}
+            with (
+                mock.patch.object(self.module, "DATE_VERSION_INITIALIZATION_BASE", base),
+                mock.patch.object(self.module, "DATE_VERSION_INITIALIZATION", expected),
+                mock.patch("sys.stdout"),
+            ):
+                code = self.module.main(
+                    ["--base", base, "--head", head, "--actor", "nag", "--root", str(root)]
+                )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            records,
+            [("packages/demo-plugin/plugin.json", "1.0.0", "2026.8.10")],
+        )
+
+    def test_date_version_initialization_is_exact_and_base_bound(self):
+        records = [
+            (path, before, after)
+            for path, (before, after) in self.module.DATE_VERSION_INITIALIZATION.items()
+        ]
+        self.assertTrue(
+            self.module.is_date_version_initialization(
+                self.module.DATE_VERSION_INITIALIZATION_BASE,
+                records,
+            )
+        )
+        self.assertFalse(self.module.is_date_version_initialization("f" * 40, records))
+        wrong = [*records[:-1], (records[-1][0], "1.0.0", "2026.8.11")]
+        self.assertFalse(
+            self.module.is_date_version_initialization(
+                self.module.DATE_VERSION_INITIALIZATION_BASE,
+                wrong,
+            )
+        )
+
     def test_new_plugin_manifest_is_allowed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.init_repo(root)
             (root / "README.md").write_text("demo\n", encoding="utf-8")
             base = self.commit(root, "initial")
-            self.write_plugin(root, "1.0.0")
+            self.write_plugin(root, "2026.8.10")
             head = self.commit(root, "add plugin")
 
             changes = self.module.plugin_version_changes(root, base, head)
@@ -131,9 +181,9 @@ class CheckVersionPolicyTests(unittest.TestCase):
             self.init_repo(root)
             path = root / "packages/demo-plugin/metadata/plugin.json"
             path.parent.mkdir(parents=True)
-            path.write_text('{"version":"1.0.0"}\n', encoding="utf-8")
+            path.write_text('{"version":"2026.8.10"}\n', encoding="utf-8")
             base = self.commit(root, "initial")
-            path.write_text('{"version":"2.0.0"}\n', encoding="utf-8")
+            path.write_text('{"version":"2026.8.11"}\n', encoding="utf-8")
             head = self.commit(root, "change unrelated json")
 
             changes = self.module.plugin_version_changes(root, base, head)
@@ -144,9 +194,9 @@ class CheckVersionPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self.init_repo(root)
-            self.write_plugin(root, "1.0.0")
+            self.write_plugin(root, "2026.8.10")
             base = self.commit(root, "initial")
-            self.write_plugin(root, "2.0.0")
+            self.write_plugin(root, "2026.8.11")
             self.activate_policy(root)
             head = self.commit(root, "add policy")
 

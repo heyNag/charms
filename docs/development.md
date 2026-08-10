@@ -75,11 +75,11 @@ repository presents a complete current inventory.
 
 ## Versions
 
-Each plugin uses Semantic Versioning:
+Each plugin uses an unpadded UTC date version:
 
-- major for incompatible behavior or package-contract changes;
-- minor for backward-compatible capabilities;
-- patch for backward-compatible corrections.
+- the first release on a UTC date is `YYYY.M.D`;
+- additional releases of the same plugin that day append `.1`, `.2`, and so on;
+- a release on a later UTC date starts at that new `YYYY.M.D` value.
 
 Published version changes are performed by the Release Plugin workflow.
 Ordinary source commits leave existing manifest versions unchanged.

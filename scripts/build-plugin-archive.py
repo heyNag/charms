@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import hashlib
 import json
 import os
@@ -18,11 +19,11 @@ from dataclasses import dataclass
 PLUGIN_NAME_RE = re.compile(
     r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]{0,62}[a-z0-9])?$"
 )
-SEMVER_RE = re.compile(
-    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
-    r"(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
-    r"(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?"
-    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+CALVER_RE = re.compile(
+    r"^(?P<year>[0-9]{4})\."
+    r"(?P<month>[1-9]|1[0-2])\."
+    r"(?P<day>[1-9]|[12][0-9]|3[01])"
+    r"(?:\.(?P<sequence>[1-9][0-9]*))?$"
 )
 FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 WINDOWS_INVALID_CHARACTERS = frozenset('<>:"|?*')
@@ -76,8 +77,17 @@ def load_manifest(path: pathlib.Path, plugin: str) -> tuple[dict, str]:
     if manifest.get("name") != plugin:
         raise ValueError(f"{path} name is {manifest.get('name')!r}, expected {plugin!r}")
     version = manifest.get("version")
-    if not isinstance(version, str) or SEMVER_RE.fullmatch(version) is None:
-        raise ValueError(f"{path} version is not strict SemVer: {version!r}")
+    match = CALVER_RE.fullmatch(version) if isinstance(version, str) else None
+    if match is None:
+        raise ValueError(f"{path} version is not UTC CalVer YYYY.M.D[.N]: {version!r}")
+    try:
+        dt.date(
+            int(match.group("year")),
+            int(match.group("month")),
+            int(match.group("day")),
+        )
+    except ValueError as exc:
+        raise ValueError(f"{path} version contains an invalid calendar date: {version!r}") from exc
     return manifest, version
 
 

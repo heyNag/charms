@@ -9,6 +9,7 @@ more arguments, validate just those plugin roots.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
 import re
@@ -29,11 +30,11 @@ CANONICAL_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 # skill. These are product invariants, stricter than the base Agent Plugins spec.
 REQUIRED_STRING_FIELDS = ("version", "description", "homepage", "repository", "license")
 REQUIRED_PACKAGE_FILES = ("README.md", "LICENSE")
-SEMVER_RE = re.compile(
-    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
-    r"(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
-    r"(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?"
-    r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+CALVER_RE = re.compile(
+    r"^(?P<year>[0-9]{4})\."
+    r"(?P<month>[1-9]|1[0-2])\."
+    r"(?P<day>[1-9]|[12][0-9]|3[01])"
+    r"(?:\.(?P<sequence>[1-9][0-9]*))?$"
 )
 EXTENSION_NAMESPACE_RE = re.compile(
     r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
@@ -314,8 +315,18 @@ def _validate_manifest_quality(manifest: dict[str, Any], manifest_path: Path, ro
             errors.append(f"{display}: {field} must be a non-empty string for a Charms release")
 
     version = manifest.get("version")
-    if isinstance(version, str) and version and not SEMVER_RE.fullmatch(version):
-        errors.append(f"{display}: version must be valid Semantic Versioning")
+    version_match = CALVER_RE.fullmatch(version) if isinstance(version, str) else None
+    if isinstance(version, str) and version and version_match is None:
+        errors.append(f"{display}: version must be UTC CalVer YYYY.M.D with optional .N")
+    elif version_match is not None:
+        try:
+            dt.date(
+                int(version_match.group("year")),
+                int(version_match.group("month")),
+                int(version_match.group("day")),
+            )
+        except ValueError:
+            errors.append(f"{display}: version must contain a valid UTC calendar date")
 
     author = manifest.get("author")
     if not isinstance(author, dict):

@@ -25,7 +25,7 @@ extract it:
 
 ```sh
 PLUGIN=watch-video
-VERSION=1.0.0
+VERSION=2026.8.10
 CHECKSUM="${PLUGIN}-agent-plugin-v${VERSION}.zip.sha256"
 if command -v sha256sum >/dev/null 2>&1; then
   sha256sum --check "$CHECKSUM"
