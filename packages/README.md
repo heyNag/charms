@@ -7,7 +7,6 @@ independently versioned and released product:
 packages/
 ├── chatgpt-pro-review/
 ├── codex-reset-credit/
-├── mnemosyne-memory/
 ├── watch-video/
 └── x-bookmarks/
 ```

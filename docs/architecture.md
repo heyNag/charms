@@ -1,6 +1,6 @@
 # Architecture
 
-Charms is a monorepo containing five independent Agent Plugins. The repository
+Charms is a monorepo containing four independent Agent Plugins. The repository
 root owns the shared marketplace and the development, validation,
 documentation, and release tooling. It is not a plugin root.
 
@@ -11,7 +11,6 @@ charms/
 ├── packages/
 │   ├── chatgpt-pro-review/
 │   ├── codex-reset-credit/
-│   ├── mnemosyne-memory/
 │   ├── watch-video/
 │   └── x-bookmarks/
 ├── schemas/
@@ -46,9 +45,7 @@ package's `skills/`. Only files within that package root participate in
 discovery.
 
 Charms currently ships skills only. There is no `mcp.json` because none of
-the five plugins bundles or connects an MCP server as a plugin component.
-`mnemosyne-memory` instructs an agent to use a Mnemosyne server already
-configured by the host; that runtime prerequisite is not a bundled server.
+the four plugins bundles or connects an MCP server as a plugin component.
 
 ## Marketplace
 

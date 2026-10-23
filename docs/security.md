@@ -53,7 +53,6 @@ Never commit or paste into issue logs:
 - browser cookies or session tokens;
 - Codex authentication or rollout records;
 - X bookmark exports or OAuth state;
-- Mnemosyne databases or private memory exports;
 - private media, transcripts, frames, or reports.
 
 Skills must read credentials from the runtime environment or documented
@@ -74,13 +73,6 @@ files and secrets, and reconciles the response against local evidence.
 The helper is read-only. It sanitizes live and local results and must not print
 tokens, account identifiers, raw authentication files, or unredacted session
 records.
-
-### mnemosyne-memory
-
-The package does not bundle a server or memory database. The host's configured
-Mnemosyne profile owns data isolation. The skill excludes credentials, raw
-transcripts, noisy output, broad maintenance, and destructive memory
-operations from automatic use.
 
 ### watch-video
 
