@@ -6,5 +6,18 @@
   "metadata": {
     "description": "Agent Skills plugins by heyNag, pinned to immutable release commits."
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "mnemosyne-memory",
+      "description": "Use Mnemosyne MCP as a selective, project-aware memory and handoff layer across agent sessions.",
+      "version": "1.0.0",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/heyNag/charms.git",
+        "path": "packages/mnemosyne-memory",
+        "ref": "mnemosyne-memory--v1.0.0",
+        "sha": "32633547024ec0ef6df2c859e782fd9b823a9d68"
+      }
+    }
+  ]
 }
