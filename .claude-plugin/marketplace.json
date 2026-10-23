@@ -6,54 +6,5 @@
   "metadata": {
     "description": "Agent Skills plugins by heyNag, pinned to immutable release commits."
   },
-  "plugins": [
-    {
-      "name": "chatgpt-pro-review",
-      "description": "Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repository evidence.",
-      "version": "1.0.0",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/heyNag/charms.git",
-        "path": "packages/chatgpt-pro-review",
-        "ref": "chatgpt-pro-review--v1.0.0",
-        "sha": "ad9d8d458fbc7b6aa6e9355873f421217c53ef83"
-      }
-    },
-    {
-      "name": "codex-reset-credit",
-      "description": "Check Codex reset credits and local rate-limit reset windows without exposing authentication secrets.",
-      "version": "1.0.0",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/heyNag/charms.git",
-        "path": "packages/codex-reset-credit",
-        "ref": "codex-reset-credit--v1.0.0",
-        "sha": "ad9d8d458fbc7b6aa6e9355873f421217c53ef83"
-      }
-    },
-    {
-      "name": "watch-video",
-      "description": "Inspect videos with transcripts, timestamps, scene-aware frames, and optional transcription fallbacks.",
-      "version": "1.0.0",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/heyNag/charms.git",
-        "path": "packages/watch-video",
-        "ref": "watch-video--v1.0.0",
-        "sha": "ad9d8d458fbc7b6aa6e9355873f421217c53ef83"
-      }
-    },
-    {
-      "name": "x-bookmarks",
-      "description": "Fetch, search, and digest X/Twitter bookmarks using Bird or the optional X API v2 backend.",
-      "version": "1.0.0",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/heyNag/charms.git",
-        "path": "packages/x-bookmarks",
-        "ref": "x-bookmarks--v1.0.0",
-        "sha": "ad9d8d458fbc7b6aa6e9355873f421217c53ef83"
-      }
-    }
-  ]
+  "plugins": []
 }
