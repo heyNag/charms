@@ -30,6 +30,18 @@
         "ref": "mnemosyne-memory--v1.0.0",
         "sha": "32633547024ec0ef6df2c859e782fd9b823a9d68"
       }
+    },
+    {
+      "name": "x-bookmarks",
+      "description": "Fetch, search, and digest X/Twitter bookmarks using Bird or the optional X API v2 backend.",
+      "version": "1.0.0",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/heyNag/charms.git",
+        "path": "packages/x-bookmarks",
+        "ref": "x-bookmarks--v1.0.0",
+        "sha": "ad9d8d458fbc7b6aa6e9355873f421217c53ef83"
+      }
     }
   ]
 }
