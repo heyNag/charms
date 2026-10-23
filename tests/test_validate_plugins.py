@@ -7,10 +7,11 @@ import io
 import json
 import pathlib
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
+
+from release_fixtures import commit_all, git, init_repository, isolate_git, write_marketplace
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -30,6 +31,7 @@ def load_module():
 
 class ValidatePluginsTests(unittest.TestCase):
     def setUp(self) -> None:
+        isolate_git(self)
         self.module = load_module()
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -39,12 +41,13 @@ class ValidatePluginsTests(unittest.TestCase):
         shutil.copy2(SCHEMA, schema_target)
         (self.root / "packages").mkdir()
         self.plugin = self.add_plugin("demo-plugin")
+        write_marketplace(self.root)
 
     def manifest(self, name: str) -> dict:
         return {
             "$schema": self.module.CANONICAL_SCHEMA,
             "name": name,
-            "version": "2026.8.10",
+            "version": "1.0.0",
             "description": f"Portable {name} plugin.",
             "author": {"name": "Test Author", "url": "https://example.com/author"},
             "homepage": "https://example.com/plugins",
@@ -146,12 +149,17 @@ class ValidatePluginsTests(unittest.TestCase):
         self.assertTrue(any("allowed only at packages/*/plugin.json" in error for error in errors))
 
     def test_non_v1_root_surfaces_are_forbidden(self) -> None:
-        for relative in [".claude-plugin", ".opencode", "commands"]:
+        for relative in [".agents", ".opencode", "commands"]:
             (self.root / relative).mkdir()
         (self.root / "skillshare-hub.json").write_text("{}\n", encoding="utf-8")
+        (self.root / ".claude-plugin" / "plugin.json").write_text("{}\n", encoding="utf-8")
         errors = self.repository_errors()
-        for relative in [".claude-plugin", ".opencode", "commands", "skillshare-hub.json"]:
+        for relative in [".agents", ".opencode", "commands", "skillshare-hub.json"]:
             self.assertTrue(any(error.startswith(relative) for error in errors), relative)
+        self.assertIn(
+            ".claude-plugin/plugin.json: only marketplace.json is allowed in .claude-plugin",
+            errors,
+        )
 
     def test_manifest_must_be_valid_json_object(self) -> None:
         (self.plugin / "plugin.json").write_text("{not json}\n", encoding="utf-8")
@@ -206,11 +214,11 @@ class ValidatePluginsTests(unittest.TestCase):
         errors = self.plugin_errors()
         self.assertTrue(any("must match plugin directory 'demo-plugin'" in error for error in errors))
 
-    def test_release_metadata_must_be_complete_and_calver(self) -> None:
+    def test_release_metadata_must_be_complete_and_semver(self) -> None:
         manifest = self.manifest("demo-plugin")
         manifest.update(
             {
-                "version": "1.0.0",
+                "version": "2026.8.10.1",
                 "description": " ",
                 "author": {},
                 "homepage": "",
@@ -222,7 +230,7 @@ class ValidatePluginsTests(unittest.TestCase):
         self.write_manifest(self.plugin, manifest)
         errors = self.plugin_errors()
         for needle in [
-            "version must be UTC CalVer YYYY.M.D with optional .N",
+            "version must be MAJOR.MINOR.PATCH semantic versioning",
             "description must be a non-empty string",
             "author.name must be a non-empty string",
             "author.url must be a non-empty string",
@@ -233,21 +241,19 @@ class ValidatePluginsTests(unittest.TestCase):
         ]:
             self.assertTrue(any(needle in error for error in errors), needle)
 
-    def test_calver_accepts_same_day_sequence_and_rejects_invalid_date(self) -> None:
+    def test_versions_must_be_plain_semver(self) -> None:
         manifest = self.manifest("demo-plugin")
-        manifest["version"] = "2026.8.10.2"
-        self.write_manifest(self.plugin, manifest)
-        self.assertEqual(self.plugin_errors(), [])
-
-        manifest["version"] = "2026.2.30"
-        self.write_manifest(self.plugin, manifest)
-        errors = self.plugin_errors()
-        self.assertTrue(any("valid UTC calendar date" in error for error in errors))
-
-        manifest["version"] = "２０２６.8.10"
-        self.write_manifest(self.plugin, manifest)
-        errors = self.plugin_errors()
-        self.assertTrue(any("UTC CalVer YYYY.M.D" in error for error in errors))
+        for version in ["0.1.0", "12.3.45"]:
+            with self.subTest(version=version):
+                manifest["version"] = version
+                self.write_manifest(self.plugin, manifest)
+                self.assertEqual(self.plugin_errors(), [])
+        for version in ["1.0", "01.0.0", "1.0.0-beta", "2026.8.10.1", "２.0.0"]:
+            with self.subTest(version=version):
+                manifest["version"] = version
+                self.write_manifest(self.plugin, manifest)
+                errors = self.plugin_errors()
+                self.assertTrue(any("semantic versioning" in error for error in errors), errors)
 
     def test_extension_namespaces_must_be_reverse_domain_style(self) -> None:
         manifest = self.manifest("demo-plugin")
@@ -351,12 +357,7 @@ class ValidatePluginsTests(unittest.TestCase):
         self.assertTrue(any("capture.mp4: forbidden local artifact file" in error for error in errors))
 
     def test_repository_hygiene_honors_gitignore_but_focused_validation_is_strict(self) -> None:
-        subprocess.run(
-            ["git", "init", "--quiet"],
-            cwd=self.root,
-            check=True,
-            stdout=subprocess.PIPE,
-        )
+        init_repository(self.root)
         (self.root / ".gitignore").write_text(".ruff_cache/\n", encoding="utf-8")
         ignored_cache = self.plugin / ".ruff_cache"
         ignored_cache.mkdir()
@@ -375,6 +376,128 @@ class ValidatePluginsTests(unittest.TestCase):
         joined = "\n".join(errors)
         self.assertIn("secret.txt: possible secret value found", joined)
         self.assertNotIn(secret, joined)
+
+    def release_demo(self) -> str:
+        init_repository(self.root)
+        sha = commit_all(self.root, "Release demo-plugin 1.0.0")
+        git(self.root, "tag", "demo-plugin--v1.0.0")
+        return sha
+
+    def demo_entry(self, sha: str, version: str = "1.0.0", **changes: object) -> dict:
+        entry = {
+            "name": "demo-plugin",
+            "description": "Portable demo-plugin plugin.",
+            "version": version,
+            "source": {
+                "source": "git-subdir",
+                "url": "https://github.com/heyNag/charms.git",
+                "path": "packages/demo-plugin",
+                "ref": f"demo-plugin--v{version}",
+                "sha": sha,
+            },
+        }
+        entry.update(changes)
+        return entry
+
+    def assert_error_containing(self, needle: str, errors: list[str]) -> None:
+        self.assertTrue(any(needle in error for error in errors), f"{needle!r} not in {errors}")
+
+    def test_marketplace_manifest_is_required(self) -> None:
+        shutil.rmtree(self.root / ".claude-plugin")
+        self.assertIn(
+            ".claude-plugin/marketplace.json: missing marketplace manifest for Claude Code and "
+            "Codex installs",
+            self.repository_errors(),
+        )
+
+    def test_marketplace_top_level_shape_is_closed(self) -> None:
+        path = write_marketplace(self.root)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data.update({"name": "other", "owner": {"name": "Test", "email": "test@example.com"}, "extra": 1})
+        del data["metadata"]
+        path.write_text(json.dumps(data), encoding="utf-8")
+        errors = self.repository_errors()
+        for needle in [
+            "top-level keys must be exactly",
+            "name must be 'charms'",
+            "owner must contain only a non-empty name",
+            "metadata must contain only a non-empty description",
+        ]:
+            self.assert_error_containing(needle, errors)
+
+    def test_released_entry_pinned_to_its_tag_passes(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        self.assertEqual(self.repository_errors(), [])
+
+    def test_marketplace_entries_must_be_pinned_git_subdir_sources(self) -> None:
+        sha = self.release_demo()
+        pinned = self.demo_entry(sha)
+        cases = [
+            ("relative source", self.demo_entry(sha, source="./packages/demo-plugin"), "source.sha must be"),
+            ("abbreviated sha", self.demo_entry(sha[:12]), "source.sha must be"),
+            (
+                "moving ref",
+                self.demo_entry(sha, source={**pinned["source"], "ref": "main"}),
+                "source must be",
+            ),
+            ("client-specific key", {**pinned, "policy": {}}, "entry keys must be exactly"),
+            ("unknown plugin", self.demo_entry(sha, name="ghost-plugin"), "'ghost-plugin' is not a plugin"),
+            ("duplicate", [pinned, pinned], "sorted by name without duplicates"),
+        ]
+        for label, entry, needle in cases:
+            with self.subTest(label=label):
+                write_marketplace(self.root, entry if isinstance(entry, list) else [entry])
+                self.assert_error_containing(needle, self.repository_errors())
+
+    def test_marketplace_entry_name_must_be_a_package_string(self) -> None:
+        write_marketplace(
+            self.root,
+            [{"name": ["demo-plugin"], "description": "x", "version": "1.0.0", "source": {}}],
+        )
+        self.assert_error_containing("['demo-plugin'] is not a plugin under packages/", self.repository_errors())
+
+    def test_marketplace_directory_ignores_gitignored_files(self) -> None:
+        init_repository(self.root)
+        (self.root / ".gitignore").write_text(".DS_Store\n", encoding="utf-8")
+        (self.root / ".claude-plugin" / ".DS_Store").write_bytes(b"finder")
+        self.assertEqual(self.repository_errors(), [])
+
+        (self.root / ".claude-plugin" / "notes.txt").write_text("not allowed\n", encoding="utf-8")
+        self.assertIn(
+            ".claude-plugin/notes.txt: only marketplace.json is allowed in .claude-plugin",
+            self.repository_errors(),
+        )
+
+    def test_marketplace_pins_are_checked_against_release_tags(self) -> None:
+        sha = self.release_demo()
+        later = commit_all(self.root, "Later change")
+
+        write_marketplace(self.root, [self.demo_entry(later)])
+        self.assert_error_containing(f"demo-plugin--v1.0.0 points at {sha}, not {later}", self.repository_errors())
+
+        write_marketplace(self.root, [self.demo_entry(sha, description="Changed.")])
+        self.assert_error_containing("version and description must match", self.repository_errors())
+
+        manifest = self.manifest("demo-plugin")
+        manifest["version"] = "1.1.0"
+        self.write_manifest(self.plugin, manifest)
+        write_marketplace(self.root, [self.demo_entry(sha, "1.1.0")])
+        self.assert_error_containing(
+            "release tag demo-plugin--v1.1.0 is not available locally; run `git fetch --tags`",
+            self.repository_errors(),
+        )
+
+    def test_package_version_cannot_fall_below_its_release(self) -> None:
+        sha = self.release_demo()
+        manifest = self.manifest("demo-plugin")
+        manifest["version"] = "0.9.0"
+        self.write_manifest(self.plugin, manifest)
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        self.assert_error_containing(
+            "released version 1.0.0 is newer than packages/demo-plugin/plugin.json version 0.9.0",
+            self.repository_errors(),
+        )
 
 
 if __name__ == "__main__":

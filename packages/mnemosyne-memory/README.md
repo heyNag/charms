@@ -29,9 +29,11 @@ here and discovers the skill from the standard fixed location:
 skills/mnemosyne-memory
 ```
 
-The plugin is independently versioned. Installation and update behavior is
-defined by the client loading this package. Its absence of `mcp.json` is
-intentional: the skill uses an MCP server already configured by the host.
+The plugin is versioned and released independently. In Claude Code or Codex,
+install it as `mnemosyne-memory@charms` from the Charms marketplace. See
+[Installation](https://github.com/heyNag/charms/blob/main/docs/installing.md)
+for updates and skill-only installs. Its absence of `mcp.json` is intentional:
+the skill uses an MCP server already configured by the host.
 
 ## Automatic use
 

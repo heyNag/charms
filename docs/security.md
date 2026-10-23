@@ -7,8 +7,8 @@ data. Inspect the selected plugin and use the host's normal approval model.
 ## Package trust
 
 Each Charms plugin is an independent trust boundary. Install only the plugin
-you need. Verify release checksums before extraction and inspect
-`plugin.json`, `SKILL.md`, and bundled scripts before execution.
+you need, and inspect `plugin.json`, `SKILL.md`, and bundled scripts before
+execution.
 
 Charms validation enforces:
 
@@ -17,7 +17,33 @@ Charms validation enforces:
 - strict Agent Skills frontmatter;
 - no package symlinks in release artifacts;
 - an allowlisted deterministic archive;
+- marketplace entries pinned to an existing release tag and commit;
 - scans for tracked secrets and runtime artifacts.
+
+## Release integrity
+
+Every Charms GitHub release is immutable: once published, its assets cannot
+change and its tag name cannot be reused, even after the release is deleted.
+The release workflow fails, and leaves the marketplace unchanged, unless the
+release is immutable and its attestation verifies. A tag ruleset also blocks
+updates and deletions of `<name>--v<version>` tags; see
+[Repository settings](releasing.md#repository-settings).
+
+Marketplace entries pin the release tag and the full release commit SHA, and
+Claude Code and Codex install from that SHA. The release workflow writes an
+entry only after the release is published and verified, and
+`scripts/update-marketplace.py` refuses a tag that does not point at the
+pinned commit. Skill-only installs through Skillshare or the skills CLI follow
+`main` instead and are not release content.
+
+Verify a release and a downloaded ZIP before extraction:
+
+```sh
+gh release verify <tag> --repo heyNag/charms
+gh release verify-asset <tag> <zip> --repo heyNag/charms
+```
+
+The `.sha256` asset also works with `sha256sum --check`.
 
 ## Credentials
 

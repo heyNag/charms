@@ -9,7 +9,6 @@ more arguments, validate just those plugin roots.
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import json
 import os
 import re
@@ -21,6 +20,18 @@ from typing import Any, Iterable
 from jsonschema import Draft202012Validator
 from skills_ref import validate as validate_skill
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from plugin_release import (  # noqa: E402
+    GIT_SHA_RE,
+    MARKETPLACE_NAME,
+    MARKETPLACE_PATH,
+    manifest_at,
+    marketplace_entry,
+    parse_version,
+    tag_commit,
+)
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_RELATIVE_PATH = Path("schemas/agent-plugins/1.0.0/plugin.schema.json")
@@ -30,20 +41,15 @@ CANONICAL_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 # skill. These are product invariants, stricter than the base Agent Plugins spec.
 REQUIRED_STRING_FIELDS = ("version", "description", "homepage", "repository", "license")
 REQUIRED_PACKAGE_FILES = ("README.md", "LICENSE")
-CALVER_RE = re.compile(
-    r"^(?P<year>[0-9]{4})\."
-    r"(?P<month>[1-9]|1[0-2])\."
-    r"(?P<day>[1-9]|[12][0-9]|3[01])"
-    r"(?:\.(?P<sequence>[1-9][0-9]*))?$"
-)
 EXTENSION_NAMESPACE_RE = re.compile(
     r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
     r"(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$"
 )
 
+# The one shared marketplace lives at .claude-plugin/marketplace.json. Codex reads
+# .agents/plugins/marketplace.json first, so a second manifest there would shadow it.
 DISALLOWED_ROOT_SURFACES = (
     ".agents",
-    ".claude-plugin",
     ".codex-plugin",
     ".cursor-plugin",
     ".opencode",
@@ -55,6 +61,8 @@ DISALLOWED_ROOT_SURFACES = (
     "skillshare-hub.json",
 )
 DISALLOWED_PACKAGE_SURFACES = (".claude-plugin", "commands", "tool.json")
+MARKETPLACE_KEYS = {"name", "owner", "metadata", "plugins"}
+MARKETPLACE_ENTRY_KEYS = {"name", "description", "version", "source"}
 
 FORBIDDEN_DIRECTORY_NAMES = {
     ".codex",
@@ -315,18 +323,11 @@ def _validate_manifest_quality(manifest: dict[str, Any], manifest_path: Path, ro
             errors.append(f"{display}: {field} must be a non-empty string for a Charms release")
 
     version = manifest.get("version")
-    version_match = CALVER_RE.fullmatch(version) if isinstance(version, str) else None
-    if isinstance(version, str) and version and version_match is None:
-        errors.append(f"{display}: version must be UTC CalVer YYYY.M.D with optional .N")
-    elif version_match is not None:
+    if isinstance(version, str) and version:
         try:
-            dt.date(
-                int(version_match.group("year")),
-                int(version_match.group("month")),
-                int(version_match.group("day")),
-            )
+            parse_version(version)
         except ValueError:
-            errors.append(f"{display}: version must contain a valid UTC calendar date")
+            errors.append(f"{display}: version must be MAJOR.MINOR.PATCH semantic versioning")
 
     author = manifest.get("author")
     if not isinstance(author, dict):
@@ -536,6 +537,135 @@ def validate_plugin_root(
     return sorted(dict.fromkeys(errors))
 
 
+def _non_empty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _validate_marketplace_entry(
+    root: Path,
+    entry: dict[str, Any],
+    label: str,
+    package_version: Any,
+) -> list[str]:
+    name = entry["name"]
+    version = entry["version"]
+    description = entry["description"]
+    source = entry["source"]
+    if not _non_empty_string(description):
+        return [f"{label}: description must be a non-empty string"]
+    sha = source.get("sha") if isinstance(source, dict) else None
+    if not isinstance(sha, str) or GIT_SHA_RE.fullmatch(sha) is None:
+        return [f"{label}: source.sha must be the full 40-character release commit SHA"]
+    try:
+        expected = marketplace_entry(name, version, description, sha)
+    except ValueError as exc:
+        return [f"{label}: {exc}"]
+    if entry != expected:
+        return [f"{label}: source must be {json.dumps(expected['source'], sort_keys=True)}"]
+
+    errors: list[str] = []
+    try:
+        if parse_version(package_version) < parse_version(version):
+            errors.append(
+                f"{label}: released version {version} is newer than "
+                f"packages/{name}/plugin.json version {package_version}"
+            )
+    except ValueError:
+        pass  # The manifest check reports an invalid package version.
+
+    ref = expected["source"]["ref"]
+    try:
+        commit = tag_commit(root, ref)
+        released = manifest_at(root, sha, name) if commit == sha else None
+    except (OSError, RuntimeError) as exc:
+        return errors + [f"{label}: git is required to verify the release pin: {exc}"]
+    except (ValueError, json.JSONDecodeError) as exc:
+        return errors + [f"{label}: {exc}"]
+    if commit is None:
+        errors.append(f"{label}: release tag {ref} is not available locally; run `git fetch --tags`")
+    elif commit != sha:
+        errors.append(f"{label}: release tag {ref} points at {commit}, not {sha}")
+    elif released.get("version") != version or released.get("description") != description:
+        errors.append(
+            f"{label}: version and description must match packages/{name}/plugin.json at {sha}"
+        )
+    return errors
+
+
+def _validate_marketplace(root: Path, plugin_roots: list[Path]) -> list[str]:
+    """Validate the shared Claude Code and Codex marketplace manifest."""
+
+    display = MARKETPLACE_PATH.as_posix()
+    directory = root / MARKETPLACE_PATH.parent
+    path = root / MARKETPLACE_PATH
+    if not _lexists(path):
+        return [f"{display}: missing marketplace manifest for Claude Code and Codex installs"]
+    if directory.is_symlink() or path.is_symlink() or not path.is_file():
+        return [f"{display}: marketplace manifest must be a regular file in a real directory"]
+
+    visible = _git_visible_files(directory)
+    children = (
+        {path.relative_to(directory).parts[0] for path in visible}
+        if visible is not None
+        else {child.name for child in directory.iterdir()}
+    )
+    errors = [
+        f"{_display(directory / name, root)}: only {MARKETPLACE_PATH.name} is allowed in "
+        f"{MARKETPLACE_PATH.parent.as_posix()}"
+        for name in sorted(children)
+        if name != MARKETPLACE_PATH.name
+    ]
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return errors + [f"{display}: invalid JSON: {exc}"]
+    if not isinstance(data, dict):
+        return errors + [f"{display}: marketplace manifest must be a JSON object"]
+
+    if set(data) != MARKETPLACE_KEYS:
+        errors.append(f"{display}: top-level keys must be exactly {sorted(MARKETPLACE_KEYS)}")
+    if data.get("name") != MARKETPLACE_NAME:
+        errors.append(f"{display}: name must be {MARKETPLACE_NAME!r}")
+    owner = data.get("owner")
+    if not isinstance(owner, dict) or set(owner) != {"name"} or not _non_empty_string(owner["name"]):
+        errors.append(f"{display}: owner must contain only a non-empty name")
+    metadata = data.get("metadata")
+    if (
+        not isinstance(metadata, dict)
+        or set(metadata) != {"description"}
+        or not _non_empty_string(metadata["description"])
+    ):
+        errors.append(f"{display}: metadata must contain only a non-empty description")
+    plugins = data.get("plugins")
+    if not isinstance(plugins, list):
+        return errors + [f"{display}: plugins must be an array"]
+
+    package_versions: dict[str, Any] = {}
+    for plugin_root in plugin_roots:
+        try:
+            manifest = json.loads((plugin_root / "plugin.json").read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue  # The plugin root check reports the broken manifest.
+        if isinstance(manifest, dict):
+            package_versions[plugin_root.name] = manifest.get("version")
+
+    names: list[str] = []
+    for index, entry in enumerate(plugins):
+        label = f"{display}[plugins][{index}]"
+        if not isinstance(entry, dict) or set(entry) != MARKETPLACE_ENTRY_KEYS:
+            errors.append(f"{label}: entry keys must be exactly {sorted(MARKETPLACE_ENTRY_KEYS)}")
+            continue
+        name = entry["name"]
+        if not isinstance(name, str) or name not in package_versions:
+            errors.append(f"{label}: {name!r} is not a plugin under packages/")
+            continue
+        names.append(name)
+        errors.extend(_validate_marketplace_entry(root, entry, label, package_versions[name]))
+    if names != sorted(set(names)):
+        errors.append(f"{display}: plugins must be sorted by name without duplicates")
+    return errors
+
+
 def _plugin_directories(packages_path: Path) -> list[Path]:
     return sorted(
         (
@@ -605,6 +735,8 @@ def validate_repository(root: Path) -> tuple[list[Path], list[str]]:
                 scan_artifacts=False,
             )
         )
+
+    errors.extend(_validate_marketplace(root, plugin_roots))
 
     expected_manifests = {plugin_root / "plugin.json" for plugin_root in plugin_roots}
     for current, directories, files in _walk_without_following_symlinks(root):

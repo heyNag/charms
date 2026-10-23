@@ -20,8 +20,10 @@ here and discovers the skill from the standard fixed location:
 skills/chatgpt-pro-review
 ```
 
-The plugin is independently versioned. Installation and update behavior is
-defined by the client loading this package.
+The plugin is versioned and released independently. In Claude Code or Codex,
+install it as `chatgpt-pro-review@charms` from the Charms marketplace. See
+[Installation](https://github.com/heyNag/charms/blob/main/docs/installing.md)
+for updates and skill-only installs.
 
 ## Privacy
 

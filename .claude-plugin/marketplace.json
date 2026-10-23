@@ -1,0 +1,10 @@
+{
+  "name": "charms",
+  "owner": {
+    "name": "Nagarjuna Boddu"
+  },
+  "metadata": {
+    "description": "Agent Skills plugins by heyNag, pinned to immutable release commits."
+  },
+  "plugins": []
+}

@@ -22,8 +22,10 @@ here and discovers the skill from the standard fixed location:
 skills/codex-reset-credit
 ```
 
-The plugin is independently versioned. Installation and update behavior is
-defined by the client loading this package.
+The plugin is versioned and released independently. In Claude Code or Codex,
+install it as `codex-reset-credit@charms` from the Charms marketplace. See
+[Installation](https://github.com/heyNag/charms/blob/main/docs/installing.md)
+for updates and skill-only installs.
 
 ## Usage
 

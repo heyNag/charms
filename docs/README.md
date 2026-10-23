@@ -6,11 +6,11 @@ Use the shortest guide that matches the task:
 | --- | --- |
 | Understand repository and product boundaries | [Architecture](architecture.md) |
 | Understand the exact portable package contract | [Plugin format](plugin-format.md) |
-| Install a released or checked-out plugin | [Installation](installing.md) |
-| Check client and runtime requirements | [Compatibility](compatibility.md) |
+| Install or update a plugin in Claude Code, Codex, or another host | [Installation](installing.md) |
+| Check supported clients and runtime requirements | [Compatibility](compatibility.md) |
 | Change or add a plugin | [Development](development.md) |
 | Review trust, credentials, and artifact safety | [Security](security.md) |
-| Publish a plugin version | [Releasing](releasing.md) |
+| Bump a version, publish a release, or configure release settings | [Releasing](releasing.md) |
 
 Behavior and operational details live with each plugin:
 

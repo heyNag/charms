@@ -13,40 +13,51 @@ root `plugin.json` manifest and one
 | `watch-video` | Inspect video metadata, captions or transcripts, and representative frames. | [`packages/watch-video/`](packages/watch-video/) |
 | `x-bookmarks` | Fetch, search, and digest saved X/Twitter posts through Bird or X API v2. | [`packages/x-bookmarks/`](packages/x-bookmarks/) |
 
-The repository root is development and release infrastructure, not an
-installable plugin. Every directory in `packages/` is its own installation,
-version, security, and release boundary.
+The repository root holds the shared `charms` marketplace and the development
+and release tooling; it is not itself a plugin. Every directory in `packages/`
+is its own installation, version, security, and release boundary.
 
 ## Install a plugin
 
-Download the plugin ZIP and matching `.sha256` file from
-[GitHub Releases](https://github.com/heyNag/charms/releases), verify it, and
-extract it:
+Claude Code and Codex install plugins from the `charms` marketplace in this
+repository. Replace `watch-video` with any plugin from the table.
+
+Claude Code:
 
 ```sh
-PLUGIN=watch-video
-VERSION=2026.8.10
-CHECKSUM="${PLUGIN}-agent-plugin-v${VERSION}.zip.sha256"
-if command -v sha256sum >/dev/null 2>&1; then
-  sha256sum --check "$CHECKSUM"
-else
-  shasum -a 256 -c "$CHECKSUM"
-fi
-unzip "${PLUGIN}-agent-plugin-v${VERSION}.zip"
+claude plugin marketplace add heyNag/charms
+claude plugin install watch-video@charms
 ```
 
-The extracted `<plugin>/` directory is the plugin root. Install or load it
-using the selected client's documented Agent Plugin flow.
-Agent Plugins standardizes package loading, not distribution or client user
-interfaces; consult the
-[compatible clients list](https://agent-plugins.org/compatible-clients) for
-current client capabilities.
+Codex (CLI 0.147.0 or newer):
 
-For clients that accept a local plugin directory, a source checkout can use one
-`packages/<plugin>/` directory, never the repository root.
+```sh
+codex plugin marketplace add heyNag/charms
+codex plugin add watch-video@charms
+```
 
-Runtime prerequisites are plugin-specific. Read the selected plugin's README
-before enabling it.
+The marketplace pins each plugin to its latest release commit, so these
+installs only receive released versions. Unreleased changes on `main` never
+reach them.
+
+Hosts without a plugin system can install just the skill with
+[Skillshare](https://skillshare.runkids.cc) or the
+[skills CLI](https://github.com/vercel-labs/skills). Skill-only installs follow
+`main`, not releases:
+
+```sh
+skillshare install github.com/heyNag/charms/packages/watch-video/skills/watch-video
+npx skills add heyNag/charms
+```
+
+Use one channel per machine. A skill installed both ways loads twice.
+
+Each GitHub release also carries the plugin as a ZIP with a SHA-256 checksum
+for archival or offline use.
+
+See [Installation](docs/installing.md) for updates, other clients, and release
+ZIPs. Runtime prerequisites are plugin-specific. Read the selected plugin's
+README before enabling it.
 
 ## Develop
 
@@ -57,9 +68,10 @@ python3 -m pip install -r requirements-dev.txt
 make check
 ```
 
-`make check` runs conformance validation, offline behavior tests, Python and
-shell syntax checks, linting, secret and artifact checks, and a working-tree
-whitespace check.
+`make check` runs conformance and marketplace validation, offline behavior
+tests, Python and shell syntax checks, linting, secret and artifact checks, and
+a working-tree whitespace check. Marketplace validation needs the release tags,
+so run `git fetch --tags` first if your clone lacks them.
 
 ## Documentation
 

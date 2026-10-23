@@ -4,27 +4,21 @@
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import hashlib
 import json
 import os
 import pathlib
-import re
 import stat
+import sys
 import unicodedata
 import zipfile
 from dataclasses import dataclass
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-PLUGIN_NAME_RE = re.compile(
-    r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]{0,62}[a-z0-9])?$"
-)
-CALVER_RE = re.compile(
-    r"^(?P<year>[0-9]{4})\."
-    r"(?P<month>[1-9]|1[0-2])\."
-    r"(?P<day>[1-9]|[12][0-9]|3[01])"
-    r"(?:\.(?P<sequence>[1-9][0-9]*))?$"
-)
+from plugin_release import parse_version, validate_plugin_name  # noqa: E402
+
+
 FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 WINDOWS_INVALID_CHARACTERS = frozenset('<>:"|?*')
 WINDOWS_RESERVED_NAMES = frozenset(
@@ -39,11 +33,6 @@ class ArchiveResult:
     archive: pathlib.Path
     checksum: pathlib.Path
     version: str
-
-
-def validate_plugin_name(plugin: str) -> None:
-    if PLUGIN_NAME_RE.fullmatch(plugin) is None:
-        raise ValueError(f"invalid plugin name: {plugin!r}")
 
 
 def require_regular_file(path: pathlib.Path) -> None:
@@ -77,17 +66,10 @@ def load_manifest(path: pathlib.Path, plugin: str) -> tuple[dict, str]:
     if manifest.get("name") != plugin:
         raise ValueError(f"{path} name is {manifest.get('name')!r}, expected {plugin!r}")
     version = manifest.get("version")
-    match = CALVER_RE.fullmatch(version) if isinstance(version, str) else None
-    if match is None:
-        raise ValueError(f"{path} version is not UTC CalVer YYYY.M.D[.N]: {version!r}")
     try:
-        dt.date(
-            int(match.group("year")),
-            int(match.group("month")),
-            int(match.group("day")),
-        )
+        parse_version(version)
     except ValueError as exc:
-        raise ValueError(f"{path} version contains an invalid calendar date: {version!r}") from exc
+        raise ValueError(f"{path}: {exc}") from exc
     return manifest, version
 
 

@@ -1,5 +1,5 @@
 name: Release Plugin
-run-name: Release ${{ inputs.plugin }} (${{ inputs.mode }})
+run-name: Release ${{ inputs.plugin }}
 
 on:
   workflow_dispatch:
@@ -8,20 +8,23 @@ on:
         description: Agent Plugin package name, for example watch-video
         required: true
         type: string
-      mode:
-        description: Publish the current version or advance to the UTC release date
-        required: true
-        default: date
-        type: choice
-        options:
-          - current
-          - date
 
 concurrency:
   group: release-plugin-${{ inputs.plugin }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
 jobs:
+  ci:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
   validate:
     permissions:
       contents: read
@@ -29,9 +32,10 @@ jobs:
     timeout-minutes: 30
     outputs:
       archive_sha256: ${{ steps.archive_check.outputs.archive_sha256 }}
-      base_sha: ${{ steps.proposal.outputs.base_sha }}
-      tag: ${{ steps.proposal.outputs.tag }}
-      version: ${{ steps.proposal.outputs.version }}
+      commit_sha: ${{ steps.plan.outputs.commit_sha }}
+      previous_tag: ${{ steps.plan.outputs.previous_tag }}
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
     steps:
       - name: Require the default branch
         env:
@@ -55,20 +59,14 @@ jobs:
       - name: Install validation tools
         run: python -m pip install --quiet --requirement requirements-dev.txt
 
-      - name: Prepare and validate release proposal
-        id: proposal
+      - name: Plan the release
+        id: plan
         env:
-          MODE: ${{ inputs.mode }}
           PLUGIN: ${{ inputs.plugin }}
         run: |
-          base_sha="$(git rev-parse HEAD)"
-          version="$(python3 scripts/bump-plugin-version.py "${PLUGIN}" --mode "${MODE}")"
-          tag="agent-plugin/${PLUGIN}/v${version}"
+          plan="$(python3 scripts/plan-plugin-release.py "${PLUGIN}")"
+          tag="$(printf '%s\n' "${plan}" | sed -n 's/^tag=//p')"
 
-          if git show-ref --verify --quiet "refs/tags/${tag}"; then
-            echo "Tag already exists: ${tag}" >&2
-            exit 1
-          fi
           set +e
           git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1
           tag_probe_status=$?
@@ -82,54 +80,22 @@ jobs:
             exit 1
           fi
 
-          expected="packages/${PLUGIN}/plugin.json"
-          changed="$(git diff --name-only)"
-          if [ "${MODE}" = "current" ]; then
-            if [ -n "${changed}" ]; then
-              echo "Current-version publication unexpectedly changed tracked files:" >&2
-              echo "${changed}" >&2
-              exit 1
-            fi
-          elif [ "${changed}" != "${expected}" ]; then
-            echo "Date mode must change only ${expected}; changed paths:" >&2
-            echo "${changed:-<none>}" >&2
-            exit 1
-          fi
-          git diff --check
-
           {
-            echo "base_sha=${base_sha}"
-            echo "version=${version}"
-            echo "tag=${tag}"
+            printf '%s\n' "${plan}"
+            echo "commit_sha=$(git rev-parse HEAD)"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Full repository check
         run: make check
 
-      - name: Verify checks preserved the proposal
-        env:
-          MODE: ${{ inputs.mode }}
-          PLUGIN: ${{ inputs.plugin }}
-          VERSION: ${{ steps.proposal.outputs.version }}
+      - name: Require checks to leave the tree clean
         run: |
-          expected="packages/${PLUGIN}/plugin.json"
-          changed="$(git diff --name-only)"
-          if [ "${MODE}" = "current" ] && [ -n "${changed}" ]; then
-            echo "Repository checks changed tracked files." >&2
+          changed="$(git status --porcelain)"
+          if [ -n "${changed}" ]; then
+            echo "Repository checks changed the working tree:" >&2
             echo "${changed}" >&2
             exit 1
           fi
-          if [ "${MODE}" != "current" ] && [ "${changed}" != "${expected}" ]; then
-            echo "Repository checks changed files outside ${expected}." >&2
-            echo "${changed:-<none>}" >&2
-            exit 1
-          fi
-          actual_version="$(python3 scripts/bump-plugin-version.py "${PLUGIN}" --mode current)"
-          if [ "${actual_version}" != "${VERSION}" ]; then
-            echo "Repository checks changed the proposed manifest version." >&2
-            exit 1
-          fi
-          git diff --check
 
       - name: Build validation archive
         id: archive
@@ -144,12 +110,12 @@ jobs:
         env:
           ARCHIVE: ${{ steps.archive.outputs.archive }}
           CHECKSUM: ${{ steps.archive.outputs.checksum }}
-          EXPECTED_VERSION: ${{ steps.proposal.outputs.version }}
+          EXPECTED_VERSION: ${{ steps.plan.outputs.version }}
           PLUGIN: ${{ inputs.plugin }}
           VERSION: ${{ steps.archive.outputs.version }}
         run: |
           if [ "${VERSION}" != "${EXPECTED_VERSION}" ]; then
-            echo "Archive version ${VERSION} does not match proposal ${EXPECTED_VERSION}." >&2
+            echo "Archive version ${VERSION} does not match the planned ${EXPECTED_VERSION}." >&2
             exit 1
           fi
           (cd "$(dirname "${ARCHIVE}")" && sha256sum --check "$(basename "${CHECKSUM}")")
@@ -157,18 +123,10 @@ jobs:
           extract_dir="$(mktemp -d)"
           python3 -m zipfile --extract "${ARCHIVE}" "${extract_dir}"
           python3 scripts/validate_plugins.py "${extract_dir}/${PLUGIN}"
-          archive_sha256="$(python3 - "${ARCHIVE}" <<'PY'
-          import hashlib
-          import pathlib
-          import sys
-
-          print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())
-          PY
-          )"
-          echo "archive_sha256=${archive_sha256}" >> "${GITHUB_OUTPUT}"
+          echo "archive_sha256=$(sha256sum "${ARCHIVE}" | cut -d ' ' -f 1)" >> "${GITHUB_OUTPUT}"
 
   publish:
-    needs: validate
+    needs: [ci, validate]
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -193,20 +151,27 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Require the validated source and an unused tag
+      # Re-plan against current tags, so re-running an old run cannot publish a
+      # version that a newer release has already superseded.
+      - name: Require the validated commit on main and the same release plan
         env:
-          BASE_SHA: ${{ needs.validate.outputs.base_sha }}
+          COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
+          PLUGIN: ${{ inputs.plugin }}
+          PREVIOUS_TAG: ${{ needs.validate.outputs.previous_tag }}
           TAG: ${{ needs.validate.outputs.tag }}
+          VERSION: ${{ needs.validate.outputs.version }}
         run: |
+          git fetch --force --tags origin
           git fetch origin "${GITHUB_REF_NAME}"
-          local_sha="$(git rev-parse HEAD)"
-          remote_sha="$(git rev-parse "origin/${GITHUB_REF_NAME}")"
-          if [ "${local_sha}" != "${BASE_SHA}" ] || [ "${remote_sha}" != "${BASE_SHA}" ]; then
-            echo "The default branch changed after validation; rerun the release." >&2
+          if ! git merge-base --is-ancestor "${COMMIT_SHA}" "origin/${GITHUB_REF_NAME}"; then
+            echo "${COMMIT_SHA} is no longer on ${GITHUB_REF_NAME}." >&2
             exit 1
           fi
-          if git show-ref --verify --quiet "refs/tags/${TAG}"; then
-            echo "Tag already exists: ${TAG}" >&2
+          plan="$(python3 scripts/plan-plugin-release.py "${PLUGIN}" --revision "${COMMIT_SHA}")"
+          expected="$(printf 'version=%s\ntag=%s\nprevious_tag=%s' "${VERSION}" "${TAG}" "${PREVIOUS_TAG}")"
+          if [ "${plan}" != "${expected}" ]; then
+            echo "The release plan changed since validation; dispatch a new release." >&2
+            printf 'validated:\n%s\nnow:\n%s\n' "${expected}" "${plan}" >&2
             exit 1
           fi
           set +e
@@ -222,70 +187,10 @@ jobs:
             exit 1
           fi
 
-      - name: Apply the validated version
-        id: target
-        env:
-          MODE: ${{ inputs.mode }}
-          EXPECTED_VERSION: ${{ needs.validate.outputs.version }}
-          PLUGIN: ${{ inputs.plugin }}
-        run: |
-          manifest="packages/${PLUGIN}/plugin.json"
-          version="$(python3 scripts/bump-plugin-version.py "${PLUGIN}" --mode "${MODE}")"
-          if [ "${version}" != "${EXPECTED_VERSION}" ]; then
-            echo "Version proposal changed between validation and publication." >&2
-            exit 1
-          fi
-
-          changed="$(git diff --name-only)"
-          if [ "${MODE}" = "current" ]; then
-            if [ -n "${changed}" ]; then
-              echo "Current-version publication unexpectedly changed tracked files." >&2
-              exit 1
-            fi
-          elif [ "${changed}" != "${manifest}" ]; then
-            echo "Date mode changed paths other than ${manifest}." >&2
-            echo "${changed:-<none>}" >&2
-            exit 1
-          fi
-          git diff --check
-
-          if [ "${MODE}" != "current" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add "${manifest}"
-            staged="$(git diff --cached --name-only)"
-            if [ "${staged}" != "${manifest}" ]; then
-              echo "Release commit must contain only ${manifest}." >&2
-              exit 1
-            fi
-            git commit -m "Release Agent Plugin ${PLUGIN} v${version}"
-          fi
-          echo "commit_sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
-
-      - name: Push release commit
-        if: inputs.mode != 'current'
-        env:
-          BASE_SHA: ${{ needs.validate.outputs.base_sha }}
-          COMMIT_SHA: ${{ steps.target.outputs.commit_sha }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | cut -f 1)"
-          if [ "${remote_sha}" != "${BASE_SHA}" ]; then
-            echo "The default branch changed before push; rerun the release." >&2
-            exit 1
-          fi
-          gh auth setup-git
-          git push origin "HEAD:${GITHUB_REF_NAME}"
-          pushed_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | cut -f 1)"
-          if [ "${pushed_sha}" != "${COMMIT_SHA}" ]; then
-            echo "Remote branch does not point at the release commit." >&2
-            exit 1
-          fi
-
-      - name: Build portable release archive from the final commit
+      - name: Build portable release archive from the validated commit
         id: archive
         env:
-          COMMIT_SHA: ${{ steps.target.outputs.commit_sha }}
+          COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
           PLUGIN: ${{ inputs.plugin }}
         run: |
           source_tree="$(mktemp -d)"
@@ -308,14 +213,7 @@ jobs:
           fi
           (cd "$(dirname "${ARCHIVE}")" && sha256sum --check "$(basename "${CHECKSUM}")")
           python3 -m zipfile --test "${ARCHIVE}"
-          actual_sha256="$(python3 - "${ARCHIVE}" <<'PY'
-          import hashlib
-          import pathlib
-          import sys
-
-          print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())
-          PY
-          )"
+          actual_sha256="$(sha256sum "${ARCHIVE}" | cut -d ' ' -f 1)"
           if [ "${actual_sha256}" != "${EXPECTED_SHA256}" ]; then
             echo "Final archive differs from the archive approved by validation." >&2
             exit 1
@@ -347,61 +245,65 @@ jobs:
       - name: Create GitHub release
         env:
           ARCHIVE: ${{ steps.archive.outputs.archive }}
-          MODE: ${{ inputs.mode }}
           CHECKSUM: ${{ steps.archive.outputs.checksum }}
-          COMMIT_SHA: ${{ steps.target.outputs.commit_sha }}
+          COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
           GH_TOKEN: ${{ github.token }}
           PLUGIN: ${{ inputs.plugin }}
+          PREVIOUS_TAG: ${{ needs.validate.outputs.previous_tag }}
           TAG: ${{ needs.validate.outputs.tag }}
           VERSION: ${{ needs.validate.outputs.version }}
         run: |
-          if [ "${MODE}" = "current" ]; then
-            remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | cut -f 1)"
-            if [ "${remote_sha}" != "${COMMIT_SHA}" ]; then
-              echo "The default branch advanced before publication; rerun the release." >&2
-              exit 1
-            fi
-          fi
-          previous_tag="$(git tag --list "agent-plugin/${PLUGIN}/v*" --sort=-version:refname | sed -n '1p')"
-          if [ -n "${previous_tag}" ]; then
-            changes="$(git log --no-merges --max-count=30 --format='- %s' "${previous_tag}..${COMMIT_SHA}" -- "packages/${PLUGIN}")"
-            if [ -z "${changes}" ]; then
-              changes="- Version-only release."
-            fi
-            changes_heading="Changes since \`${previous_tag}\`:"
+          if [ -n "${PREVIOUS_TAG}" ]; then
+            changes="$(git log --no-merges --max-count=30 --format='- %s' "${PREVIOUS_TAG}..${COMMIT_SHA}" -- "packages/${PLUGIN}")"
+            changes_heading="Changes since \`${PREVIOUS_TAG}\`:"
           else
-            changes="- First Agent Plugin release."
+            changes="- First release."
             changes_heading="Changes:"
           fi
 
           notes_file="$(mktemp)"
           cat > "${notes_file}" <<EOF
-          Portable Agent Plugin release for \`${PLUGIN}\`.
-
-          Version: \`${VERSION}\`
-          Source: \`packages/${PLUGIN}\`
+          \`${PLUGIN}\` ${VERSION}, built from \`packages/${PLUGIN}\` at ${COMMIT_SHA}.
 
           ${changes_heading}
 
           ${changes}
 
-          The attached ZIP contains a self-contained Agent Plugin directory.
-          Verify it with the attached SHA-256 checksum before extracting it.
+          Install it from the Charms marketplace in Claude Code or Codex; see the
+          repository README. The attached ZIP is the same plugin as a portable
+          directory. This release is immutable, so verify the ZIP with
+          \`gh release verify-asset ${TAG} <zip> --repo ${GITHUB_REPOSITORY}\`.
           EOF
 
           gh release create "${TAG}" "${ARCHIVE}" "${CHECKSUM}" \
-            --title "${PLUGIN} v${VERSION}" \
+            --title "${PLUGIN} ${VERSION}" \
             --notes-file "${notes_file}" \
             --target "${COMMIT_SHA}" \
             --latest=false
 
-      - name: Verify published release
+  # Verification and the marketplace update are separate jobs, so "Re-run failed
+  # jobs" can finish an interrupted release without publishing it again.
+  verify:
+    needs: [validate, publish]
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Verify the published immutable release
         env:
-          ARCHIVE: ${{ steps.archive.outputs.archive }}
-          CHECKSUM: ${{ steps.archive.outputs.checksum }}
-          COMMIT_SHA: ${{ steps.target.outputs.commit_sha }}
+          COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
+          EXPECTED_SHA256: ${{ needs.validate.outputs.archive_sha256 }}
           GH_TOKEN: ${{ github.token }}
+          PLUGIN: ${{ inputs.plugin }}
           TAG: ${{ needs.validate.outputs.tag }}
+          VERSION: ${{ needs.validate.outputs.version }}
         run: |
           git fetch --force origin "refs/tags/${TAG}:refs/tags/${TAG}"
           tag_commit="$(git rev-list -n 1 "refs/tags/${TAG}")"
@@ -409,17 +311,105 @@ jobs:
             echo "Published tag targets ${tag_commit}, expected ${COMMIT_SHA}." >&2
             exit 1
           fi
-          release_target="$(gh release view "${TAG}" --json targetCommitish --jq '.targetCommitish')"
-          is_draft="$(gh release view "${TAG}" --json isDraft --jq '.isDraft')"
-          is_prerelease="$(gh release view "${TAG}" --json isPrerelease --jq '.isPrerelease')"
-          if [ "${release_target}" != "${COMMIT_SHA}" ] || [ "${is_draft}" != "false" ] || [ "${is_prerelease}" != "false" ]; then
-            echo "Published release metadata does not match the requested final release." >&2
-            exit 1
-          fi
-          expected_assets="$(printf '%s\n%s\n' "$(basename "${ARCHIVE}")" "$(basename "${CHECKSUM}")" | sort)"
-          actual_assets="$(gh release view "${TAG}" --json assets --jq '.assets[].name' | sort)"
-          if [ "${actual_assets}" != "${expected_assets}" ]; then
-            echo "Published release assets do not match the archive and checksum." >&2
-            printf 'expected:\n%s\nactual:\n%s\n' "${expected_assets}" "${actual_assets}" >&2
-            exit 1
-          fi
+
+          release_dir="${RUNNER_TEMP}/release"
+          gh release download "${TAG}" --repo "${GITHUB_REPOSITORY}" --dir "${release_dir}"
+          archive="${release_dir}/${PLUGIN}-agent-plugin-v${VERSION}.zip"
+          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")"
+          python3 - "${release_json}" "${release_dir}" "${archive}" "${EXPECTED_SHA256}" <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+
+          release = json.loads(sys.argv[1])
+          release_dir = pathlib.Path(sys.argv[2])
+          archive = pathlib.Path(sys.argv[3])
+          expected_sha256 = sys.argv[4]
+          downloaded = {
+              path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+              for path in release_dir.iterdir()
+          }
+          digests = {asset["name"]: asset.get("digest") for asset in release["assets"]}
+          checksum = archive.with_name(archive.name + ".sha256")
+          problems = []
+          if release["draft"] or release["prerelease"]:
+              problems.append("release must be published, not a draft or prerelease")
+          if not release.get("immutable"):
+              problems.append("release is not immutable; enable release immutability first")
+          if set(digests) != {archive.name, checksum.name} or set(downloaded) != set(digests):
+              problems.append(f"unexpected assets {sorted(digests)}")
+          elif any(digests[name] != f"sha256:{downloaded[name]}" for name in digests):
+              problems.append("downloaded assets do not match their published digests")
+          elif downloaded[archive.name] != expected_sha256:
+              problems.append("published archive differs from the validated archive")
+          elif checksum.read_text(encoding="utf-8") != f"{expected_sha256}  {archive.name}\n":
+              problems.append("published checksum file does not name the validated archive")
+          if problems:
+              raise SystemExit("; ".join(problems))
+          PY
+
+          # GitHub issues the release attestation shortly after publication.
+          for attempt in 1 2 3 4 5 6; do
+            if gh release verify "${TAG}" --repo "${GITHUB_REPOSITORY}" \
+              && gh release verify-asset "${TAG}" "${archive}" --repo "${GITHUB_REPOSITORY}" \
+              && gh release verify-asset "${TAG}" "${archive}.sha256" --repo "${GITHUB_REPOSITORY}"; then
+              exit 0
+            fi
+            sleep $((attempt * 10))
+          done
+          echo "The release attestation did not verify; re-run the failed jobs." >&2
+          exit 1
+
+  marketplace:
+    needs: [validate, verify]
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - name: Point the marketplace at the release
+        env:
+          COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
+          GH_TOKEN: ${{ github.token }}
+          PLUGIN: ${{ inputs.plugin }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          marketplace=".claude-plugin/marketplace.json"
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3; do
+            git fetch origin "${GITHUB_REF_NAME}"
+            git checkout --quiet --detach "origin/${GITHUB_REF_NAME}"
+            python3 scripts/update-marketplace.py "${PLUGIN}" --sha "${COMMIT_SHA}"
+            changed="$(git status --porcelain)"
+            if [ -z "${changed}" ]; then
+              exit 0
+            fi
+            if [ "${changed}" != " M ${marketplace}" ]; then
+              echo "Marketplace update changed unexpected paths:" >&2
+              echo "${changed}" >&2
+              exit 1
+            fi
+            git add "${marketplace}"
+            git commit --quiet -m "Point marketplace at ${PLUGIN} ${VERSION}"
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "${GITHUB_REF_NAME} moved during the update; retrying." >&2
+            sleep $((attempt * 5))
+          done
+          echo "Could not push the marketplace update; re-run the failed job." >&2
+          exit 1

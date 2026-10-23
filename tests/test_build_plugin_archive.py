@@ -22,7 +22,7 @@ def load_module():
     return module
 
 
-def make_plugin(root: pathlib.Path, version: str = "2026.8.10") -> pathlib.Path:
+def make_plugin(root: pathlib.Path, version: str = "1.0.0") -> pathlib.Path:
     package = root / "packages" / "demo-plugin"
     skill = package / "skills" / "demo-plugin"
     scripts = skill / "scripts"
@@ -57,10 +57,10 @@ class BuildPluginArchiveTests(unittest.TestCase):
             first_bytes = first.archive.read_bytes()
             second = self.module.build_archive(root, "demo-plugin", output)
 
-            self.assertEqual(first.archive.name, "demo-plugin-agent-plugin-v2026.8.10.zip")
+            self.assertEqual(first.archive.name, "demo-plugin-agent-plugin-v1.0.0.zip")
             self.assertEqual(
                 first.checksum.name,
-                "demo-plugin-agent-plugin-v2026.8.10.zip.sha256",
+                "demo-plugin-agent-plugin-v1.0.0.zip.sha256",
             )
             self.assertEqual(first_bytes, second.archive.read_bytes())
             digest = hashlib.sha256(first_bytes).hexdigest()
@@ -184,19 +184,13 @@ class BuildPluginArchiveTests(unittest.TestCase):
         )
 
     def test_rejects_invalid_manifest_version(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            make_plugin(root, version="2026.2.30")
+        for version in ["2026.8.10.1", "1.0", "1.0.0-beta", "２.0.0"]:
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as tmp:
+                root = pathlib.Path(tmp)
+                make_plugin(root, version=version)
 
-            with self.assertRaisesRegex(ValueError, "invalid calendar date"):
-                self.module.build_archive(root, "demo-plugin", root / "artifacts")
-
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            make_plugin(root, version="２０２６.8.10")
-
-            with self.assertRaisesRegex(ValueError, "UTC CalVer"):
-                self.module.build_archive(root, "demo-plugin", root / "artifacts")
+                with self.assertRaisesRegex(ValueError, "semantic versioning"):
+                    self.module.build_archive(root, "demo-plugin", root / "artifacts")
 
     def test_rejects_output_directory_inside_plugin(self):
         with tempfile.TemporaryDirectory() as tmp:
