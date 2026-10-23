@@ -8,6 +8,18 @@
   },
   "plugins": [
     {
+      "name": "chatgpt-pro-review",
+      "description": "Prepare scoped ChatGPT Pro review packets and reconcile feedback against local repository evidence.",
+      "version": "1.0.0",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/heyNag/charms.git",
+        "path": "packages/chatgpt-pro-review",
+        "ref": "chatgpt-pro-review--v1.0.0",
+        "sha": "ad9d8d458fbc7b6aa6e9355873f421217c53ef83"
+      }
+    },
+    {
       "name": "mnemosyne-memory",
       "description": "Use Mnemosyne MCP as a selective, project-aware memory and handoff layer across agent sessions.",
       "version": "1.0.0",
