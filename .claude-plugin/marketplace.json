@@ -20,6 +20,18 @@
       }
     },
     {
+      "name": "codex-reset-credit",
+      "description": "Check Codex reset credits and local rate-limit reset windows without exposing authentication secrets.",
+      "version": "1.0.0",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/heyNag/charms.git",
+        "path": "packages/codex-reset-credit",
+        "ref": "codex-reset-credit--v1.0.0",
+        "sha": "ad9d8d458fbc7b6aa6e9355873f421217c53ef83"
+      }
+    },
+    {
       "name": "mnemosyne-memory",
       "description": "Use Mnemosyne MCP as a selective, project-aware memory and handoff layer across agent sessions.",
       "version": "1.0.0",
