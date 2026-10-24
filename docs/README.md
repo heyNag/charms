@@ -14,8 +14,6 @@ Use the shortest guide that matches the task:
 
 Behavior and operational details live with each plugin:
 
-- [chatgpt-pro-review](../packages/chatgpt-pro-review/README.md)
-- [codex-reset-credit](../packages/codex-reset-credit/README.md)
 - [watch-video](../packages/watch-video/README.md)
 - [x-bookmarks](../packages/x-bookmarks/README.md)
 

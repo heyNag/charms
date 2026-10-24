@@ -33,8 +33,6 @@ filesystem access, or approval interface.
 
 | Plugin | Required environment |
 | --- | --- |
-| `chatgpt-pro-review` | Access to ChatGPT Pro through an approved browser or user-mediated transport. Local file, Git, and test access improve evidence reconciliation. |
-| `codex-reset-credit` | Python 3.11+. Live reset-credit checks require local Codex authentication and network access; local rate-limit checks require local Codex session data and can run offline. |
 | `watch-video` | macOS or Linux, Python 3.11+, `yt-dlp`, `ffmpeg`, and `ffprobe`. Remote media and hosted transcription require network access. |
 | `x-bookmarks` | Python 3.11+ and either Bird with browser-cookie access or X API v2 OAuth credentials. Live retrieval requires network access. |
 

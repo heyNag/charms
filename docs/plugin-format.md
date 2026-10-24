@@ -83,7 +83,7 @@ not accept `mcp.json`.
 
 ## Client extensions
 
-No current Charms plugin declares client-specific extension data. The four
+No current Charms plugin declares client-specific extension data. Both
 packages depend only on the portable Agent Plugins manifest and fixed Agent
 Skills component location.
 

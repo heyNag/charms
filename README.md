@@ -1,14 +1,12 @@
 # Charms
 
-Charms is a monorepo of four independent, portable
+Charms is a monorepo of two independent, portable
 [Agent Plugins v1](https://agent-plugins.org/specification). Each plugin has a
 root `plugin.json` manifest and one
 [Agent Skill](https://agentskills.io/specification) under `skills/`.
 
 | Plugin | Purpose | Plugin root |
 | --- | --- | --- |
-| `chatgpt-pro-review` | Prepare scoped ChatGPT Pro review packets and reconcile the result with local evidence. | [`packages/chatgpt-pro-review/`](packages/chatgpt-pro-review/) |
-| `codex-reset-credit` | Report Codex reset credits and local rate-limit windows without exposing authentication data. | [`packages/codex-reset-credit/`](packages/codex-reset-credit/) |
 | `watch-video` | Inspect video metadata, captions or transcripts, and representative frames. | [`packages/watch-video/`](packages/watch-video/) |
 | `x-bookmarks` | Fetch, search, and digest saved X/Twitter posts through Bird or X API v2. | [`packages/x-bookmarks/`](packages/x-bookmarks/) |
 

@@ -62,18 +62,6 @@ fixtures.
 
 ## Plugin-specific boundaries
 
-### chatgpt-pro-review
-
-Sending repository context to ChatGPT is an external disclosure. The skill
-requires authorization for the specific private context, excludes unrelated
-files and secrets, and reconciles the response against local evidence.
-
-### codex-reset-credit
-
-The helper is read-only. It sanitizes live and local results and must not print
-tokens, account identifiers, raw authentication files, or unredacted session
-records.
-
 ### watch-video
 
 Media and derived artifacts remain local unless the user selects hosted

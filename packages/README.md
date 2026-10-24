@@ -5,8 +5,6 @@ independently versioned and released product:
 
 ```text
 packages/
-├── chatgpt-pro-review/
-├── codex-reset-credit/
 ├── watch-video/
 └── x-bookmarks/
 ```

@@ -1,6 +1,6 @@
 # Architecture
 
-Charms is a monorepo containing four independent Agent Plugins. The repository
+Charms is a monorepo containing two independent Agent Plugins. The repository
 root owns the shared marketplace and the development, validation,
 documentation, and release tooling. It is not a plugin root.
 
@@ -9,8 +9,6 @@ charms/
 ├── .claude-plugin/
 │   └── marketplace.json
 ├── packages/
-│   ├── chatgpt-pro-review/
-│   ├── codex-reset-credit/
 │   ├── watch-video/
 │   └── x-bookmarks/
 ├── schemas/
@@ -35,7 +33,7 @@ Each `packages/<name>/` directory is a self-contained plugin root with:
 Each plugin has its own semantic version, release tag, GitHub release,
 archive, marketplace entry, runtime prerequisites, trust boundary, and failure
 surface. Host clients control permissions for each installation. Installing
-one plugin never requires loading the other four.
+one plugin never requires loading the other.
 
 ## Discovery
 
@@ -44,8 +42,8 @@ Agent Plugins uses fixed component locations. Clients load each package's
 package's `skills/`. Only files within that package root participate in
 discovery.
 
-Charms currently ships skills only. There is no `mcp.json` because none of
-the four plugins bundles or connects an MCP server as a plugin component.
+Charms currently ships skills only. There is no `mcp.json` because neither
+plugin bundles or connects an MCP server as a plugin component.
 
 ## Marketplace
 
