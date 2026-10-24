@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import http.client
 import json
 import os
 from pathlib import Path
@@ -14,13 +15,16 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from x_api_auth import AuthError, get_valid_token
+from x_api_auth import AuthError, get_valid_token, open_request
 
 BASE_URL = "https://api.x.com/2"
 MAX_RESULTS = 100
 DEFAULT_STATE_FILE = Path(
     os.environ.get("X_BOOKMARKS_STATE_FILE", "~/.local/state/x-bookmarks/state.json")
 ).expanduser()
+# Newest reviewed bookmark IDs kept per scope, so removing the last reviewed
+# bookmark does not lose the review cutoff.
+STATE_ANCHORS = 50
 
 TWEET_FIELDS = ",".join(
     [
@@ -85,8 +89,9 @@ class ApiError(RuntimeError):
             return None
         try:
             stamp = datetime.fromtimestamp(int(value), tz=timezone.utc).astimezone()
-        except ValueError:
-            return value
+        except (ValueError, OverflowError, OSError):
+            # Not an epoch time this platform can represent; report no reset time.
+            return None
         return stamp.strftime("%Y-%m-%d %H:%M:%S %z")
 
 
@@ -138,19 +143,31 @@ def api_get(path: str, token: str, params: dict[str, str] | None = None) -> tupl
         },
     )
     try:
-        with urllib.request.urlopen(request, timeout=45) as response:
+        with open_request(request, timeout=45) as response:
             payload = parse_json_bytes(response.read())
             return payload, rate_headers(response.headers)
     except urllib.error.HTTPError as exc:
-        raw = exc.read()
+        try:
+            raw = exc.read()
+        except (http.client.HTTPException, OSError):
+            # A cut-short error body still leaves the status and rate headers.
+            raw = b""
+        finally:
+            exc.close()
         try:
             payload = parse_json_bytes(raw)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            # A proxy or CDN error page can be any text in any charset.
             payload = raw.decode("utf-8", errors="replace")
         headers = rate_headers(exc.headers)
         raise ApiError(exc.code, f"HTTP {exc.code}: {problem_summary(payload)}", headers) from exc
     except urllib.error.URLError as exc:
         raise ApiError(0, f"request failed: {exc.reason}") from exc
+    except (http.client.HTTPException, OSError) as exc:
+        # The connection dropped or the body was cut short after the headers.
+        raise ApiError(0, f"request failed: {exc}") from exc
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ApiError(0, f"response was not valid JSON: {exc}") from exc
 
 
 def common_post_params(page_size: int, pagination_token: str | None = None) -> dict[str, str]:
@@ -180,7 +197,8 @@ def fetch_bookmark_pages(
     count: int,
     fetch_all: bool,
     max_pages: int | None,
-) -> tuple[list[dict[str, Any]], dict[str, str]]:
+) -> tuple[list[dict[str, Any]], dict[str, str], bool]:
+    """Return bookmarks, rate headers, and whether pagination reached the end."""
     bookmarks: list[dict[str, Any]] = []
     next_token: str | None = None
     last_headers: dict[str, str] = {}
@@ -205,7 +223,7 @@ def fetch_bookmark_pages(
         if max_pages is not None and pages >= max_pages:
             break
 
-    return bookmarks, last_headers
+    return bookmarks, last_headers, not next_token
 
 
 def fetch_folders(
@@ -250,7 +268,8 @@ def fetch_folder_post_ids(
     count: int,
     fetch_all: bool,
     max_pages: int | None,
-) -> tuple[list[str], dict[str, str]]:
+) -> tuple[list[str], dict[str, str], bool]:
+    """Return folder post IDs, rate headers, and whether pagination reached the end."""
     ids: list[str] = []
     next_token: str | None = None
     last_headers: dict[str, str] = {}
@@ -282,7 +301,7 @@ def fetch_folder_post_ids(
         if max_pages is not None and pages >= max_pages:
             break
 
-    return ids, last_headers
+    return ids, last_headers, not next_token
 
 
 def hydrate_posts(token: str, post_ids: list[str]) -> tuple[list[dict[str, Any]], dict[str, str]]:
@@ -469,36 +488,50 @@ def state_scope(folder_id: str | None) -> str:
     return f"folder:{folder_id}" if folder_id else "all"
 
 
-def state_last_seen_id(state: dict[str, Any], scope: str) -> str | None:
+def state_entry(state: dict[str, Any], scope: str) -> dict[str, Any]:
     scopes = state.get("scopes")
     if isinstance(scopes, dict):
         entry = scopes.get(scope)
-        if isinstance(entry, dict) and entry.get("last_seen_id"):
-            return str(entry["last_seen_id"])
-    return None
+        if isinstance(entry, dict):
+            return entry
+    return {}
+
+
+def state_anchor_ids(state: dict[str, Any], scope: str) -> list[str]:
+    """Return the saved reviewed bookmark IDs for scope, newest first.
+
+    State written before anchors existed holds only last_seen_id, which reads
+    as a single anchor.
+    """
+    entry = state_entry(state, scope)
+    saved = entry.get("anchor_ids")
+    anchors = [str(item) for item in saved if item] if isinstance(saved, list) else []
+    last_seen_id = entry.get("last_seen_id")
+    if last_seen_id and str(last_seen_id) not in anchors:
+        anchors.insert(0, str(last_seen_id))
+    return anchors
 
 
 def state_last_seen_created_at(state: dict[str, Any], scope: str) -> str | None:
-    scopes = state.get("scopes")
-    if isinstance(scopes, dict):
-        entry = scopes.get(scope)
-        if isinstance(entry, dict) and entry.get("last_seen_created_at"):
-            return str(entry["last_seen_created_at"])
-    return None
+    value = state_entry(state, scope).get("last_seen_created_at")
+    return str(value) if value else None
 
 
 def update_last_seen(
     state: dict[str, Any],
     scope: str,
-    newest_id: str,
+    fetched_ids: list[str],
     newest_created_at: str | None = None,
 ) -> dict[str, Any]:
+    """Record the newest fetched IDs, then older saved anchors, as the cutoff."""
     updated = dict(state)
     scopes = updated.get("scopes")
-    if not isinstance(scopes, dict):
-        scopes = {}
+    scopes = dict(scopes) if isinstance(scopes, dict) else {}
+    anchors = list(dict.fromkeys([*fetched_ids, *state_anchor_ids(state, scope)]))
+    anchors = anchors[:STATE_ANCHORS]
     entry: dict[str, Any] = {
-        "last_seen_id": newest_id,
+        "last_seen_id": anchors[0],
+        "anchor_ids": anchors,
         "updated_at": utc_now(),
     }
     if newest_created_at:
@@ -508,22 +541,57 @@ def update_last_seen(
     return updated
 
 
-def since_last(items: list[dict[str, Any]], state: dict[str, Any], scope: str) -> list[dict[str, Any]]:
-    last_seen_id = state_last_seen_id(state, scope)
-    if not last_seen_id:
-        return items
-    result: list[dict[str, Any]] = []
-    for item in items:
-        if str(item.get("id")) == str(last_seen_id):
-            return result
-        result.append(item)
-    # The last-seen bookmark was removed; fall back to its creation time so an
-    # un-bookmarked cutoff does not silently return the entire list again.
-    # ISO-8601 UTC strings from the API compare correctly as text.
+def cutoff_index(items: list[dict[str, Any]], anchors: list[str]) -> int | None:
+    """Return where the reviewed bookmarks start in a full fetch, or None.
+
+    Reviewed bookmarks sit below every newer one, in saved anchor order with
+    gaps where some were removed. A reviewed post bookmarked again moves to the
+    top, so the cutoff is the run of adjacent anchors that ends at the last
+    fetched anchor, not the newest anchor found.
+    """
+    rank = {anchor: position for position, anchor in enumerate(anchors)}
+    ids = [str(item.get("id")) for item in items]
+    hits = [index for index, item_id in enumerate(ids) if item_id in rank]
+    if not hits:
+        return None
+    start = hits[-1]
+    while start > 0 and rank.get(ids[start - 1], len(anchors)) < rank[ids[start]]:
+        start -= 1
+    return start
+
+
+def since_last(
+    items: list[dict[str, Any]],
+    state: dict[str, Any],
+    scope: str,
+    reached_end: bool = True,
+) -> tuple[list[dict[str, Any]], str]:
+    """Return items bookmarked after the saved cutoff and how it was applied.
+
+    Modes: "no_state" (nothing saved), "anchor" (stopped where the saved IDs
+    still bookmarked begin), "created_at_fallback" (every saved ID is gone, so
+    post creation time was compared; this can skip or repeat bookmarks), or
+    "unfiltered" (the fetch stopped before the end of the list, or no cutoff
+    could be applied; every item is returned).
+    """
+    anchors = state_anchor_ids(state, scope)
+    if not anchors:
+        return items, "no_state"
+    if not reached_end:
+        # Reviewed posts bookmarked again sit above unfetched new bookmarks and
+        # look just like the cutoff, so only a full fetch can confirm it.
+        return items, "unfiltered"
+    index = cutoff_index(items, anchors)
+    if index is not None:
+        return items[:index], "anchor"
     created_cutoff = state_last_seen_created_at(state, scope)
-    if created_cutoff:
-        return [item for item in items if str(item.get("created_at") or "") > created_cutoff]
-    return items
+    if not created_cutoff:
+        return items, "unfiltered"
+    # Bookmarks are ordered by bookmark time but X exposes only post creation
+    # time, so this is a last resort the caller must flag.
+    # ISO-8601 UTC strings from the API compare correctly as text.
+    newer = [item for item in items if str(item.get("created_at") or "") > created_cutoff]
+    return newer, "created_at_fallback"
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -534,8 +602,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--folders", action="store_true", help="List bookmark folders instead of posts.")
     parser.add_argument("--folder-id", help="Fetch bookmarks from a bookmark folder.")
     parser.add_argument("--query", help="Local text query over fetched bookmark data.")
-    parser.add_argument("--since-last", action="store_true", help="Return items before the saved last_seen_id.")
-    parser.add_argument("--update-state", action="store_true", help="Record newest fetched bookmark as last_seen_id.")
+    parser.add_argument(
+        "--since-last",
+        action="store_true",
+        help="Return items bookmarked after the saved review cutoff.",
+    )
+    parser.add_argument(
+        "--update-state",
+        action="store_true",
+        help="Save the newest fetched bookmarks as the cutoff after a fetch that reached the end of the list.",
+    )
     parser.add_argument("--state-file", type=Path, default=DEFAULT_STATE_FILE)
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON.")
     return parser.parse_args(argv)
@@ -548,6 +624,14 @@ def main(argv: list[str]) -> int:
         return 2
     if args.folders and args.folder_id:
         print("error: use either --folders or --folder-id, not both", file=sys.stderr)
+        return 2
+    if args.update_state and args.query:
+        print(
+            "error: --update-state cannot be combined with --query; "
+            "it would mark bookmarks the query hid as reviewed",
+            file=sys.stderr,
+        )
+        print("fix: run --all --since-last --update-state without --query", file=sys.stderr)
         return 2
 
     try:
@@ -570,7 +654,7 @@ def main(argv: list[str]) -> int:
             }
         else:
             if args.folder_id:
-                post_ids, headers = fetch_folder_post_ids(
+                post_ids, headers, reached_end = fetch_folder_post_ids(
                     token,
                     user_id,
                     args.folder_id,
@@ -583,7 +667,7 @@ def main(argv: list[str]) -> int:
                 for item in items:
                     item["folder_id"] = args.folder_id
             else:
-                items, headers = fetch_bookmark_pages(
+                items, headers, reached_end = fetch_bookmark_pages(
                     token,
                     user_id,
                     args.count,
@@ -594,21 +678,47 @@ def main(argv: list[str]) -> int:
             state = load_state(args.state_file)
             scope = state_scope(args.folder_id)
             fetched_items = list(items)
-            newest_id = str(fetched_items[0]["id"]) if fetched_items else None
             newest_created_at = (
                 str(fetched_items[0].get("created_at"))
                 if fetched_items and fetched_items[0].get("created_at")
                 else None
             )
             pre_filter_count = len(fetched_items)
+            # Only a fetch that ran to the end of the list surely holds every
+            # bookmark newer than the old cutoff: in a partial window, reviewed
+            # posts bookmarked again look just like the cutoff. Saving after a
+            # partial fetch could mark bookmarks nobody saw as reviewed.
+            cutoff_reached = reached_end
+            cutoff_mode = None
             if args.since_last:
-                items = since_last(items, state, scope)
+                items, cutoff_mode = since_last(items, state, scope, reached_end)
+                if cutoff_mode == "created_at_fallback":
+                    print(
+                        "warning: no saved review anchor is still bookmarked; filtered by post "
+                        "creation time, which can skip or repeat bookmarks",
+                        file=sys.stderr,
+                    )
             items = filter_query(items, args.query)
-            if args.update_state and newest_id:
+            state_updated = False
+            if args.update_state and fetched_items and cutoff_reached:
                 save_state(
                     args.state_file,
-                    update_last_seen(state, scope, newest_id, newest_created_at),
+                    update_last_seen(
+                        state,
+                        scope,
+                        [str(item["id"]) for item in fetched_items],
+                        newest_created_at,
+                    ),
                 )
+                state_updated = True
+            if (args.since_last or args.update_state) and not cutoff_reached:
+                print(
+                    "warning: the fetch stopped before the end of the list, so the last review "
+                    "cutoff cannot be confirmed and some new bookmarks may not have been fetched"
+                    + ("; review state was not updated" if args.update_state else ""),
+                    file=sys.stderr,
+                )
+                print("fix: rerun with --all and without --max-pages", file=sys.stderr)
 
             output = {
                 "data": items,
@@ -618,6 +728,9 @@ def main(argv: list[str]) -> int:
                     "fetched_count": pre_filter_count,
                     "query": args.query,
                     "since_last": args.since_last,
+                    "cutoff_mode": cutoff_mode,
+                    "cutoff_reached": cutoff_reached,
+                    "state_updated": state_updated,
                     "state_scope": scope,
                     "state_file": str(args.state_file.expanduser()),
                     "fetched_at": utc_now(),
@@ -634,8 +747,12 @@ def main(argv: list[str]) -> int:
         return 1
     except ApiError as exc:
         print(f"error: {exc}", file=sys.stderr)
-        if exc.status == 429 and exc.reset_at:
-            print(f"fix: retry after {exc.reset_at}", file=sys.stderr)
+        if exc.status == 429:
+            reset_at = exc.reset_at
+            if reset_at:
+                print(f"fix: retry after {reset_at}", file=sys.stderr)
+            else:
+                print("fix: wait for the X API rate limit window to reset, then retry", file=sys.stderr)
             return 75
         if exc.status == 402:
             print(

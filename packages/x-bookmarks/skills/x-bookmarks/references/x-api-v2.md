@@ -29,7 +29,18 @@ tweet.read users.read bookmark.read offline.access
 Bundled helpers do not change the X account and need only these scopes. Do not
 pass `--include-write-scope` to `x_api_auth.py` for the bundled fetch workflows.
 Request `bookmark.write` only for a separate, explicitly authorized workflow
-that creates or deletes bookmarks.
+that creates or deletes bookmarks. Setup never reuses saved scopes: each run
+requests these defaults plus only its own `--include-write-scope`/`--scope`
+flags, and rejects scope names X does not document.
+
+The callback server answers only the redirect path, ignores other requests,
+and gives up after 5 minutes, even while a slow client is still connected. If
+another setup run, or another program listening on 127.0.0.1, holds the
+callback port, setup exits with an error: stop it or pass `--redirect-uri` with
+a free loopback port registered in the app. A program listening on all
+interfaces or on IPv6 is not detected; the browser may reach it instead, and
+setup then times out. API and token requests refuse redirects so credentials
+never follow a response to another host.
 
 The fetch helper also accepts an existing OAuth user access token from
 `X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN`. `x_api_auth.py --status` checks
@@ -51,12 +62,24 @@ The helper requests enough fields for useful agent summaries:
 ## Rate Limits
 
 The helper reports `x-rate-limit-limit`, `x-rate-limit-remaining`, and
-`x-rate-limit-reset` when available. On `429`, it reports the reset time instead
-of waiting silently.
+`x-rate-limit-reset` when available. On `429`, it exits with status 75 and
+reports the reset time, when X sends a usable one, instead of waiting silently.
 
 ## Limitations
 
-- X returns post creation time, not the time a post was bookmarked.
+- X returns post creation time, not the time a post was bookmarked. Review
+  state therefore stores the newest 50 reviewed bookmark IDs per scope and, in
+  a fetch that reached the end of the list, stops where those still bookmarked
+  begin. A reviewed post bookmarked again moves to the top, so it is listed as
+  new. Only when none is present in such a full fetch does it compare post
+  creation time, reported as `meta.cutoff_mode: "created_at_fallback"`.
+- A fetch that stops with pages left (a `--count` window, or
+  `--all --max-pages`) cannot tell the cutoff from reviewed posts bookmarked
+  again above unfetched new ones, so `--since-last` returns every fetched
+  bookmark as `meta.cutoff_mode: "unfiltered"`.
+- `--update-state` saves the cutoff only when the fetch reached the end of the
+  list (`--all` without `--max-pages`; `meta.cutoff_reached`), and refuses
+  `--query`.
 - Local "new since last review" state defaults to
   `~/.local/state/x-bookmarks/state.json`; `X_BOOKMARKS_STATE_FILE` overrides
   that default, and `--state-file PATH` overrides it for one invocation. Keep

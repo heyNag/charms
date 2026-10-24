@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import hashlib
+import http.client
 import http.server
 import json
 import os
@@ -23,6 +25,35 @@ AUTHORIZE_URL = "https://x.com/i/oauth2/authorize"
 TOKEN_URL = "https://api.x.com/2/oauth2/token"
 DEFAULT_REDIRECT_URI = "http://localhost:8739/callback"
 DEFAULT_SCOPES = ["tweet.read", "users.read", "bookmark.read", "offline.access"]
+# OAuth 2.0 scopes documented by X; anything else is a typo X would reject.
+KNOWN_SCOPES = frozenset(
+    {
+        "block.read",
+        "block.write",
+        "bookmark.read",
+        "bookmark.write",
+        "dm.read",
+        "dm.write",
+        "follows.read",
+        "follows.write",
+        "like.read",
+        "like.write",
+        "list.read",
+        "list.write",
+        "media.write",
+        "mute.read",
+        "mute.write",
+        "offline.access",
+        "space.read",
+        "tweet.moderate.write",
+        "tweet.read",
+        "tweet.write",
+        "users.email",
+        "users.read",
+    }
+)
+# How long setup waits for the browser to return to the local callback.
+CALLBACK_TIMEOUT_SECONDS = 300
 
 CONFIG_DIR = Path(os.environ.get("X_BOOKMARKS_CONFIG_DIR", "~/.config/x-bookmarks")).expanduser()
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -86,6 +117,27 @@ def add_token_metadata(tokens: dict[str, Any], scopes: list[str]) -> dict[str, A
     return stamped
 
 
+class RefuseRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse redirects so credentials are never resent to another URL."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: Any,
+        code: int,
+        msg: str,
+        headers: Any,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        fp.close()
+        raise urllib.error.URLError(f"refused HTTP {code} redirect to {newurl}")
+
+
+def open_request(request: urllib.request.Request, timeout: float) -> Any:
+    """Open an authenticated request; X API endpoints never redirect."""
+    return urllib.request.build_opener(RefuseRedirect).open(request, timeout=timeout)
+
+
 def pkce_pair() -> tuple[str, str]:
     verifier = secrets.token_urlsafe(64)
     digest = hashlib.sha256(verifier.encode("ascii")).digest()
@@ -113,15 +165,24 @@ def token_request(
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            payload = response.read().decode("utf-8")
+        with open_request(request, timeout=30) as response:
+            data = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
+        try:
+            detail = exc.read().decode("utf-8", errors="replace")
+        except (http.client.HTTPException, OSError):
+            detail = "unreadable response body"
+        finally:
+            exc.close()
         raise AuthError(f"token request failed with HTTP {exc.code}: {detail}") from exc
     except urllib.error.URLError as exc:
         raise AuthError(f"token request failed: {exc.reason}") from exc
+    except (http.client.HTTPException, OSError) as exc:
+        # The connection dropped or the body was cut short after the headers.
+        raise AuthError(f"token request failed: {exc}") from exc
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise AuthError(f"token endpoint returned invalid JSON: {exc}") from exc
 
-    data = json.loads(payload)
     if not isinstance(data, dict):
         raise AuthError("token endpoint returned non-object JSON")
     if "access_token" not in data:
@@ -131,29 +192,52 @@ def token_request(
 
 class OAuthCallback(http.server.BaseHTTPRequestHandler):
     server_version = "XBookmarksOAuth/1.0"
+    # Let a handler thread drop a connection that stops sending.
+    timeout = 10
 
     def do_GET(self) -> None:  # noqa: N802 - stdlib hook name
         parsed = urllib.parse.urlparse(self.path)
         query = urllib.parse.parse_qs(parsed.query)
+        expected_path = getattr(self.server, "expected_path")  # type: ignore[attr-defined]
         expected_state = getattr(self.server, "expected_state")  # type: ignore[attr-defined]
 
+        # Stray requests (favicon, probes, an old tab from an earlier run) do
+        # not belong to this flow, so answer them and keep waiting.
+        if parsed.path != expected_path:
+            self.respond(404, "Not found.")
+            return
         if query.get("state", [""])[0] != expected_state:
-            self.server.auth_error = "state mismatch"  # type: ignore[attr-defined]
+            self.server.rejected = "state mismatch"  # type: ignore[attr-defined]
             self.respond(400, "Auth failed: state mismatch. You can close this tab.")
             return
         if "error" in query:
             message = query.get("error_description", query.get("error", ["unknown error"]))[0]
-            self.server.auth_error = message  # type: ignore[attr-defined]
-            self.respond(400, "Auth failed. You can close this tab.")
+            self.conclude(400, "Auth failed. You can close this tab.", error=message)
             return
         code = query.get("code", [""])[0]
         if not code:
-            self.server.auth_error = "missing authorization code"  # type: ignore[attr-defined]
-            self.respond(400, "Auth failed: missing code. You can close this tab.")
+            self.conclude(
+                400, "Auth failed: missing code. You can close this tab.", error="missing authorization code"
+            )
             return
 
-        self.server.auth_code = code  # type: ignore[attr-defined]
-        self.respond(200, "X bookmarks auth complete. You can close this tab.")
+        self.conclude(200, "X bookmarks auth complete. You can close this tab.", code=code)
+
+    def conclude(
+        self, status: int, message: str, code: str | None = None, error: str | None = None
+    ) -> None:
+        """Write the page, then hand the flow its result.
+
+        The process may exit as soon as the flow sees a result, which ends this
+        daemon thread, so the page goes out first. A browser that hung up
+        before reading it does not void the result.
+        """
+        with contextlib.suppress(OSError):
+            self.respond(status, message)
+        if error is not None:
+            self.server.auth_error = error  # type: ignore[attr-defined]
+        else:
+            self.server.auth_code = code  # type: ignore[attr-defined]
 
     def log_message(self, _format: str, *_args: Any) -> None:
         return
@@ -177,6 +261,7 @@ def run_auth_flow(
     redirect_uri: str,
     scopes: list[str],
     open_browser: bool,
+    timeout: float = CALLBACK_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
     parsed_redirect = urllib.parse.urlparse(redirect_uri)
     if parsed_redirect.hostname not in {"localhost", "127.0.0.1"}:
@@ -197,17 +282,46 @@ def run_auth_flow(
     }
     auth_url = AUTHORIZE_URL + "?" + urllib.parse.urlencode(params)
 
-    server = http.server.HTTPServer(("127.0.0.1", parsed_redirect.port), OAuthCallback)
+    address = ("127.0.0.1", parsed_redirect.port)
+    try:
+        server = http.server.ThreadingHTTPServer(address, OAuthCallback)
+    except OSError as exc:
+        raise AuthError(
+            f"cannot listen on {redirect_uri}: {exc.strerror or exc}; stop the other setup run "
+            "or pass --redirect-uri with a free loopback port registered in the X app"
+        ) from exc
+    # Each request runs on a daemon thread, so a slow client can neither hold
+    # the flow past its deadline nor keep the process alive after it.
+    server.daemon_threads = True
+    server.expected_path = parsed_redirect.path or "/"  # type: ignore[attr-defined]
     server.expected_state = state  # type: ignore[attr-defined]
     server.auth_code = None  # type: ignore[attr-defined]
     server.auth_error = None  # type: ignore[attr-defined]
+    server.rejected = None  # type: ignore[attr-defined]
+    # handle_request() returns once it hands a connection to a thread, or after
+    # this many idle seconds, so the deadline below is checked even when
+    # nothing connects.
+    server.timeout = min(1.0, timeout)
 
     print("Open this URL to authorize X bookmark access:")
-    print(auth_url)
+    # Flush now: piped stdout is block-buffered and the wait below can last minutes.
+    print(auth_url, flush=True)
     if open_browser:
         webbrowser.open(auth_url)
 
-    server.handle_request()
+    deadline = time.monotonic() + timeout
+    try:
+        while server.auth_code is None and server.auth_error is None:  # type: ignore[attr-defined]
+            if time.monotonic() >= deadline:
+                rejected = getattr(server, "rejected", None)
+                detail = f" (last callback rejected: {rejected})" if rejected else ""
+                raise AuthError(
+                    f"no OAuth callback on {redirect_uri} within {timeout:g}s{detail}; "
+                    "rerun setup and approve access in the browser"
+                )
+            server.handle_request()
+    finally:
+        server.server_close()
     auth_error = getattr(server, "auth_error", None)
     if auth_error:
         raise AuthError(str(auth_error))
@@ -284,9 +398,33 @@ def status() -> int:
     expires_at = tokens.get("expires_at")
     print("auth: configured")
     print(f"scopes: {scopes or 'unknown'}")
+    extra = [str(item) for item in config.get("scopes", []) if str(item) not in DEFAULT_SCOPES]
+    if extra:
+        print(
+            f"warning: scopes beyond the read-only defaults: {' '.join(extra)}; "
+            "rerun setup without --include-write-scope or --scope to drop them"
+        )
     if expires_at:
         print(f"access_token_expires_at: {time.strftime('%Y-%m-%d %H:%M:%S %z', time.localtime(int(expires_at)))}")
     return 0
+
+
+def requested_scopes(include_write_scope: bool, extra_scopes: list[str]) -> list[str]:
+    """Return the read-only defaults plus only the scopes this run asks for.
+
+    Saved scopes are never reused: one write-scope setup must not carry
+    bookmark.write into every later read-only setup.
+    """
+    scopes = list(DEFAULT_SCOPES)
+    if include_write_scope:
+        extra_scopes = ["bookmark.write", *extra_scopes]
+    for scope in extra_scopes:
+        if scope not in KNOWN_SCOPES:
+            known = " ".join(sorted(KNOWN_SCOPES))
+            raise AuthError(f"unknown OAuth scope {scope!r}; use one of: {known}")
+        if scope not in scopes:
+            scopes.append(scope)
+    return scopes
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -299,8 +437,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Read the X OAuth 2.0 client secret from stdin without printing it.",
     )
     parser.add_argument("--redirect-uri", help=f"OAuth callback URL. Defaults to {DEFAULT_REDIRECT_URI}.")
-    parser.add_argument("--include-write-scope", action="store_true", help="Also request bookmark.write.")
-    parser.add_argument("--scope", action="append", default=[], help="Additional OAuth scope to request.")
+    parser.add_argument(
+        "--include-write-scope",
+        action="store_true",
+        help="Also request bookmark.write for this setup only.",
+    )
+    parser.add_argument(
+        "--scope",
+        action="append",
+        default=[],
+        help="Additional OAuth scope to request for this setup only (repeatable).",
+    )
     parser.add_argument("--no-browser", action="store_true", help="Print URL without opening the browser.")
     parser.add_argument("--refresh", action="store_true", help="Refresh the local token without printing it.")
     parser.add_argument("--status", action="store_true", help="Show local auth status without printing tokens.")
@@ -327,17 +474,7 @@ def main(argv: list[str]) -> int:
         if not isinstance(client_id, str) or not client_id:
             raise AuthError(f"missing client_id; fill {CONFIG_FILE} or pass --client-id")
 
-        configured_scopes = existing_config.get("scopes")
-        scopes = (
-            [str(scope) for scope in configured_scopes]
-            if isinstance(configured_scopes, list) and configured_scopes
-            else list(DEFAULT_SCOPES)
-        )
-        if args.include_write_scope and "bookmark.write" not in scopes:
-            scopes.append("bookmark.write")
-        for scope in args.scope:
-            if scope not in scopes:
-                scopes.append(scope)
+        scopes = requested_scopes(args.include_write_scope, args.scope)
 
         client_secret = args.client_secret or existing_config.get("client_secret")
         if args.client_secret_stdin:
@@ -356,7 +493,6 @@ def main(argv: list[str]) -> int:
         }
         if client_secret:
             config["client_secret"] = client_secret
-        save_config(config)
         tokens = run_auth_flow(
             client_id=client_id,
             client_secret=client_secret,
@@ -364,6 +500,9 @@ def main(argv: list[str]) -> int:
             scopes=scopes,
             open_browser=not args.no_browser,
         )
+        # Save config only with the tokens it produced, so a failed run cannot
+        # leave scopes behind that no token was granted for.
+        save_config(config)
         save_tokens(tokens)
         print(f"auth: saved local tokens to {TOKEN_FILE}")
         return 0

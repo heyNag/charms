@@ -51,9 +51,9 @@ class XBookmarksHelpersTest(unittest.TestCase):
         items = [{"id": "3"}, {"id": "2"}, {"id": "1"}]
         state = {"scopes": {"all": {"last_seen_id": "2"}}}
 
-        self.assertEqual(api.since_last(items, state, "all"), [{"id": "3"}])
+        self.assertEqual(api.since_last(items, state, "all"), ([{"id": "3"}], "anchor"))
 
-    def test_since_last_falls_back_to_created_at_when_id_removed(self) -> None:
+    def test_since_last_falls_back_to_created_at_when_every_anchor_removed(self) -> None:
         api = load_module("fetch_bookmarks_api_removed", SCRIPTS / "fetch_bookmarks_api.py")
         items = [
             {"id": "5", "created_at": "2026-07-02T10:00:00.000Z"},
@@ -69,22 +69,23 @@ class XBookmarksHelpersTest(unittest.TestCase):
             }
         }
 
-        self.assertEqual(
-            [item["id"] for item in api.since_last(items, state, "all")],
-            ["5", "4"],
-        )
+        result, mode = api.since_last(items, state, "all")
+        self.assertEqual([item["id"] for item in result], ["5", "4"])
+        self.assertEqual(mode, "created_at_fallback")
 
         # An incomplete cutoff cannot safely exclude any current item.
         incomplete_state = {"scopes": {"all": {"last_seen_id": "removed-id"}}}
-        self.assertEqual(len(api.since_last(items, incomplete_state, "all")), 3)
+        result, mode = api.since_last(items, incomplete_state, "all")
+        self.assertEqual((len(result), mode), (3, "unfiltered"))
 
     def test_update_last_seen_records_created_at(self) -> None:
         api = load_module("fetch_bookmarks_api_update", SCRIPTS / "fetch_bookmarks_api.py")
 
-        state = api.update_last_seen({}, "all", "9", "2026-07-02T10:00:00.000Z")
+        state = api.update_last_seen({}, "all", ["9", "8"], "2026-07-02T10:00:00.000Z")
 
         entry = state["scopes"]["all"]
         self.assertEqual(entry["last_seen_id"], "9")
+        self.assertEqual(entry["anchor_ids"], ["9", "8"])
         self.assertEqual(entry["last_seen_created_at"], "2026-07-02T10:00:00.000Z")
         self.assertEqual(set(state), {"scopes"})
 
@@ -109,7 +110,7 @@ class XBookmarksHelpersTest(unittest.TestCase):
             def read(self) -> bytes:
                 return b'{"refresh_token":"sensitive-refresh-value"}'
 
-        with mock.patch.object(auth.urllib.request, "urlopen", return_value=FakeResponse()):
+        with mock.patch.object(auth, "open_request", return_value=FakeResponse()):
             with self.assertRaisesRegex(auth.AuthError, "did not return access_token") as raised:
                 auth.token_request({"grant_type": "refresh_token"}, "client-id")
 

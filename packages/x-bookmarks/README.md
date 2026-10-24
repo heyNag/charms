@@ -38,7 +38,14 @@ python3 skills/x-bookmarks/scripts/x_api_auth.py --status
 The API fetch helper can instead use an existing OAuth user access token from
 `X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN`. Do not print either variable.
 `--include-write-scope` is an option of `x_api_auth.py`, not a fetch-helper
-option, and is only for a separate workflow that changes X bookmarks.
+option, and is only for a separate workflow that changes X bookmarks. Each
+setup requests the read-only scopes plus only that run's
+`--include-write-scope` or `--scope` flags, so rerunning setup without them
+drops write access; unknown scope names are rejected. Setup waits up to 5
+minutes for the browser callback and ignores requests to other paths. If
+another setup run, or another program listening on 127.0.0.1, holds the
+callback port, setup exits with an error; stop it or pass `--redirect-uri` with
+a free loopback port registered in the X app.
 
 Default local-only state lives outside this repo:
 
@@ -94,6 +101,24 @@ python3 scripts/fetch_bookmarks_api.py --all --query "agents mcp" --pretty
 python3 scripts/fetch_bookmarks_api.py --all --since-last --update-state --pretty
 python3 scripts/fetch_bookmarks_api.py --folders --pretty
 ```
+
+`--update-state` saves the newest 50 fetched bookmark IDs as the review
+cutoff, but only when the fetch reached the end of the list (`--all` without
+`--max-pages`), and it refuses `--query`. A reviewed post bookmarked again
+moves to the top and is listed as new. In a partial fetch such posts look just
+like the cutoff, so `--since-last` then returns every fetched bookmark with
+`cutoff_mode` `unfiltered` and saves nothing. The JSON `meta` reports
+`cutoff_reached` (true only when the fetch reached the end of the list),
+`state_updated`, and `cutoff_mode`; `created_at_fallback` means no saved
+bookmark was still present, so post creation time was used and results may
+skip or repeat bookmarks.
+
+## Safety
+
+Bookmark content is third-party text. The skill tells agents to treat it as
+untrusted data, never as instructions, and to keep Bird read-only unless you
+ask for an account change. The API helpers refuse HTTP redirects, so a
+redirect can never carry OAuth tokens or client secrets to another host.
 
 ## Portable package files
 
