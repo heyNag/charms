@@ -3,15 +3,16 @@
 
 Three sampled-frame engines share one candidate pipeline:
 
-- scene:    ffmpeg scene-change selection with exact showinfo timestamps
+- scene:    ffmpeg scene-change selection
 - keyframe: decode I-frames first; fall back to uniform below four keyframes
 - uniform:  fixed-fps sampling driven by the duration budget
 
-Sampled-frame candidates flow through: extract -> perceptual dedup ->
-even-sample down to the cap -> rename to timestamped filenames. Dedup and
-sampling delete the files they drop, so the frame budget is spent on distinct
-content. Pinned transcript-cue frames are extracted separately and are not
-perceptually deduplicated.
+Every engine labels frames with showinfo pts_time, so a video stream that
+starts after 0:00 keeps absolute source time. Sampled-frame candidates flow
+through: extract -> perceptual dedup -> even-sample down to the cap -> rename
+to timestamped filenames. Dedup and sampling delete the files they drop, so
+the frame budget is spent on distinct content. Pinned transcript-cue frames
+are extracted separately and are not perceptually deduplicated.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ import math
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -222,6 +224,36 @@ def expected_frame_count(
     return max(1, min(capped, int(math.ceil(duration_seconds / frame_interval)) + 1))
 
 
+def _coverage_warning(
+    duration_seconds: float | None,
+    fps: float,
+    capped: int,
+    range_start: float,
+    lower_hint: str,
+    max_frames_at_limit: bool,
+) -> str | None:
+    """Warn when an explicit sampling rate runs out of frames before the range ends.
+
+    Frames sit at range_start + k / fps for every k / fps inside the range;
+    past the cap the rest of the range gets none.
+    """
+    if duration_seconds is None or duration_seconds <= 0:
+        return None
+    if int(math.ceil(fps * duration_seconds)) <= capped:
+        return None
+    # Floor the last frame's label (49.5 s reads 00:49) so it never rounds up
+    # onto the range end; the epsilon absorbs k / fps landing just under a
+    # whole second.
+    last = max(range_start, math.floor(range_start + (capped - 1) / fps + 1e-6))
+    raisable = capped < HARD_MAX_FRAMES and not max_frames_at_limit
+    hint = "raise --max-frames" if raisable else "narrow --start/--end"
+    return (
+        f"frames cover only {format_time(range_start)}-{format_time(last)} of the "
+        f"{format_time(range_start)}-{format_time(range_start + duration_seconds)} range; "
+        f"{lower_hint} or {hint}"
+    )
+
+
 def resolve_frame_plan(
     duration_seconds: float | None,
     *,
@@ -230,8 +262,18 @@ def resolve_frame_plan(
     frame_interval: float = DEFAULT_INTERVAL_SECONDS,
     fps: float | None = None,
     max_frames: int = DEFAULT_MAX_FRAMES,
+    range_start: float = 0.0,
+    max_frames_at_limit: bool = False,
+    warn_coverage: bool = True,
 ) -> dict[str, object]:
-    """Return uniform-sampling settings with hard caps applied."""
+    """Return uniform-sampling settings with hard caps applied.
+
+    range_start is the absolute source time of the range's first frame; it
+    only labels the coverage warning. max_frames_at_limit means a higher
+    --max-frames cannot raise this budget, so that warning says to narrow the
+    range instead. warn_coverage=False leaves the warning out of a plan made
+    before any frames are sampled.
+    """
     capped = capped_max_frames(max_frames)
     if frame_mode not in {"auto", "interval"}:
         raise ValueError("--frame-mode must be auto or interval")
@@ -249,6 +291,12 @@ def resolve_frame_plan(
             target = capped
         else:
             target = max(1, min(capped, int(math.ceil(selected_fps * duration_seconds))))
+        coverage = _coverage_warning(
+            duration_seconds, selected_fps, capped, range_start, "lower --fps",
+            max_frames_at_limit,
+        )
+        if coverage and warn_coverage:
+            warnings.append(coverage)
         return {
             "mode": "fps",
             "fps": selected_fps,
@@ -259,11 +307,20 @@ def resolve_frame_plan(
         }
 
     if frame_mode == "interval":
-        target = expected_frame_count(duration_seconds, frame_interval, capped)
+        interval = max(float(frame_interval), 1 / MAX_FPS)
+        if interval > frame_interval:
+            warnings.append(f"fps capped at {MAX_FPS:g} (frame interval raised to {interval:g}s)")
+        target = expected_frame_count(duration_seconds, interval, capped)
+        coverage = _coverage_warning(
+            duration_seconds, 1 / interval, capped, range_start, "raise --frame-interval",
+            max_frames_at_limit,
+        )
+        if coverage and warn_coverage:
+            warnings.append(coverage)
         return {
             "mode": "interval",
-            "fps": 1 / frame_interval,
-            "interval": frame_interval,
+            "fps": 1 / interval,
+            "interval": interval,
             "target_frames": target,
             "max_frames": capped,
             "warnings": warnings,
@@ -348,6 +405,50 @@ def _vfr_output_args() -> tuple[str, str]:
 def _require_ffmpeg() -> None:
     if shutil.which("ffmpeg") is None:
         raise RuntimeError("ffmpeg is not installed. fix: brew install ffmpeg")
+
+
+def probe_duration(source: str | Path) -> float | None:
+    """Return the media duration in seconds via ffprobe, or None.
+
+    Streamed WebM, such as a browser MediaRecorder screen recording, stores
+    no format or stream duration. The last video packet time is then the only
+    length on record; reading it demuxes the file without decoding.
+    """
+    if shutil.which("ffprobe") is None:
+        return None
+    for entries in ("format=duration:stream=duration", "packet=pts_time"):
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                entries,
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(Path(source).expanduser()),
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if result.returncode != 0:
+            return None
+        values: list[float] = []
+        for field in result.stdout.split():
+            try:
+                value = float(field)
+            except ValueError:
+                continue  # "N/A"
+            if math.isfinite(value) and value > 0:
+                values.append(value)
+        if values:
+            return max(values)
+    return None
 
 
 def _cleanup_old_frames(out_path: Path) -> None:
@@ -558,18 +659,35 @@ def extract_frames(
     frame_format: str = "jpeg",
     timestamp_offset: float | None = None,
     dedup: bool = True,
+    total_duration: float | None = None,
+    max_frames_at_limit: bool = False,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
-    """Uniform engine: fixed-fps sampling with duration-aware budgets."""
+    """Uniform engine: fixed-fps sampling with duration-aware budgets.
+
+    total_duration is the full source length. It sizes the budget for an
+    unbounded range without trimming the input; ffprobe fills it when omitted.
+    max_frames_at_limit is passed to resolve_frame_plan for the coverage hint.
+    """
     _require_ffmpeg()
     start, end, duration = resolve_range(start, end, duration)
     extension = frame_extension(frame_format)
+    plan_duration = duration
+    if plan_duration is None:
+        # Without a length the plan defaults to 1 fps, which stops after
+        # max_frames seconds instead of spanning the whole video.
+        known = total_duration if total_duration is not None else probe_duration(source)
+        if known is not None and known > (start or 0.0):
+            plan_duration = known - (start or 0.0)
+    base = timestamp_offset if timestamp_offset is not None else (start or 0.0)
     plan = resolve_frame_plan(
-        duration,
+        plan_duration,
         focused=start is not None or end is not None or duration is not None,
         frame_mode=frame_mode,
         frame_interval=frame_interval,
         fps=fps,
         max_frames=max_frames,
+        range_start=base,
+        max_frames_at_limit=max_frames_at_limit,
     )
     selected_fps = float(plan["fps"])
     target_frames = int(plan["target_frames"])
@@ -579,34 +697,46 @@ def extract_frames(
     _cleanup_old_frames(out_path)
 
     raw_pattern = str(out_path / f"frame_raw_%04d.{extension}")
-    pre_seek, post_seek = _seek_args(start, end, duration)
+    pre_seek, _ = _seek_args(start, end, duration)
+    # Trim the range end before fps, on the input's fine time base (an output
+    # -t rounds it to whole sampling steps). eof_action=pass keeps a final step
+    # the range ends inside, so a range shorter than one interval still yields
+    # its frame. The in-graph frame count lets showinfo see exactly the frames
+    # written; -frames:v alone lets one more through the graph.
+    trim = f"trim=end={duration:.3f}," if duration is not None else ""
     cmd = [
         "ffmpeg",
         "-hide_banner",
         "-loglevel",
-        "error",
+        "info",
         "-y",
         *pre_seek,
         "-i",
         str(Path(source).expanduser()),
-        *post_seek,
         "-vf",
-        f"fps={selected_fps:g},{scale_filter(width)}",
+        f"{trim}fps={selected_fps:g}:eof_action=pass,trim=end_frame={target_frames},"
+        f"{scale_filter(width)},showinfo",
+        *_vfr_output_args(),
         "-frames:v",
         str(target_frames),
         *_quality_args(frame_format),
         raw_pattern,
     ]
-    _run_ffmpeg(cmd, frame_format)
+    stderr = _run_ffmpeg(cmd, frame_format).stderr
 
-    base = timestamp_offset if timestamp_offset is not None else (start or 0.0)
+    raw_files = _raw_files(out_path, extension)
+    # The nominal sampling grid is only a fallback: it would put a video
+    # stream that starts after 0:00 at 0:00.
+    exact = _showinfo_timestamps(stderr)
+    if len(exact) != len(raw_files):
+        exact = [index / selected_fps for index in range(len(raw_files))]
     candidates = [
         {
             "raw_path": raw_file,
-            "timestamp_seconds": base + (index / selected_fps),
+            "timestamp_seconds": base + exact[index],
             "reason": "uniform",
         }
-        for index, raw_file in enumerate(_raw_files(out_path, extension))
+        for index, raw_file in enumerate(raw_files)
     ]
     candidate_count = len(candidates)
     dropped = 0
@@ -619,8 +749,113 @@ def extract_frames(
         "deduped_count": dropped,
         "selected_count": len(frames),
         "fallback": False,
+        "plan": {
+            "mode": plan["mode"],
+            "fps": selected_fps,
+            "target_frames": target_frames,
+            "max_frames": plan["max_frames"],
+            "warnings": plan["warnings"],
+        },
     }
     return frames, meta
+
+
+def _select_candidates(
+    engine: str,
+    candidates: list[dict],
+    *,
+    max_frames: int,
+    frame_format: str,
+    dedup: bool,
+) -> tuple[list[dict[str, object]], dict[str, object]]:
+    """Dedup, thin to the cap, and finalize an engine's own candidates."""
+    candidate_count = len(candidates)
+    dropped = 0
+    if dedup:
+        candidates, dropped = _dedupe_candidates(candidates)
+    candidates = _even_sample(candidates, max_frames)
+    frames = _finalize_frames(candidates, frame_format)
+    return frames, {
+        "engine": engine,
+        "candidate_count": candidate_count,
+        "deduped_count": dropped,
+        "selected_count": len(frames),
+        "fallback": False,
+    }
+
+
+def _uniform_fallback(
+    engine: str,
+    source: str | Path,
+    out_dir: str | Path,
+    candidates: list[dict],
+    *,
+    start: float | None,
+    duration: float | None,
+    total_duration: float | None,
+    max_frames: int,
+    width: int,
+    frame_format: str,
+    timestamp_offset: float | None,
+    dedup: bool,
+) -> tuple[list[dict[str, object]], dict[str, object]]:
+    """Replace too-few engine candidates with uniform sampling of the same range.
+
+    Takes the range already normalized by resolve_range. end is left out on
+    purpose: it is derived from start + duration, and passing all three back
+    would fail resolve_range's "--end or --duration" check.
+
+    The candidates wait in a side directory while uniform sampling runs and
+    are deleted only once it returns frames. If it finds none or fails, the
+    engine's own candidates are finalized instead; with none of those either,
+    a uniform failure propagates.
+    """
+    found = len(candidates)
+    out_path = Path(out_dir).expanduser().resolve()
+    held = Path(tempfile.mkdtemp(prefix=".held-", dir=out_path))
+    try:
+        for candidate in candidates:
+            candidate["raw_path"] = candidate["raw_path"].rename(
+                held / candidate["raw_path"].name
+            )
+        try:
+            frames, uniform_meta = extract_frames(
+                source,
+                out_dir,
+                start=start,
+                duration=duration,
+                total_duration=total_duration,
+                frame_mode="auto",
+                max_frames=max_frames,
+                width=width,
+                frame_format=frame_format,
+                timestamp_offset=timestamp_offset,
+                dedup=dedup,
+            )
+        except RuntimeError:
+            if not candidates:
+                raise
+            frames, uniform_meta = [], {}
+        if frames or not candidates:
+            return frames, {
+                "engine": "uniform",
+                "candidate_count": found,
+                "deduped_count": uniform_meta["deduped_count"],
+                "selected_count": len(frames),
+                "fallback": True,
+                "plan": uniform_meta["plan"],
+            }
+
+        _cleanup_old_frames(out_path)
+        for candidate in candidates:
+            candidate["raw_path"] = candidate["raw_path"].rename(
+                out_path / candidate["raw_path"].name
+            )
+        return _select_candidates(
+            engine, candidates, max_frames=max_frames, frame_format=frame_format, dedup=dedup
+        )
+    finally:
+        shutil.rmtree(held, ignore_errors=True)
 
 
 def extract_keyframes(
@@ -635,12 +870,14 @@ def extract_keyframes(
     max_frames: int = 50,
     timestamp_offset: float | None = None,
     dedup: bool = True,
+    total_duration: float | None = None,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     """Keyframe engine: decode only I-frames (the near-instant tier).
 
     Encoders emit keyframes at scene cuts, so these already approximate
     "distinct moments" without decoding every frame. Too few keyframes means
     a very short or oddly encoded clip; fall back to uniform sampling.
+    total_duration only sizes that fallback's budget.
     """
     _require_ffmpeg()
     start, end, duration = resolve_range(start, end, duration)
@@ -669,10 +906,18 @@ def extract_keyframes(
         *_quality_args(frame_format),
         raw_pattern,
     ]
-    result = _run_ffmpeg(cmd, frame_format)
+    try:
+        stderr = _run_ffmpeg(cmd, frame_format).stderr
+    except RuntimeError:
+        # A focused range can hold no keyframe at all, and ffmpeg then fails
+        # because nothing was written. Treat that as zero candidates so the
+        # uniform fallback runs; a broken source fails again there.
+        if _raw_files(out_path, extension):
+            raise
+        stderr = ""
 
     base = timestamp_offset if timestamp_offset is not None else (start or 0.0)
-    exact = _showinfo_timestamps(result.stderr)
+    exact = _showinfo_timestamps(stderr)
     candidates = [
         {
             "raw_path": raw_file,
@@ -683,43 +928,23 @@ def extract_keyframes(
     ]
 
     if len(candidates) < KEYFRAME_MIN:
-        found = len(candidates)
-        for candidate in candidates:
-            candidate["raw_path"].unlink(missing_ok=True)
-        frames, uniform_meta = extract_frames(
+        return _uniform_fallback(
+            "keyframe",
             source,
             out_dir,
+            candidates,
             start=start,
-            end=end,
             duration=duration,
-            frame_mode="auto",
+            total_duration=total_duration,
             max_frames=max_frames,
             width=width,
             frame_format=frame_format,
             timestamp_offset=timestamp_offset,
             dedup=dedup,
         )
-        return frames, {
-            "engine": "uniform",
-            "candidate_count": found,
-            "deduped_count": uniform_meta["deduped_count"],
-            "selected_count": len(frames),
-            "fallback": True,
-        }
-
-    candidate_count = len(candidates)
-    dropped = 0
-    if dedup:
-        candidates, dropped = _dedupe_candidates(candidates)
-    candidates = _even_sample(candidates, max_frames)
-    frames = _finalize_frames(candidates, frame_format)
-    return frames, {
-        "engine": "keyframe",
-        "candidate_count": candidate_count,
-        "deduped_count": dropped,
-        "selected_count": len(frames),
-        "fallback": False,
-    }
+    return _select_candidates(
+        "keyframe", candidates, max_frames=max_frames, frame_format=frame_format, dedup=dedup
+    )
 
 
 def extract_scene_frames(
@@ -735,13 +960,15 @@ def extract_scene_frames(
     timestamp_offset: float | None = None,
     dedup: bool = True,
     scene_threshold: float = SCENE_THRESHOLD,
+    total_duration: float | None = None,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     """Scene engine: first frame plus every scene change, then thin to cap.
 
     Detection is uncapped across the whole range so coverage spans the full
     clip (capping detection would keep only the earliest cuts). This costs a
     full decode; use the keyframe engine when speed matters more. Videos with
-    fewer than SCENE_MIN_FRAMES detected shots fall back to uniform sampling.
+    fewer than SCENE_MIN_FRAMES detected shots fall back to uniform sampling,
+    whose budget total_duration sizes.
     """
     _require_ffmpeg()
     start, end, duration = resolve_range(start, end, duration)
@@ -783,43 +1010,23 @@ def extract_scene_frames(
     ]
 
     if len(candidates) < SCENE_MIN_FRAMES:
-        found = len(candidates)
-        for candidate in candidates:
-            candidate["raw_path"].unlink(missing_ok=True)
-        frames, uniform_meta = extract_frames(
+        return _uniform_fallback(
+            "scene",
             source,
             out_dir,
+            candidates,
             start=start,
-            end=end,
             duration=duration,
-            frame_mode="auto",
+            total_duration=total_duration,
             max_frames=max_frames,
             width=width,
             frame_format=frame_format,
             timestamp_offset=timestamp_offset,
             dedup=dedup,
         )
-        return frames, {
-            "engine": "uniform",
-            "candidate_count": found,
-            "deduped_count": uniform_meta["deduped_count"],
-            "selected_count": len(frames),
-            "fallback": True,
-        }
-
-    candidate_count = len(candidates)
-    dropped = 0
-    if dedup:
-        candidates, dropped = _dedupe_candidates(candidates)
-    candidates = _even_sample(candidates, max_frames)
-    frames = _finalize_frames(candidates, frame_format)
-    return frames, {
-        "engine": "scene",
-        "candidate_count": candidate_count,
-        "deduped_count": dropped,
-        "selected_count": len(frames),
-        "fallback": False,
-    }
+    return _select_candidates(
+        "scene", candidates, max_frames=max_frames, frame_format=frame_format, dedup=dedup
+    )
 
 
 def cues_in_window(
@@ -925,7 +1132,7 @@ def main() -> int:
         "--frame-interval",
         type=float,
         default=DEFAULT_INTERVAL_SECONDS,
-        help="Seconds between frames in interval mode (default: 5)",
+        help="Seconds between frames in interval mode (default: 5; at least 0.5, the 2 fps cap)",
     )
     parser.add_argument("--fps", type=float, help="Explicit frames per second override")
     parser.add_argument("--max-frames", type=int, default=DEFAULT_MAX_FRAMES)

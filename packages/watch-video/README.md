@@ -112,8 +112,12 @@ Common options:
 - `--resolution` as an alias for `--frame-width` (default 512; 1024 for UI text)
 - `--frame-format jpeg|png|webp`
 - `--no-dedup` to keep near-duplicate sampled frames; `--frame-mode interval`
-  with `--frame-interval`, or `--fps` (uniform-sampling overrides)
-- `--start/--end/--duration` for focused ranges
+  with `--frame-interval`, or `--fps` (uniform-sampling overrides, capped at
+  2 fps; the report's Warnings name the span covered when the frame cap runs
+  out first)
+- `--start/--end/--duration` for focused ranges; a finite URL range downloads
+  only that section, and the report lists its length next to the source's full
+  Duration
 - `--out-dir` for a custom artifact directory; `WATCH_VIDEO_RUNS_DIR` or
   `XDG_STATE_HOME` can set the default base
 - `--cleanup` removes media and audio; add `--cleanup-frames` to remove frames
@@ -126,6 +130,19 @@ automatically (`video.en.vtt` next to `video.mp4`).
 Outputs are written outside the plugin under `$WATCH_VIDEO_RUNS_DIR` when set,
 otherwise under `$XDG_STATE_HOME/watch-video/runs` or
 `~/.local/state/watch-video/runs`.
+
+## Security
+
+- `yt-dlp` runs with `--ignore-config`, so a `yt-dlp.conf` in the working
+  directory or the user's yt-dlp config cannot add options such as `--exec`.
+- `report.md` puts the script's agent notes directly under its heading, before
+  the run summary and every other line derived from the source (its URL or
+  path, the run directory, the audio clip). Text the source controls (the title
+  and the transcript preview) is collapsed to plain lines and quoted last in
+  fenced "Untrusted Source Content" blocks; agents treat it as data, never
+  instructions.
+- Whisper requests refuse HTTP redirects, so an API key is sent only to the
+  provider endpoint.
 
 ## Portable package files
 

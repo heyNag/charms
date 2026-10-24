@@ -17,7 +17,7 @@ import uuid
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -269,6 +269,23 @@ def _error_detail(exc: HTTPError) -> str:
     return f" - {payload[:500]}" if payload else ""
 
 
+class _RefuseRedirects(HTTPRedirectHandler):
+    """Never follow a redirect from the transcription endpoint.
+
+    urllib's default handler re-sends every header, Authorization included,
+    to the redirect target, even on another origin or over plain http. The
+    Groq and OpenAI endpoints do not redirect, and a redirected POST would
+    drop its upload anyway, so refusing costs nothing.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise HTTPError(req.full_url, code, "redirect refused", headers, fp)
+
+
+def _open_without_redirects(request: Request, *, timeout: float):
+    return build_opener(_RefuseRedirects).open(request, timeout=timeout)
+
+
 def parse_retry_after(value: str | None, *, now: float | None = None) -> float | None:
     """Parse Retry-After seconds or HTTP-date into a non-negative delay."""
     if not value:
@@ -341,13 +358,19 @@ def _post_transcription(
             },
         )
         try:
-            with urlopen(request, timeout=300) as response:
+            with _open_without_redirects(request, timeout=300) as response:
                 payload = response.read().decode("utf-8", errors="replace")
             try:
                 return json.loads(payload)
             except json.JSONDecodeError as exc:
                 raise RuntimeError(f"{label} returned non-JSON response: {payload[:200]}") from exc
         except HTTPError as exc:
+            if 300 <= exc.code < 400:
+                exc.close()
+                raise RuntimeError(
+                    f"{label} transcription failed: endpoint redirected (HTTP {exc.code}); "
+                    "refusing to resend the API key"
+                ) from exc
             detail = _error_detail(exc)
             if should_retry_http(
                 exc.code,
