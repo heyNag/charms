@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import socketserver
 import sys
 import time
 from typing import Any
@@ -255,6 +256,24 @@ class OAuthCallback(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
+class CallbackServer(http.server.ThreadingHTTPServer):
+    """Loopback server for the OAuth callback.
+
+    Each request runs on a daemon thread, so a slow client can neither hold
+    the flow past its deadline nor keep the process alive after it.
+    """
+
+    daemon_threads = True
+
+    def server_bind(self) -> None:
+        # HTTPServer.server_bind resolves the host's FQDN, a reverse DNS lookup
+        # that can stall setup for seconds on macOS; loopback needs no name.
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = str(host)
+        self.server_port = port
+
+
 def run_auth_flow(
     client_id: str,
     client_secret: str | None,
@@ -284,15 +303,12 @@ def run_auth_flow(
 
     address = ("127.0.0.1", parsed_redirect.port)
     try:
-        server = http.server.ThreadingHTTPServer(address, OAuthCallback)
+        server = CallbackServer(address, OAuthCallback)
     except OSError as exc:
         raise AuthError(
             f"cannot listen on {redirect_uri}: {exc.strerror or exc}; stop the other setup run "
             "or pass --redirect-uri with a free loopback port registered in the X app"
         ) from exc
-    # Each request runs on a daemon thread, so a slow client can neither hold
-    # the flow past its deadline nor keep the process alive after it.
-    server.daemon_threads = True
     server.expected_path = parsed_redirect.path or "/"  # type: ignore[attr-defined]
     server.expected_state = state  # type: ignore[attr-defined]
     server.auth_code = None  # type: ignore[attr-defined]

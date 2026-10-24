@@ -278,6 +278,15 @@ class CallbackServerTest(HermeticCase):
         outcome["thread"] = thread
         return port, opened, outcome
 
+    def test_callback_server_binds_without_a_reverse_dns_lookup(self) -> None:
+        # socket.getfqdn can stall for seconds on macOS before setup prints the URL.
+        with mock.patch.object(socket, "getfqdn", side_effect=AssertionError("reverse DNS lookup")):
+            server = self.auth.CallbackServer(("127.0.0.1", 0), self.auth.OAuthCallback)
+        self.addCleanup(server.server_close)
+
+        self.assertTrue(server.daemon_threads)
+        self.assertEqual(server.server_name, "127.0.0.1")
+
     def test_stray_requests_do_not_end_the_flow(self) -> None:
         port, opened, outcome = self.start_flow()
         auth_url = opened.get(timeout=5)
