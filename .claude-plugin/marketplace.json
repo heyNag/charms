@@ -18,6 +18,18 @@
         "ref": "watch-video--v1.1.0",
         "sha": "faec5d321bac7b5cf699f778a286593e616ecc3b"
       }
+    },
+    {
+      "name": "x-bookmarks",
+      "description": "Fetch, search, and digest X/Twitter bookmarks using Bird or the optional X API v2 backend.",
+      "version": "1.1.0",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/heyNag/charms.git",
+        "path": "packages/x-bookmarks",
+        "ref": "x-bookmarks--v1.1.0",
+        "sha": "faec5d321bac7b5cf699f778a286593e616ecc3b"
+      }
     }
   ]
 }
