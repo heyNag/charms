@@ -22,16 +22,49 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions"
 OPENAI_ENDPOINT = "https://api.openai.com/v1/audio/transcriptions"
-DEFAULT_GROQ_MODEL = "whisper-large-v3-turbo"
+DEFAULT_GROQ_MODEL = "whisper-large-v3"
 DEFAULT_OPENAI_MODEL = "whisper-1"
 DEFAULT_MAX_ATTEMPTS = 4
 DEFAULT_MAX_429_RETRIES = 2
 # Groq's free tier and OpenAI whisper-1 cap uploads at 25 MB. Target a margin
 # under that so multipart framing overhead never pushes a chunk over.
-MAX_UPLOAD_BYTES = 24 * 1024 * 1024
+MAX_UPLOAD_BYTES = 24_000_000
+MAX_MULTIPART_BYTES = 25_000_000
+CHUNK_SIZE_MARGIN_BYTES = 64_000
+MAX_SPLIT_ATTEMPTS = 3
 KEY_NAMES = {"groq": "GROQ_API_KEY", "openai": "OPENAI_API_KEY"}
 
 _PERM_WARNED: set[str] = set()
+
+
+class TranscriptionError(RuntimeError):
+    """A provider/configuration failure with an explicit chunk-stop decision."""
+
+    def __init__(
+        self, message: str, *, stop_remaining_chunks: bool = False,
+        http_status: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.stop_remaining_chunks = stop_remaining_chunks
+        self.http_status = http_status
+
+
+class TranscriptionSegments(list):
+    """List-compatible transcript with explicit missing intervals in source time."""
+
+    def __init__(self, values=(), *, gaps=None, no_speech=False):
+        super().__init__(values)
+        self.gaps: list[dict[str, float]] = list(gaps or [])
+        self.no_speech = bool(no_speech)
+
+
+def _is_finite_number(value: object) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 def config_env_path() -> Path:
@@ -164,9 +197,10 @@ def _read_key(provider: str = "groq", api_key: str | None = None) -> str:
     key = api_key or os.environ.get(env_name, "") or (read_stored_key(env_name) or "")
     key = key.strip()
     if not key:
-        raise RuntimeError(
+        raise TranscriptionError(
             f"{env_name} is not set. fix: export {env_name}=..., or store it once "
-            f"with scripts/doctor.py --set-key {provider} (writes {config_env_path()})"
+            f"with scripts/doctor.py --set-key {provider} (writes {config_env_path()})",
+            stop_remaining_chunks=True,
         )
     return key
 
@@ -343,7 +377,15 @@ def _post_transcription(
     last_error: str | None = None
 
     while attempt <= max_attempts:
+        if audio.stat().st_size > MAX_UPLOAD_BYTES:
+            raise RuntimeError(
+                f"audio exceeds the {MAX_UPLOAD_BYTES:,}-byte upload budget; split it first"
+            )
         body, boundary = _multipart_body(fields, audio)
+        if len(body) > MAX_MULTIPART_BYTES:
+            raise RuntimeError(
+                f"multipart request exceeds the {MAX_MULTIPART_BYTES:,}-byte upload limit"
+            )
         request = Request(
             endpoint,
             data=body,
@@ -367,11 +409,13 @@ def _post_transcription(
         except HTTPError as exc:
             if 300 <= exc.code < 400:
                 exc.close()
-                raise RuntimeError(
+                raise TranscriptionError(
                     f"{label} transcription failed: endpoint redirected (HTTP {exc.code}); "
-                    "refusing to resend the API key"
+                    "refusing to resend the API key",
+                    stop_remaining_chunks=True, http_status=exc.code,
                 ) from exc
             detail = _error_detail(exc)
+            exc.close()
             if should_retry_http(
                 exc.code,
                 attempt=attempt,
@@ -385,7 +429,11 @@ def _post_transcription(
                 time.sleep(retry_delay(attempt, retry_after=exc.headers.get("Retry-After")))
                 attempt += 1
                 continue
-            raise RuntimeError(f"{label} transcription failed: HTTP {exc.code}{detail}") from exc
+            raise TranscriptionError(
+                f"{label} transcription failed: HTTP {exc.code}{detail}",
+                stop_remaining_chunks=exc.code in {401, 403, 404, 429},
+                http_status=exc.code,
+            ) from exc
         except (URLError, TimeoutError) as exc:
             reason = getattr(exc, "reason", str(exc))
             if attempt < max_attempts:
@@ -412,10 +460,14 @@ def transcribe_audio(
     """POST an audio file and optionally save the verbose JSON response."""
     if provider not in {"groq", "openai"}:
         raise RuntimeError("transcriber provider must be groq or openai")
-    key = _read_key(provider, api_key)
     audio = Path(audio_path).expanduser().resolve()
-    if not audio.exists():
+    if not audio.is_file():
         raise RuntimeError(f"audio file not found: {audio}")
+    if audio.stat().st_size > MAX_UPLOAD_BYTES:
+        raise RuntimeError(
+            f"audio exceeds the {MAX_UPLOAD_BYTES:,}-byte upload budget; split it first"
+        )
+    key = _read_key(provider, api_key)
 
     fields = {
         "model": model or default_model(provider),
@@ -431,6 +483,9 @@ def transcribe_audio(
         max_attempts=max(1, int(max_attempts)),
         max_429_retries=max(0, int(max_429_retries)),
     )
+    # Validate even for callers that consume the raw response directly. A
+    # text-only response is not evidence that the words occurred at 0:00.
+    segments_from_response(data)
 
     if out_json is not None:
         out_path = Path(out_json).expanduser().resolve()
@@ -463,9 +518,12 @@ def audio_duration_seconds(audio_path: Path) -> float:
         raise RuntimeError(f"ffprobe failed on audio clip: {result.stderr.strip()}")
     try:
         fmt = json.loads(result.stdout or "{}").get("format", {})
-    except json.JSONDecodeError as exc:
+        duration = float(fmt.get("duration") or 0.0)
+        if not math.isfinite(duration) or duration < 0:
+            raise ValueError("invalid duration")
+    except (AttributeError, TypeError, ValueError) as exc:
         raise RuntimeError("ffprobe returned invalid JSON for audio clip") from exc
-    return float(fmt.get("duration") or 0.0)
+    return duration
 
 
 def plan_chunks(
@@ -479,17 +537,32 @@ def plan_chunks(
     time split yields evenly sized chunks. Returns one full-length chunk when
     the audio already fits.
     """
-    if total_bytes <= max_bytes or total_seconds <= 0:
+    if (
+        not _is_finite_number(total_seconds)
+        or total_seconds < 0
+        or isinstance(total_bytes, bool)
+        or not isinstance(total_bytes, int)
+        or total_bytes < 0
+        or isinstance(max_bytes, bool)
+        or not isinstance(max_bytes, int)
+        or max_bytes <= 0
+    ):
+        raise RuntimeError("invalid audio chunk duration or byte budget")
+    if total_bytes > max_bytes and total_seconds <= 0:
+        raise RuntimeError("cannot split oversized audio with unknown duration")
+    if total_bytes <= max_bytes:
         return [(0.0, total_seconds)]
 
     count = math.ceil(total_bytes / max_bytes)
     chunk = total_seconds / count
     plan: list[tuple[float, float]] = []
     for index in range(count):
-        offset = index * chunk
-        # The last chunk absorbs rounding so durations sum exactly.
-        duration = (total_seconds - offset) if index == count - 1 else chunk
-        plan.append((round(offset, 3), round(duration, 3)))
+        offset = round(index * chunk, 3)
+        endpoint = round(total_seconds if index == count - 1 else (index + 1) * chunk, 3)
+        duration = round(endpoint - offset, 3)
+        if duration <= 0:
+            raise RuntimeError("audio chunk budget is too small for millisecond-aligned chunks")
+        plan.append((offset, duration))
     return plan
 
 
@@ -525,14 +598,37 @@ def split_audio(
             str(out_path),
         ]
         result = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-    )
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+        )
         if result.returncode != 0 or not out_path.exists() or out_path.stat().st_size == 0:
             raise RuntimeError(
                 f"ffmpeg failed to split audio chunk {index + 1}: {result.stderr.strip()}"
             )
         chunks.append((out_path, offset))
     return chunks
+
+
+def _prepare_chunks(
+    audio: Path, duration: float, size: int, max_bytes: int
+) -> tuple[list[tuple[Path, float]], list[tuple[float, float]]]:
+    """Check all actual chunk sizes before uploading; retry smaller splits at most twice."""
+    margin = min(CHUNK_SIZE_MARGIN_BYTES, max(1, max_bytes // 20))
+    planning_budget = max(1, max_bytes - margin)
+    for _attempt in range(MAX_SPLIT_ATTEMPTS):
+        plan = plan_chunks(duration, size, planning_budget)
+        chunks = split_audio(audio, audio.parent / "audio_chunks", plan)
+        if len(chunks) != len(plan):
+            raise RuntimeError("audio splitter returned an incomplete chunk plan")
+        sizes = [path.stat().st_size for path, _offset in chunks]
+        if any(size <= 0 for size in sizes):
+            raise RuntimeError("audio splitter returned an empty chunk; no chunks were uploaded")
+        if all(size <= max_bytes for size in sizes):
+            return chunks, plan
+        planning_budget = max(1, planning_budget // 2)
+    raise RuntimeError(
+        f"audio chunks still exceed the {max_bytes:,}-byte upload budget after "
+        f"{MAX_SPLIT_ATTEMPTS} splitting attempts; no chunks were uploaded"
+    )
 
 
 def transcribe_with_chunking(
@@ -544,17 +640,25 @@ def transcribe_with_chunking(
     provider: str = "groq",
     offset_seconds: float = 0.0,
     max_bytes: int = MAX_UPLOAD_BYTES,
-) -> tuple[list[dict[str, object]], list[str]]:
+) -> tuple[TranscriptionSegments, list[str]]:
     """Transcribe audio of any length, splitting past the provider upload cap.
 
     Chunks are transcribed independently and their segment timestamps shifted
     back into source time. A failed chunk is skipped with a warning so one bad
-    slice does not discard the whole transcript; raises RuntimeError only when
-    every chunk fails. Returns (segments, warnings).
+    slice does not discard the whole transcript. Provider-wide failures stop
+    further uploads; raises RuntimeError only when no chunk succeeds.
+    Returns (segments, warnings); segments.gaps contains
+    failed intervals in source time, and segments.no_speech distinguishes a
+    valid empty transcript from missing evidence.
     """
     audio = Path(audio_path).expanduser().resolve()
-    if not audio.exists():
+    if not audio.is_file():
         raise RuntimeError(f"audio file not found: {audio}")
+    if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
+        raise RuntimeError("invalid audio upload byte budget")
+    if not _is_finite_number(offset_seconds) or offset_seconds < 0:
+        raise RuntimeError("invalid transcription timestamp offset")
+    max_bytes = min(max_bytes, MAX_UPLOAD_BYTES)
 
     size = audio.stat().st_size
     if size <= max_bytes:
@@ -565,71 +669,119 @@ def transcribe_with_chunking(
 
     label = provider_label(provider)
     duration = audio_duration_seconds(audio)
-    plan = plan_chunks(duration, size, max_bytes)
-    chunks = split_audio(audio, audio.parent / "audio_chunks", plan)
+    chunks, plan = _prepare_chunks(audio, duration, size, max_bytes)
 
-    segments: list[dict[str, object]] = []
+    segments = TranscriptionSegments()
     raw_chunks: list[dict[str, object]] = []
     warnings: list[str] = []
     failures = 0
+    last_failure: RuntimeError | None = None
     for index, (chunk_path, chunk_offset) in enumerate(chunks, start=1):
         try:
             data = transcribe_audio(
                 chunk_path, out_json=None, model=model, api_key=api_key, provider=provider
             )
+            chunk_segments = segments_from_response(
+                data, offset_seconds=offset_seconds + chunk_offset
+            )
         except RuntimeError as exc:
+            last_failure = exc
             failures += 1
+            interval_end = plan[index - 1][0] + plan[index - 1][1]
+            segments.gaps.append(
+                {
+                    "start": round(offset_seconds + chunk_offset, 3),
+                    "end": round(offset_seconds + interval_end, 3),
+                }
+            )
             warnings.append(
                 f"{label} transcription chunk {index}/{len(chunks)} failed and was skipped: {exc}"
             )
+            if isinstance(exc, TranscriptionError) and exc.stop_remaining_chunks:
+                remaining = plan[index:]
+                segments.gaps.extend(
+                    {"start": round(offset_seconds + offset, 3),
+                     "end": round(offset_seconds + offset + duration, 3)}
+                    for offset, duration in remaining
+                )
+                failures += len(remaining)
+                if remaining:
+                    warnings.append(
+                        f"{len(remaining)} remaining audio chunk(s) were not uploaded "
+                        "after the provider/configuration failure."
+                    )
+                break
             continue
-        segments.extend(
-            segments_from_response(data, offset_seconds=offset_seconds + chunk_offset)
-        )
+        segments.extend(chunk_segments)
         raw_chunks.append(
             {"index": index, "offset_seconds": chunk_offset, "response": data}
         )
 
-    if failures == len(chunks):
-        raise RuntimeError(f"{label} transcription failed for all {len(chunks)} audio chunks")
+    segments.no_speech = not segments and not segments.gaps
 
     if out_json is not None:
         out_path = Path(out_json).expanduser().resolve()
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"chunked": True, "chunk_count": len(chunks), "chunks": raw_chunks}
+        payload = {
+            "chunked": True,
+            "chunk_count": len(chunks),
+            "chunks": raw_chunks,
+            "gaps": segments.gaps,
+            "no_speech": segments.no_speech,
+        }
         out_path.write_text(
             json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
+    if failures == len(chunks):
+        raise TranscriptionError(
+            f"{label} transcription failed for all {len(chunks)} audio chunks: {last_failure}",
+            stop_remaining_chunks=(
+                isinstance(last_failure, TranscriptionError) and last_failure.stop_remaining_chunks
+            ),
+            http_status=last_failure.http_status if isinstance(last_failure, TranscriptionError) else None,
+        ) from last_failure
     return segments, warnings
 
 
-def segments_from_response(data: dict, *, offset_seconds: float = 0.0) -> list[dict[str, object]]:
-    """Convert Groq verbose_json into normalized transcript segments."""
-    segments: list[dict[str, object]] = []
-    for segment in data.get("segments") or []:
-        text = str(segment.get("text") or "").strip()
-        if not text:
-            continue
-        start = float(segment.get("start") or 0.0) + offset_seconds
-        end = float(segment.get("end") or 0.0) + offset_seconds
+def segments_from_response(data: object, *, offset_seconds: float = 0.0) -> TranscriptionSegments:
+    """Validate timestamped Whisper output; never invent times for text-only output."""
+    if not _is_finite_number(offset_seconds) or offset_seconds < 0:
+        raise RuntimeError("invalid transcription timestamp offset")
+    if not isinstance(data, dict) or not isinstance(data.get("segments"), list):
+        raise RuntimeError("malformed transcription response: expected a segments array")
+    segments = TranscriptionSegments()
+    previous_start = -1.0
+    for segment in data["segments"]:
+        if not isinstance(segment, dict):
+            raise RuntimeError("malformed transcription response: invalid segment")
+        start, end, text = segment.get("start"), segment.get("end"), segment.get("text")
+        if (
+            not _is_finite_number(start)
+            or not _is_finite_number(end)
+            or start < 0
+            or end < start
+            or start < previous_start
+            or not isinstance(text, str)
+            or not text.strip()
+        ):
+            raise RuntimeError("malformed transcription response: invalid timestamps or text")
+        previous_start = start
+        start += offset_seconds
+        end += offset_seconds
+        if not math.isfinite(start) or not math.isfinite(end):
+            raise RuntimeError("malformed transcription response: timestamp offset overflow")
         segments.append(
             {
                 "start": round(start, 3),
                 "end": round(end, 3),
-                "text": text,
+                "text": text.strip(),
             }
         )
 
-    if not segments:
-        text = str(data.get("text") or "").strip()
-        if text:
-            segments.append(
-                {
-                    "start": round(offset_seconds, 3),
-                    "end": round(offset_seconds, 3),
-                    "text": text,
-                }
-            )
+    text = data.get("text")
+    if not segments and text is not None and (not isinstance(text, str) or text.strip()):
+        raise RuntimeError("malformed transcription response: text has no timestamped segments")
+    segments.no_speech = not segments
     return segments
 
 

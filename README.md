@@ -7,7 +7,7 @@ root `plugin.json` manifest and one
 
 | Plugin | Purpose | Plugin root |
 | --- | --- | --- |
-| `watch-video` | Inspect video metadata, captions or transcripts, and representative frames. | [`packages/watch-video/`](packages/watch-video/) |
+| `watch-video` | Analyze videos with Gemini or local models, original-audio transcription, matching transcripts, and timestamped frames. | [`packages/watch-video/`](packages/watch-video/) |
 | `x-bookmarks` | Fetch, search, and digest saved X/Twitter posts through Bird or X API v2. | [`packages/x-bookmarks/`](packages/x-bookmarks/) |
 
 The repository root holds the shared `charms` marketplace and the development

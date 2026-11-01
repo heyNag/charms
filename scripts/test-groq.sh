@@ -25,7 +25,6 @@ trap 'rm -f "${tmp_json}"' EXIT
 python3 "${repo_root}/packages/watch-video/skills/watch-video/scripts/groq_transcribe.py" \
   "${audio_file}" \
   --out "${tmp_json}" \
-  --model "${GROQ_MODEL:-whisper-large-v3-turbo}" \
   --quiet
 
 if command -v jq >/dev/null 2>&1; then

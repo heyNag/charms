@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "watch-video",
-  "version": "1.1.0",
-  "description": "Inspect videos with transcripts, timestamps, scene-aware frames, and optional transcription fallbacks.",
+  "version": "1.2.0",
+  "description": "Analyze videos with Gemini or local models, original-audio transcription, matching transcripts, and timestamped frames.",
   "author": {
     "name": "Nagarjuna Boddu",
     "url": "https://github.com/heyNag"

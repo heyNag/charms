@@ -22,20 +22,48 @@ from groq_transcribe import (  # noqa: E402
     read_stored_key,
     set_stored_key,
 )
-from watch import default_run_root  # noqa: E402
+from gemini import is_youtube_url  # noqa: E402
+from watch import default_run_root, is_url  # noqa: E402
 
 
 MIN_PYTHON = (3, 11)
 ENV_LOCAL = ".env" + ".local"
 # Key checks are advisory: watch-video still works caption/frames-only.
-ADVISORY_CHECKS = {"GROQ_API_KEY", "OPENAI_API_KEY", "whisper-config", "run-artifacts"}
+ADVISORY_CHECKS = {
+    "GROQ_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "whisper-config", "run-artifacts",
+    "WATCH_VIDEO_LOCAL_API_KEY", "local-models",
+}
 RUN_ARTIFACTS_WARN_BYTES = 500 * 1024 * 1024
+LOCAL_BINARIES = ("yt-dlp", "ffmpeg", "ffprobe")
 
 
-def install_hints() -> dict[str, list[str]]:
+def required_binaries(
+    engine: str = "local", source: str | None = None, from_run: str | None = None,
+) -> list[str]:
+    """Match the runtime's source routing without downloading or opening a file."""
+    if engine not in {"local", "gemini"}:
+        raise ValueError("engine must be local or gemini")
+    if from_run is not None:
+        if engine != "local":
+            raise ValueError("--from-run applies only to --engine local")
+        return ["ffmpeg", "ffprobe"]
+    # No source means a general toolkit check, not a claim about a specific flow.
+    if source is None:
+        return list(LOCAL_BINARIES)
+    remote = is_url(source)
+    if engine == "gemini" and (not remote or is_youtube_url(source)):
+        return []
+    return list(LOCAL_BINARIES if remote else ("ffmpeg", "ffprobe"))
+
+
+def install_hints(binaries: list[str] | None = None) -> dict[str, list[str]]:
+    packages = _brew_packages(list(LOCAL_BINARIES) if binaries is None else binaries)
     return {
-        "macOS": ["brew install yt-dlp ffmpeg"],
-        "Linux": ["sudo apt install ffmpeg", "pipx install yt-dlp"],
+        "macOS": [f"brew install {' '.join(packages)}"] if packages else [],
+        "Linux": (
+            (["sudo apt install ffmpeg"] if "ffmpeg" in packages else [])
+            + (["pipx install yt-dlp"] if "yt-dlp" in packages else [])
+        ),
     }
 
 
@@ -48,8 +76,8 @@ def current_platform(system: str | None = None) -> str:
     return "Unsupported"
 
 
-def platform_hints() -> list[str]:
-    hints = install_hints()
+def platform_hints(binaries: list[str] | None = None) -> list[str]:
+    hints = install_hints(binaries)
     return hints.get(current_platform(), ["watch-video supports macOS and Linux only"])
 
 
@@ -84,7 +112,7 @@ def check_binary(name: str) -> dict[str, object]:
         "ok": path is not None,
         "path": path,
         "message": "ok" if path else f"{name} is not installed",
-        "fix": "; ".join(platform_hints()),
+        "fix": "; ".join(platform_hints([name])),
     }
 
 
@@ -146,6 +174,69 @@ def check_whisper_key(
 
 def check_groq_key(env: dict[str, str] | None = None) -> dict[str, object]:
     return check_whisper_key("groq", env)
+
+
+def check_gemini_key(env: dict[str, str] | None = None) -> dict[str, object]:
+    environment = env if env is not None else os.environ
+    present = bool((environment.get("GEMINI_API_KEY") or "").strip())
+    return {
+        "name": "GEMINI_API_KEY", "ok": present,
+        "message": "present in environment (not validated)" if present else "not set; optional Gemini engine unavailable",
+        "fix": "Provide GEMINI_API_KEY through your secret manager's environment injection.",
+    }
+
+
+def check_local_runtime(
+    transcriber: str | None = None, analyzer: str = "none",
+    env: dict[str, str] | None = None,
+) -> list[dict[str, object]]:
+    """Check selected local configuration without connecting or loading models."""
+    if transcriber != "local" and analyzer != "local":
+        return []
+    from local_api import validate_base_url
+
+    environment = env if env is not None else os.environ
+    try:
+        endpoint = validate_base_url(
+            environment.get("WATCH_VIDEO_LOCAL_BASE_URL") or "http://127.0.0.1:8147/v1"
+        )
+        endpoint_check = {
+            "name": "local-endpoint", "ok": True,
+            "message": f"{endpoint} (configuration only; server access not tested)",
+        }
+    except ValueError:
+        # An invalid URL may contain credentials; never include its value.
+        endpoint_check = {
+            "name": "local-endpoint", "ok": False,
+            "message": "local inference requires an HTTP(S) loopback /v1 endpoint",
+            "fix": "Set WATCH_VIDEO_LOCAL_BASE_URL to the local server, for example http://127.0.0.1:8147/v1.",
+        }
+    key_present = bool((environment.get("WATCH_VIDEO_LOCAL_API_KEY") or "").strip())
+    roles = []
+    if transcriber == "local":
+        roles.append("speech-to-text model")
+    if analyzer == "local":
+        roles.append("vision-language model")
+    return [
+        endpoint_check,
+        {
+            "name": "WATCH_VIDEO_LOCAL_API_KEY", "ok": key_present,
+            "message": (
+                "present in environment (not validated)" if key_present else
+                "not set; required only if the local server enables authentication"
+            ),
+            "fix": "Inject WATCH_VIDEO_LOCAL_API_KEY through your secret manager when authentication is enabled.",
+        },
+        {
+            "name": "local-models", "ok": True,
+            "message": f"Requires a loaded or loadable {' and '.join(roles)}; model availability not tested",
+        },
+    ]
+
+
+def validate_local_options(engine: str, transcriber: str | None, analyzer: str) -> None:
+    if engine != "local" and (transcriber is not None or analyzer != "none"):
+        raise ValueError("--transcriber and --analyzer apply only to --engine local")
 
 
 def check_config_file() -> dict[str, object]:
@@ -270,15 +361,27 @@ def check_env_local(repo_root: Path | None = None) -> dict[str, object]:
     }
 
 
-def collect_status() -> dict[str, object]:
+def collect_status(
+    engine: str = "local", source: str | None = None, from_run: str | None = None,
+    transcriber: str | None = None, analyzer: str = "none",
+) -> dict[str, object]:
+    validate_local_options(engine, transcriber, analyzer)
+    if analyzer == "local" and transcriber is None:
+        transcriber = "local"
+    binaries = required_binaries(engine, source, from_run)
+    source_kind = (
+        "unspecified" if source is None else
+        "YouTube URL" if is_url(source) and is_youtube_url(source) else
+        "other URL" if is_url(source) else "local file"
+    )
     checks = [
         check_platform(),
         check_python_version(),
-        check_binary("yt-dlp"),
-        check_binary("ffmpeg"),
-        check_binary("ffprobe"),
+        *(check_binary(name) for name in binaries),
         check_whisper_key("groq"),
         check_whisper_key("openai"),
+        check_gemini_key(),
+        *check_local_runtime(transcriber, analyzer),
         check_config_file(),
         check_run_artifacts(),
         check_env_local(),
@@ -290,22 +393,36 @@ def collect_status() -> dict[str, object]:
     )
     return {
         "ok": required_ok,
+        "engine": engine,
+        "transcriber": transcriber,
+        "analyzer": analyzer,
+        "scope": (
+            "local: cached run" if from_run is not None else
+            "full local toolkit (no source supplied)" if source is None else
+            f"{engine}: {source_kind}"
+        ),
+        "required_binaries": binaries,
         "checks": checks,
-        "install_hints": install_hints(),
+        "install_hints": install_hints(binaries),
     }
 
 
 def human_report(status: dict[str, object]) -> str:
     checks = status.get("checks") or []
     lines = ["Watch Video Doctor", ""]
+    if status.get("scope"):
+        lines.extend([f"Checking: {status['scope']}", ""])
     for check in checks:
         marker = "ok" if check.get("ok") else "warn"
         lines.append(f"- {marker}: {check['name']} - {check.get('message', '')}")
         if not check.get("ok") and check.get("fix"):
             lines.append(f"  fix: {check['fix']}")
-    lines.extend(["", "Install hints:"])
-    for hint in platform_hints():
-        lines.append(f"- {hint}")
+    hints = status.get("install_hints", {}).get(current_platform(), [])
+    if hints:
+        lines.extend(["", "Install hints:"])
+        lines.extend(f"- {hint}" for hint in hints)
+    elif status.get("required_binaries") == []:
+        lines.extend(["", "No local media binaries are required for this flow."])
     return "\n".join(lines) + "\n"
 
 
@@ -328,9 +445,18 @@ def _brew_packages(missing: list[str]) -> list[str]:
     return packages
 
 
-def install_missing() -> int:
+def install_missing(
+    engine: str = "local", source: str | None = None, from_run: str | None = None,
+) -> int:
     """Opt-in installer: brew on macOS, exact Linux commands. Never sudo."""
-    missing = [name for name in ("yt-dlp", "ffmpeg", "ffprobe") if shutil.which(name) is None]
+    binaries = required_binaries(engine, source, from_run)
+    if not binaries:
+        print("no local media binaries are required for this flow")
+        return 0
+    missing = [
+        name for name in binaries
+        if shutil.which(name) is None
+    ]
     if not missing:
         print("all required binaries are already installed")
         return 0
@@ -350,7 +476,7 @@ def install_missing() -> int:
         return 0
 
     print(f"missing: {', '.join(missing)}. Install manually (this script never uses sudo):")
-    for hint in platform_hints():
+    for hint in platform_hints(missing):
         print(f"  {hint}")
     return 2
 
@@ -378,6 +504,26 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run Watch Video preflight checks or store a Whisper API key."
     )
+    parser.add_argument(
+        "source", nargs="?",
+        help="Video URL or local path; omit both source and --from-run to check the full local toolkit",
+    )
+    parser.add_argument(
+        "--engine", choices=["local", "gemini"], default="local",
+        help="Engine used with the source (default: local); no network requests or uploads are made",
+    )
+    parser.add_argument(
+        "--from-run", metavar="RUN_DIR",
+        help="Check dependencies for reusing a local run; does not inspect or validate the cache",
+    )
+    parser.add_argument(
+        "--transcriber", choices=["none", "local", "groq", "openai"],
+        help="Match the selected local-engine transcription route; checks configuration only",
+    )
+    parser.add_argument(
+        "--analyzer", choices=["none", "local"], default="none",
+        help="Match the selected local-engine model analysis route (default: none)",
+    )
     parser.add_argument("--check", action="store_true", help="Silent success; concise error on failure")
     parser.add_argument("--json", action="store_true", help="Print structured status JSON")
     parser.add_argument(
@@ -388,16 +534,23 @@ def main() -> int:
     parser.add_argument(
         "--install",
         action="store_true",
-        help="Install missing binaries (brew on macOS; prints Linux commands; never sudo)",
+        help="Install this flow's missing binaries (brew on macOS; prints Linux commands; never sudo)",
     )
     args = parser.parse_args()
 
     if args.set_key:
         return store_key(args.set_key)
+    try:
+        validate_local_options(args.engine, args.transcriber, args.analyzer)
+        required_binaries(args.engine, args.source, args.from_run)
+    except ValueError as exc:
+        parser.error(str(exc))
     if args.install:
-        return install_missing()
+        return install_missing(args.engine, args.source, args.from_run)
 
-    status = collect_status()
+    status = collect_status(
+        args.engine, args.source, args.from_run, args.transcriber, args.analyzer,
+    )
     if args.json:
         print(json.dumps(status, indent=2, ensure_ascii=False))
         return 0 if status["ok"] else 1

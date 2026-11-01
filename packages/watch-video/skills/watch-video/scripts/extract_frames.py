@@ -7,12 +7,11 @@ Three sampled-frame engines share one candidate pipeline:
 - keyframe: decode I-frames first; fall back to uniform below four keyframes
 - uniform:  fixed-fps sampling driven by the duration budget
 
-Every engine labels frames with showinfo pts_time, so a video stream that
-starts after 0:00 keeps absolute source time. Sampled-frame candidates flow
-through: extract -> perceptual dedup -> even-sample down to the cap -> rename
-to timestamped filenames. Dedup and sampling delete the files they drop, so
-the frame budget is spent on distinct content. Pinned transcript-cue frames
-are extracted separately and are not perceptually deduplicated.
+Every engine labels frames with original-frame showinfo pts_time, so a video
+stream that starts after 0:00 keeps absolute source time. Scene and keyframe
+candidates are deduplicated before evenly thinning to the cap. Uniform
+sampling keeps the explicit rate/cap before dedup. Scene coverage checks and
+pinned transcript-cue frames retain their temporal anchors through dedup.
 """
 
 from __future__ import annotations
@@ -45,34 +44,52 @@ SCENE_THRESHOLD = 0.20
 SCENE_MIN_FRAMES = 8
 # Below this many keyframes a clip is too sparse for keyframe coverage.
 KEYFRAME_MIN = 4
-# Frame-delta dedup: compare DEDUP_THUMB x DEDUP_THUMB grayscale thumbnails by
-# mean absolute per-pixel difference (0-255). The threshold is deliberately
-# low so a one-line code diff or a slide gaining a bullet still survives.
+# RGB keeps color-only changes that equal-brightness grayscale thumbnails lose.
+# Small text changes can still disappear at this thumbnail size.
 DEDUP_THUMB = 16
 DEDUP_THRESHOLD = 2.0
-SHOWINFO_TS_RE = re.compile(r"pts_time:(\d+(?:\.\d+)?)")
+SHOWINFO_TS_RE = re.compile(r"pts_time:([^\s]+)")
+# A small reserved budget covers quiet spans in otherwise cut-heavy footage.
+# Coverage is coarse evidence, not a guarantee of capturing brief events.
+SCENE_COVERAGE_MIN_INTERVAL = 10.0
+SCENE_COVERAGE_MAX_FRAMES = 20
+
+
+def _seconds(value: float | None, label: str, *, positive: bool = False) -> float | None:
+    if value is None:
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"{label} must be finite and non-negative") from exc
+    if not math.isfinite(number) or number < 0 or (positive and number == 0):
+        bound = "greater than zero" if positive else "non-negative"
+        raise ValueError(f"{label} must be finite and {bound}")
+    return number
 
 
 def parse_time(value: str | int | float | None) -> float | None:
-    """Parse SS, MM:SS, or HH:MM:SS into seconds."""
+    """Parse finite non-negative SS, MM:SS, or HH:MM:SS into seconds."""
     if value is None:
         return None
     if isinstance(value, (int, float)):
-        return float(value)
+        return _seconds(value, "time")
     raw = str(value).strip()
     if not raw:
         return None
 
     parts = raw.split(":")
     try:
-        if len(parts) == 1:
-            return float(parts[0])
-        if len(parts) == 2:
-            minutes, seconds = parts
-            return int(minutes) * 60 + float(seconds)
-        if len(parts) == 3:
-            hours, minutes, seconds = parts
-            return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+        if 1 <= len(parts) <= 3:
+            fields = [float(part) for part in parts]
+            if any(not math.isfinite(part) or part < 0 for part in fields):
+                raise ValueError()
+            if len(fields) > 1 and (
+                any(part >= 60 for part in fields[1:])
+                or any(not part.is_integer() for part in fields[:-1])
+            ):
+                raise ValueError()
+            return _seconds(sum(part * 60 ** index for index, part in enumerate(reversed(fields))), "time")
     except ValueError as exc:
         raise ValueError(f"invalid time value {value!r}") from exc
     raise ValueError(f"invalid time value {value!r}")
@@ -118,22 +135,19 @@ def resolve_range(
     total_duration: float | None = None,
 ) -> tuple[float | None, float | None, float | None]:
     """Return normalized (start, end, duration) values."""
+    start = _seconds(start, "--start")
+    end = _seconds(end, "--end")
+    duration = _seconds(duration, "--duration", positive=True)
+    total_duration = _seconds(total_duration, "source duration")
     if end is not None and duration is not None:
         raise ValueError("use either --end or --duration, not both")
-    if start is not None and start < 0:
-        raise ValueError("--start must be non-negative")
-    if end is not None and end < 0:
-        raise ValueError("--end must be non-negative")
-    if duration is not None and duration <= 0:
-        raise ValueError("--duration must be greater than zero")
-
     effective_start = start
     effective_end = end
     effective_duration = duration
 
     if effective_duration is not None:
         effective_start = effective_start or 0.0
-        effective_end = effective_start + effective_duration
+        effective_end = _seconds(effective_start + effective_duration, "range end")
     elif effective_start is not None and effective_end is not None:
         effective_duration = effective_end - effective_start
     elif effective_start is None and effective_end is not None:
@@ -159,6 +173,7 @@ def capped_max_frames(max_frames: int) -> int:
 
 
 def _plan_from_target(duration_seconds: float | None, target: int, max_frames: int) -> tuple[float, int]:
+    duration_seconds = _seconds(duration_seconds, "duration")
     capped = capped_max_frames(max_frames)
     if duration_seconds is None or duration_seconds <= 0:
         return 1.0, min(capped, max(1, target))
@@ -172,6 +187,7 @@ def auto_fps_for_duration(
     max_frames: int = DEFAULT_MAX_FRAMES,
 ) -> tuple[float, int]:
     """Pick FPS and target frame budget for full-video scans."""
+    duration_seconds = _seconds(duration_seconds, "duration")
     capped = capped_max_frames(max_frames)
     if duration_seconds is None or duration_seconds <= 0:
         return 1.0, capped
@@ -194,6 +210,7 @@ def auto_fps_for_focus(
     max_frames: int = DEFAULT_MAX_FRAMES,
 ) -> tuple[float, int]:
     """Pick denser FPS and target frame budget for focused ranges."""
+    duration_seconds = _seconds(duration_seconds, "duration")
     capped = capped_max_frames(max_frames)
     if duration_seconds is None or duration_seconds <= 0:
         return 1.0, min(capped, 12)
@@ -216,8 +233,8 @@ def expected_frame_count(
     frame_interval: float = DEFAULT_INTERVAL_SECONDS,
     max_frames: int = DEFAULT_MAX_FRAMES,
 ) -> int:
-    if frame_interval <= 0:
-        raise ValueError("--frame-interval must be greater than zero")
+    duration_seconds = _seconds(duration_seconds, "duration")
+    frame_interval = _seconds(frame_interval, "--frame-interval", positive=True)
     capped = capped_max_frames(max_frames)
     if duration_seconds is None or duration_seconds <= 0:
         return capped
@@ -274,16 +291,16 @@ def resolve_frame_plan(
     range instead. warn_coverage=False leaves the warning out of a plan made
     before any frames are sampled.
     """
+    duration_seconds = _seconds(duration_seconds, "duration")
+    frame_interval = _seconds(frame_interval, "--frame-interval", positive=True)
+    fps = _seconds(fps, "--fps", positive=True)
+    range_start = _seconds(range_start, "range start")
     capped = capped_max_frames(max_frames)
     if frame_mode not in {"auto", "interval"}:
         raise ValueError("--frame-mode must be auto or interval")
-    if frame_interval <= 0:
-        raise ValueError("--frame-interval must be greater than zero")
     warnings: list[str] = []
 
     if fps is not None:
-        if fps <= 0:
-            raise ValueError("--fps must be greater than zero")
         selected_fps = min(float(fps), MAX_FPS)
         if selected_fps < float(fps):
             warnings.append(f"fps capped at {MAX_FPS:g}")
@@ -364,6 +381,8 @@ def frame_mime_type(frame_format: str) -> str:
 
 def scale_filter(width: int) -> str:
     """Downscale-only scale filter: cap width, clamp height, never upscale."""
+    if not isinstance(width, int) or isinstance(width, bool) or width < 2:
+        raise ValueError("--resolution must be an integer of at least 2 pixels")
     return (
         f"scale=w='min({int(width)},iw)':h='min({MAX_READ_HEIGHT},ih)':"
         "force_original_aspect_ratio=decrease:force_divisible_by=2"
@@ -469,14 +488,14 @@ def _seek_args(
     duration: float | None,
 ) -> tuple[list[str], list[str]]:
     """Build (pre-input, post-input) ffmpeg seek arguments."""
-    pre = ["-ss", f"{start:.3f}"] if start is not None else []
+    pre = ["-ss", f"{start:.6f}"] if start is not None else []
     post: list[str] = []
     if duration is not None:
-        post = ["-t", f"{duration:.3f}"]
+        post = ["-t", f"{duration:.6f}"]
     elif start is not None and end is not None:
-        post = ["-t", f"{end - start:.3f}"]
+        post = ["-t", f"{end - start:.6f}"]
     elif start is None and end is not None:
-        post = ["-t", f"{end:.3f}"]
+        post = ["-t", f"{end:.6f}"]
     return pre, post
 
 
@@ -495,8 +514,20 @@ def _run_ffmpeg(cmd: list[str], frame_format: str) -> subprocess.CompletedProces
     return result
 
 
-def _showinfo_timestamps(stderr: str) -> list[float]:
-    return [float(match.group(1)) for match in SHOWINFO_TS_RE.finditer(stderr)]
+def _showinfo_timestamps(stderr: str, frame_count: int | None = None) -> list[float]:
+    """Read emitted PTS without inventing labels when FFmpeg omits them."""
+    try:
+        times = [float(match.group(1)) for match in SHOWINFO_TS_RE.finditer(stderr)]
+        if any(not math.isfinite(value) for value in times):
+            raise ValueError()
+        if any(after < before for before, after in zip(times, times[1:])):
+            raise ValueError()
+        if frame_count is not None and len(times) < frame_count:
+            raise ValueError()
+    except ValueError as exc:
+        raise RuntimeError("ffmpeg did not provide valid timestamps for every extracted frame") from exc
+    # -frames:v can stop output after showinfo has already seen another frame.
+    return times if frame_count is None else times[:frame_count]
 
 
 def _raw_files(out_path: Path, extension: str) -> list[Path]:
@@ -515,9 +546,9 @@ def _frame_delta(a: bytes, b: bytes) -> float:
 
 
 def _thumbnail_sequence(files: list[Path]) -> list[bytes]:
-    """Decode a numbered image sequence to grayscale thumbnails in one pass.
+    """Decode a numbered image sequence to RGB thumbnails in one pass.
 
-    ffmpeg does the pixel decode (keeps this stdlib-only); the raw grayscale
+    ffmpeg does the pixel decode (keeps this stdlib-only); the raw RGB
     stream is sliced into one square thumbnail per frame. Fail-open: any
     ffmpeg error or byte-count mismatch returns [] so callers skip dedup
     instead of breaking extraction.
@@ -540,7 +571,7 @@ def _thumbnail_sequence(files: list[Path]) -> list[bytes]:
         "-i",
         pattern,
         "-vf",
-        f"scale={DEDUP_THUMB}:{DEDUP_THUMB},format=gray",
+        f"scale={DEDUP_THUMB}:{DEDUP_THUMB},format=rgb24",
         "-f",
         "rawvideo",
         "-",
@@ -548,7 +579,7 @@ def _thumbnail_sequence(files: list[Path]) -> list[bytes]:
     result = subprocess.run(cmd, capture_output=True, check=False)
     if result.returncode != 0:
         return []
-    chunk = DEDUP_THUMB * DEDUP_THUMB
+    chunk = DEDUP_THUMB * DEDUP_THUMB * 3
     data = result.stdout
     if len(data) != chunk * len(files):
         return []
@@ -621,12 +652,16 @@ def _finalize_frames(candidates: list[dict], frame_format: str) -> list[dict[str
         frames.append(
             {
                 "index": index,
-                "timestamp_seconds": round(timestamp, 3),
+                "timestamp_seconds": round(timestamp, 6),
                 "timestamp": format_time(timestamp),
                 "path": str(final),
                 "format": frame_format,
                 "mime_type": mime_type,
                 "reason": candidate.get("reason", "selected"),
+                **(
+                    {"requested_timestamp_seconds": candidate["requested_timestamp_seconds"]}
+                    if "requested_timestamp_seconds" in candidate else {}
+                ),
             }
         )
     return frames
@@ -668,8 +703,12 @@ def extract_frames(
     unbounded range without trimming the input; ffprobe fills it when omitted.
     max_frames_at_limit is passed to resolve_frame_plan for the coverage hint.
     """
-    _require_ffmpeg()
+    scale = scale_filter(width)
     start, end, duration = resolve_range(start, end, duration)
+    fps = _seconds(fps, "--fps", positive=True)
+    frame_interval = _seconds(frame_interval, "--frame-interval", positive=True)
+    timestamp_offset = _seconds(timestamp_offset, "timestamp offset")
+    total_duration = _seconds(total_duration, "source duration")
     extension = frame_extension(frame_format)
     plan_duration = duration
     if plan_duration is None:
@@ -691,6 +730,7 @@ def extract_frames(
     )
     selected_fps = float(plan["fps"])
     target_frames = int(plan["target_frames"])
+    _require_ffmpeg()
 
     out_path = Path(out_dir).expanduser().resolve()
     out_path.mkdir(parents=True, exist_ok=True)
@@ -698,12 +738,15 @@ def extract_frames(
 
     raw_pattern = str(out_path / f"frame_raw_%04d.{extension}")
     pre_seek, _ = _seek_args(start, end, duration)
-    # Trim the range end before fps, on the input's fine time base (an output
-    # -t rounds it to whole sampling steps). eof_action=pass keeps a final step
-    # the range ends inside, so a range shorter than one interval still yields
-    # its frame. The in-graph frame count lets showinfo see exactly the frames
-    # written; -frames:v alone lets one more through the graph.
-    trim = f"trim=end={duration:.3f}," if duration is not None else ""
+    # Select the first real frame in each time bucket. The fps filter rewrites
+    # timestamps and can label pixels from half an interval later as the bucket
+    # start. Selection retains source PTS, including delayed video streams and
+    # irregular frame rates. The explicit rate still stops at the requested cap.
+    trim = f"trim=end={duration:.6f}," if duration is not None else ""
+    select = (
+        f"select='isnan(prev_selected_t)+"
+        f"gt(floor(t*{selected_fps:.17g}),floor(prev_selected_t*{selected_fps:.17g}))'"
+    )
     cmd = [
         "ffmpeg",
         "-hide_banner",
@@ -714,8 +757,7 @@ def extract_frames(
         "-i",
         str(Path(source).expanduser()),
         "-vf",
-        f"{trim}fps={selected_fps:g}:eof_action=pass,trim=end_frame={target_frames},"
-        f"{scale_filter(width)},showinfo",
+        f"{trim}{select},trim=end_frame={target_frames},{scale},showinfo",
         *_vfr_output_args(),
         "-frames:v",
         str(target_frames),
@@ -725,11 +767,7 @@ def extract_frames(
     stderr = _run_ffmpeg(cmd, frame_format).stderr
 
     raw_files = _raw_files(out_path, extension)
-    # The nominal sampling grid is only a fallback: it would put a video
-    # stream that starts after 0:00 at 0:00.
-    exact = _showinfo_timestamps(stderr)
-    if len(exact) != len(raw_files):
-        exact = [index / selected_fps for index in range(len(raw_files))]
+    exact = _showinfo_timestamps(stderr, len(raw_files))
     candidates = [
         {
             "raw_path": raw_file,
@@ -879,8 +917,11 @@ def extract_keyframes(
     a very short or oddly encoded clip; fall back to uniform sampling.
     total_duration only sizes that fallback's budget.
     """
-    _require_ffmpeg()
+    scale = scale_filter(width)
     start, end, duration = resolve_range(start, end, duration)
+    timestamp_offset = _seconds(timestamp_offset, "timestamp offset")
+    total_duration = _seconds(total_duration, "source duration")
+    _require_ffmpeg()
     extension = frame_extension(frame_format)
     out_path = Path(out_dir).expanduser().resolve()
     out_path.mkdir(parents=True, exist_ok=True)
@@ -901,7 +942,7 @@ def extract_keyframes(
         str(Path(source).expanduser()),
         *post_seek,
         "-vf",
-        f"{scale_filter(width)},showinfo",
+        f"{scale},showinfo",
         *_vfr_output_args(),
         *_quality_args(frame_format),
         raw_pattern,
@@ -917,14 +958,15 @@ def extract_keyframes(
         stderr = ""
 
     base = timestamp_offset if timestamp_offset is not None else (start or 0.0)
-    exact = _showinfo_timestamps(stderr)
+    raw_files = _raw_files(out_path, extension)
+    exact = _showinfo_timestamps(stderr, len(raw_files))
     candidates = [
         {
             "raw_path": raw_file,
-            "timestamp_seconds": base + (exact[index] if index < len(exact) else 0.0),
+            "timestamp_seconds": base + exact[index],
             "reason": "keyframe",
         }
-        for index, raw_file in enumerate(_raw_files(out_path, extension))
+        for index, raw_file in enumerate(raw_files)
     ]
 
     if len(candidates) < KEYFRAME_MIN:
@@ -962,16 +1004,21 @@ def extract_scene_frames(
     scene_threshold: float = SCENE_THRESHOLD,
     total_duration: float | None = None,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
-    """Scene engine: first frame plus every scene change, then thin to cap.
+    """Scene engine: cuts plus a bounded coarse check of long quiet spans.
 
     Detection is uncapped across the whole range so coverage spans the full
     clip (capping detection would keep only the earliest cuts). This costs a
     full decode; use the keyframe engine when speed matters more. Videos with
     fewer than SCENE_MIN_FRAMES detected shots fall back to uniform sampling,
-    whose budget total_duration sizes.
+    whose budget total_duration sizes. Otherwise up to a quarter of the cap
+    (at most 20 frames) checks long gaps between the selected scenes.
     """
-    _require_ffmpeg()
+    scale = scale_filter(width)
     start, end, duration = resolve_range(start, end, duration)
+    timestamp_offset = _seconds(timestamp_offset, "timestamp offset")
+    total_duration = _seconds(total_duration, "source duration")
+    scene_threshold = _seconds(scene_threshold, "scene threshold")
+    _require_ffmpeg()
     extension = frame_extension(frame_format)
     out_path = Path(out_dir).expanduser().resolve()
     out_path.mkdir(parents=True, exist_ok=True)
@@ -991,7 +1038,7 @@ def extract_scene_frames(
         str(Path(source).expanduser()),
         *post_seek,
         "-vf",
-        f"{select},{scale_filter(width)},showinfo",
+        f"{select},{scale},showinfo",
         *_vfr_output_args(),
         *_quality_args(frame_format),
         raw_pattern,
@@ -999,14 +1046,15 @@ def extract_scene_frames(
     result = _run_ffmpeg(cmd, frame_format)
 
     base = timestamp_offset if timestamp_offset is not None else (start or 0.0)
-    exact = _showinfo_timestamps(result.stderr)
+    raw_files = _raw_files(out_path, extension)
+    exact = _showinfo_timestamps(result.stderr, len(raw_files))
     candidates = [
         {
             "raw_path": raw_file,
-            "timestamp_seconds": base + (exact[index] if index < len(exact) else 0.0),
+            "timestamp_seconds": base + exact[index],
             "reason": "first-frame" if index == 0 else "scene-change",
         }
-        for index, raw_file in enumerate(_raw_files(out_path, extension))
+        for index, raw_file in enumerate(raw_files)
     ]
 
     if len(candidates) < SCENE_MIN_FRAMES:
@@ -1024,9 +1072,108 @@ def extract_scene_frames(
             timestamp_offset=timestamp_offset,
             dedup=dedup,
         )
-    return _select_candidates(
-        "scene", candidates, max_frames=max_frames, frame_format=frame_format, dedup=dedup
+    return _select_scenes_with_coverage(
+        source, out_path, candidates,
+        start=start, duration=duration, total_duration=total_duration,
+        max_frames=max_frames, width=width, frame_format=frame_format,
+        timestamp_offset=timestamp_offset, dedup=dedup,
     )
+
+
+def _scene_coverage_points(
+    scenes: list[dict], base: float, span: float | None, budget: int,
+) -> tuple[list[float], float | None]:
+    """Divide long gaps into coarse intervals without adding dense screenshots."""
+    if span is None or span <= 0 or budget <= 0:
+        return [], None
+    interval = max(SCENE_COVERAGE_MIN_INTERVAL, span / (budget + 1))
+    end = base + span
+    anchors = sorted({base, end, *(
+        float(frame["timestamp_seconds"]) for frame in scenes
+        if base <= float(frame["timestamp_seconds"]) <= end
+    )})
+    points: list[float] = []
+    for low, high in zip(anchors, anchors[1:]):
+        pieces = max(1, math.ceil((high - low) / interval - 1e-9))
+        points.extend(low + (high - low) * index / pieces for index in range(1, pieces))
+    # Floating-point boundary effects must never exceed the reserved budget.
+    return [points[index] for index in _even_indices(len(points), budget)], interval
+
+
+def _select_scenes_with_coverage(
+    source: str | Path,
+    out_path: Path,
+    candidates: list[dict],
+    *,
+    start: float | None,
+    duration: float | None,
+    total_duration: float | None,
+    max_frames: int,
+    width: int,
+    frame_format: str,
+    timestamp_offset: float | None,
+    dedup: bool,
+) -> tuple[list[dict[str, object]], dict[str, object]]:
+    scene_count = len(candidates)
+    dropped = 0
+    if dedup:
+        candidates, dropped = _dedupe_candidates(candidates)
+    cap = max(1, int(max_frames))
+    coverage_budget = min(SCENE_COVERAGE_MAX_FRAMES, cap // 4)
+    # Plan against a conservative scene subset. Any unused coverage slots go
+    # back to scene selection; those extra scenes only improve the coverage.
+    provisional = [candidates[index] for index in _even_indices(
+        len(candidates), max(1, cap - coverage_budget)
+    )]
+    base = timestamp_offset if timestamp_offset is not None else (start or 0.0)
+    span = duration
+    if span is None:
+        known = total_duration if total_duration is not None else probe_duration(source)
+        if known is not None:
+            span = max(0.0, known - (start or 0.0))
+    points, interval = _scene_coverage_points(provisional, base, span, coverage_budget)
+    coverage: list[dict] = []
+    warnings: list[str] = []
+    if points:
+        # A separate directory protects pinned cues and the consecutive raw
+        # scene files. Coverage anchors deliberately survive visual dedup: they
+        # make the coarse checks of long quiet spans available for inspection.
+        with tempfile.TemporaryDirectory(prefix=".coverage-", dir=out_path) as tmp:
+            try:
+                frames, meta = extract_at_timestamps(
+                    source, tmp, points,
+                    width=width, frame_format=frame_format,
+                    window_start=base, window_end=base + span,
+                    media_time_offset=base - (start or 0.0),
+                )
+                warnings.extend(f"scene coverage: {warning}" for warning in meta["warnings"])
+            except (RuntimeError, ValueError) as exc:
+                frames = []
+                warnings.append(f"scene coverage unavailable: {exc}")
+            for index, frame in enumerate(frames):
+                original = Path(str(frame["path"]))
+                raw = original.rename(out_path / f"frame_coverage_raw_{index:04d}{original.suffix}")
+                coverage.append({
+                    "raw_path": raw,
+                    "timestamp_seconds": frame["timestamp_seconds"],
+                    "requested_timestamp_seconds": frame["requested_timestamp_seconds"],
+                    "reason": "coverage",
+                })
+    selected = _even_sample(candidates, cap - len(coverage))
+    selected = sorted([*selected, *coverage], key=lambda frame: frame["timestamp_seconds"])
+    frames = _finalize_frames(selected, frame_format)
+    return frames, {
+        "engine": "scene",
+        "candidate_count": scene_count + len(coverage),
+        "scene_candidate_count": scene_count,
+        "deduped_count": dropped,
+        "selected_count": len(frames),
+        "fallback": False,
+        "coverage_count": len(coverage),
+        "coverage_requested_count": len(points),
+        "coverage_interval_seconds": interval,
+        "warnings": warnings,
+    }
 
 
 def cues_in_window(
@@ -1035,9 +1182,12 @@ def cues_in_window(
     window_end: float | None,
 ) -> tuple[list[float], int]:
     """Filter cue timestamps to the focus window; return (kept, dropped)."""
-    low = window_start if window_start is not None else 0.0
-    high = window_end if window_end is not None else float("inf")
-    requested = sorted(set(round(float(value), 2) for value in timestamps))
+    low = _seconds(window_start, "window start") or 0.0
+    high = _seconds(window_end, "window end")
+    if high is not None and high < low:
+        raise ValueError("window end must not precede window start")
+    high = high if high is not None else float("inf")
+    requested = sorted(set(round(_seconds(value, "cue timestamp"), 6) for value in timestamps))
     kept = [value for value in requested if low <= value <= high]
     return kept, len(requested) - len(kept)
 
@@ -1062,6 +1212,9 @@ def extract_at_timestamps(
     them onto the trimmed file. Files use a cue_ prefix so they coexist
     with engine frame_ output.
     """
+    scale = scale_filter(width)
+    media_time_offset = _seconds(media_time_offset, "media time offset")
+    in_window, dropped = cues_in_window(timestamps, window_start, window_end)
     _require_ffmpeg()
     extension = frame_extension(frame_format)
     mime_type = frame_mime_type(frame_format)
@@ -1069,11 +1222,11 @@ def extract_at_timestamps(
     out_path.mkdir(parents=True, exist_ok=True)
     _cleanup_old_cues(out_path)
 
-    in_window, dropped = cues_in_window(timestamps, window_start, window_end)
     if max_frames is not None and len(in_window) > max_frames:
         in_window = [in_window[index] for index in _even_indices(len(in_window), max_frames)]
 
     frames: list[dict[str, object]] = []
+    warnings: list[str] = []
     for value in in_window:
         seek = max(0.0, value - media_time_offset)
         path = out_path / f"cue_{len(frames):04d}_{timestamp_name(value)}.{extension}"
@@ -1081,16 +1234,17 @@ def extract_at_timestamps(
             "ffmpeg",
             "-hide_banner",
             "-loglevel",
-            "error",
+            "info",
             "-y",
             "-ss",
-            f"{seek:.3f}",
+            f"{seek:.6f}",
             "-i",
             str(Path(source).expanduser()),
             "-frames:v",
             "1",
             "-vf",
-            scale_filter(width),
+            f"{scale},showinfo",
+            *_vfr_output_args(),
             *_quality_args(frame_format),
             str(path),
         ]
@@ -1098,23 +1252,38 @@ def extract_at_timestamps(
             cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
         )
         if result.returncode == 0 and path.exists():
+            try:
+                actual = media_time_offset + seek + _showinfo_timestamps(result.stderr, 1)[0]
+            except RuntimeError as exc:
+                path.unlink(missing_ok=True)
+                warnings.append(f"cue at {value:g}s: {exc}")
+                continue
+            if window_end is not None and actual > window_end:
+                path.unlink(missing_ok=True)
+                dropped += 1
+                continue
             frames.append(
                 {
                     "index": len(frames) + 1,
-                    "timestamp_seconds": round(value, 3),
-                    "timestamp": format_time(value),
+                    "timestamp_seconds": round(actual, 6),
+                    "requested_timestamp_seconds": value,
+                    "timestamp": format_time(actual),
                     "path": str(path),
                     "format": frame_format,
                     "mime_type": mime_type,
                     "reason": "transcript-cue",
                 }
             )
+        else:
+            path.unlink(missing_ok=True)
+            warnings.append(f"no frame available at cue timestamp {value:g}s")
 
     meta = {
         "engine": "timestamps",
-        "requested_count": len(set(round(float(value), 2) for value in timestamps)),
+        "requested_count": len(set(round(float(value), 6) for value in timestamps)),
         "selected_count": len(frames),
         "dropped_out_of_window": dropped,
+        "warnings": warnings,
     }
     return frames, meta
 

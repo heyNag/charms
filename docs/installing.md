@@ -71,8 +71,10 @@ With the [skills CLI](https://github.com/vercel-labs/skills):
 npx skills add heyNag/charms
 ```
 
-Use one channel per machine. Installing the same skill as a plain skill and as
-a plugin loads it twice, as `/watch-video` and `/watch-video:watch-video`.
+Use one channel per host. Installing the same skill as a plain skill and as
+a plugin in the same host loads it twice, as `/watch-video` and
+`/watch-video:watch-video`. When syncing with Skillshare, exclude hosts where
+you already use the plugin.
 
 ## Release ZIP
 
@@ -150,6 +152,14 @@ Charms package invariants, path containment, and source hygiene.
 Installation makes a plugin discoverable. It does not install external
 programs, create accounts, copy credentials, or grant permissions. Complete
 the requirements in the selected package README before using the skill.
+
+For `watch-video` local analysis, follow the bundled
+[local Mac setup](../packages/watch-video/skills/watch-video/references/local-models.md#set-up-another-mac)
+after installing or updating through your chosen channel. It covers native
+oMLX, the shared model directory, credentials, and an original-audio/frames
+smoke test. Run its commands from the installed skill directory: `skills/watch-video`
+inside a plugin, or the `watch-video` directory in a skill-only installation.
+No separate repository checkout is required.
 
 Never place access tokens, browser cookies, local session data, or generated
 media inside the plugin directory.
