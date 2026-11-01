@@ -10,13 +10,13 @@
     {
       "name": "watch-video",
       "description": "Analyze videos with Gemini or local models, original-audio transcription, matching transcripts, and timestamped frames.",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/heyNag/charms.git",
         "path": "packages/watch-video",
-        "ref": "watch-video--v1.2.0",
-        "sha": "b329e0751375519675d983f36820a46b3e5bb578"
+        "ref": "watch-video--v1.3.0",
+        "sha": "78311e9b2873b3c1c87e6da8a9b309ef232d7595"
       }
     },
     {
