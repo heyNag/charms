@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Check or configure the watch-video models through a running native oMLX app.
+"""Prepare local setup or configure models through a running native oMLX app.
 
-No runtime installation, server lifecycle changes, credentials storage, or direct
-Hugging Face downloads. Only --configure permits mutations. Downloads remain
-owned by oMLX after this bounded command exits; rerun it to finish configuration.
+--preflight inspects hardware and installation prerequisites without a server.
+--init-config creates a private template with an empty API-key field. --configure
+queues model downloads and settings through oMLX. No mode installs a runtime or
+changes server lifecycle. Downloads remain owned by oMLX after a bounded command
+exits; rerun configuration to finish.
 """
 
 from __future__ import annotations
@@ -16,6 +18,8 @@ import time
 from pathlib import Path
 
 from local_api import LocalAPIError, LocalClient
+from local_config import create_config_template
+from local_preflight import preflight, print_preflight
 
 
 VISION_REPO = "mlx-community/Qwen3.6-35B-A3B-4bit"
@@ -192,6 +196,8 @@ def setup(*, configure=False, wait_seconds=0, model_dir=None, base_url=None,
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--preflight", action="store_true", help="Read-only hardware and installation guidance; works before oMLX is running")
+    modes.add_argument("--init-config", action="store_true", help="Create a private local.env template with a blank key; never overwrite an existing file")
     modes.add_argument("--check", "--dry-run", action="store_true", help="Read-only setup check (default)")
     modes.add_argument("--configure", action="store_true", help="Queue missing models and apply this skill's model settings")
     parser.add_argument("--wait", type=float, default=0, metavar="SECONDS", help="Bounded wait for oMLX downloads; default 0, max 3600")
@@ -202,8 +208,15 @@ def main(argv=None):
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
-        result = setup(configure=args.configure, wait_seconds=args.wait, model_dir=args.model_dir,
-                       base_url=args.base_url, context_window=args.context_window, ttl_seconds=args.ttl_seconds)
+        if not args.configure and args.wait:
+            raise ValueError("--wait requires --configure.")
+        if args.init_config:
+            result = create_config_template()
+        elif args.preflight:
+            result = preflight(base_url=args.base_url, model_dir=args.model_dir)
+        else:
+            result = setup(configure=args.configure, wait_seconds=args.wait, model_dir=args.model_dir,
+                           base_url=args.base_url, context_window=args.context_window, ttl_seconds=args.ttl_seconds)
     except (LocalAPIError, ValueError, OSError) as exc:
         # Transport/value errors are sanitized; filesystem errors can contain
         # arbitrary paths, so do not print raw OSError messages.
@@ -211,6 +224,15 @@ def main(argv=None):
         result = {"status": "error", "blockers": [message]}
     if args.json:
         print(json.dumps(result, indent=2))
+    elif args.init_config:
+        print(f"[watch-video] Local config: {result['status']}")
+        if result.get("path"):
+            print(f"  File: {result['path']}")
+            print("  Edit the file privately to match your local server settings and API key. Existing contents are never printed or overwritten.")
+        for blocker in result.get("blockers", []):
+            print(f"  {blocker}")
+    elif args.preflight:
+        print_preflight(result)
     else:
         print(f"[watch-video] Local setup: {result['status']}")
         for row in result.get("models", []):
@@ -222,7 +244,7 @@ def main(argv=None):
         if result.get("model_settings_needed"):
             print("  Model settings need configuration; run --configure with the same options.")
         print("  This command does not start/stop the server or load inference models.")
-    return 0 if result["status"] == "ready" else 1 if result["status"] == "error" else 2
+    return 0 if result["status"] in {"ready", "requires_runtime_check", "created", "exists"} else 1 if result["status"] == "error" else 2
 
 
 if __name__ == "__main__":

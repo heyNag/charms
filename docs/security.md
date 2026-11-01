@@ -127,10 +127,19 @@ the user's credential policy permits it; Gemini keys are environment-only.
 Doctor's Gemini check reports presence, not access or quota, and makes no
 provider request. Doctor's local checks validate loopback configuration without
 contacting the server or confirming model availability. The separate
+`setup_local.py --preflight` inspects hardware and prerequisite presence without
+network requests, secret resolution, or configuration writes. It does not read
+the local credential file or launch apps and servers. The authenticated
 `setup_local.py --check` reads native oMLX configuration and download/model state
 through its authenticated loopback admin API. Only `--configure` queues model
 downloads and changes model-specific settings; model repositories are public
 weights, and no recording content is sent as part of setup.
+The explicit `--init-config` mode creates a private `local.env` template outside
+the package without overwriting existing files. The user enters the local API
+key directly in their editor. Local inference commands read the supported
+settings automatically; environment injection overrides the file. The parser
+does not execute shell syntax, and unresolved `op://` references are rejected
+rather than resolved automatically. No secret manager is required.
 Media, transcripts, frames, reports, and analysis artifacts
 must not enter source control or release archives. Local cleanup removes the
 requested media/images while keeping reports and transcripts; delete the run

@@ -11,6 +11,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
+from local_config import get_setting, resolve_api_key
+
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8147/v1"
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
@@ -82,15 +84,13 @@ def redact_secrets(value, secret: str):
 
 class LocalClient:
     def __init__(self, base_url=None, api_key=None, timeout=600):
-        self.base_url = validate_base_url(base_url)
+        configured_url = base_url if base_url is not None else get_setting("WATCH_VIDEO_LOCAL_BASE_URL")
+        self.base_url = validate_base_url(configured_url)
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) \
                 or not math.isfinite(timeout) or not 0 < timeout <= 3600:
             raise ValueError("Local API timeout must be between 0 and 3600 seconds.")
         self.timeout = timeout
-        self._api_key = (api_key if api_key is not None
-                         else os.environ.get("WATCH_VIDEO_LOCAL_API_KEY", "")).strip()
-        if any(ord(c) < 32 or ord(c) > 126 for c in self._api_key):
-            raise ValueError("Local API key must be a single-line ASCII value.")
+        self._api_key = resolve_api_key(api_key)
         # Disable both environment and macOS system proxies; never send local
         # media or the credential through an HTTP(S) proxy.
         self._opener = build_opener(ProxyHandler({}), _RefuseRedirects())

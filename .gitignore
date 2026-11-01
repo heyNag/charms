@@ -1,6 +1,7 @@
 .DS_Store
 .env
 .env.local
+local.env
 .watch-video/
 .x-bookmarks/
 

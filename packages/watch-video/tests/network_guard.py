@@ -15,6 +15,10 @@ loopback check and tunnel the request to the real host.
 The patches cover the test process only. A test that runs a script in a
 child process keeps that child offline itself, as the offline pipeline test
 does with a fake yt-dlp on PATH and --transcriber none.
+
+Local runtime configuration files are isolated too: unrelated unit tests must
+not read a user's real local.env after they complete onboarding. The dedicated
+local-config suite exercises file loading with its own temporary directory.
 """
 
 from __future__ import annotations
@@ -23,6 +27,8 @@ import ipaddress
 import socket
 import urllib.request
 from unittest import mock
+
+import local_config
 
 
 _REAL_GETADDRINFO = socket.getaddrinfo
@@ -120,6 +126,7 @@ def install() -> None:
     if _PATCHERS:
         return
     patchers = [
+        mock.patch.object(local_config, "read_config", return_value={}),
         mock.patch.object(socket, "getaddrinfo", _getaddrinfo),
         mock.patch.object(socket, "gethostbyname", _gethostbyname),
         mock.patch.object(socket, "gethostbyname_ex", _gethostbyname_ex),

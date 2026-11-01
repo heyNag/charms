@@ -81,6 +81,7 @@ FORBIDDEN_DIRECTORY_NAMES = {
 FORBIDDEN_FILE_NAMES = {
     ".env",
     ".env.local",
+    "local.env",
     "auth.json",
     "bookmarks.json",
     "bookmarks.jsonl",

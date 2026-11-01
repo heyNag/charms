@@ -1,6 +1,6 @@
 ---
 name: watch-video
-description: Use when the user asks to inspect a YouTube URL, local video or folder of videos, screen recording, tutorial, demo, UI bug video, or visible/spoken video evidence.
+description: Inspect YouTube URLs, local videos or folders, screen recordings, tutorials, demos, and visible/spoken video evidence. Also guide first-time setup of watch-video and its local models.
 license: MIT
 compatibility: Python 3.11+ on macOS or Linux. Local extraction needs ffmpeg and ffprobe; downloaded URLs also need yt-dlp. Gemini needs network access and GEMINI_API_KEY, but no local binaries for supported YouTube URLs or local files. Hosted Groq/OpenAI transcription also requires network access. Local model analysis requires a separately running OpenAI-compatible loopback server, such as oMLX.
 ---
@@ -13,6 +13,53 @@ local speech and vision models; the host agent reviews the result and answers
 the user's task.
 Commands run from this skill directory, using the adjacent `scripts/` folder;
 do not rely on a client-specific environment variable.
+
+## First-time local setup
+
+“Set up watch-video on this Mac” is enough to start onboarding. Read
+[Local models](references/local-models.md#set-up-another-mac), locate this
+installed skill's directory, and run:
+
+```sh
+python3 scripts/setup_local.py --preflight --json
+```
+
+If Python 3 is unavailable, guide installation of Python 3.11+ first, then run
+the preflight. Resolve the bundled directory from the host's installed skill
+location; do not make the user find a plugin cache or clone this repository.
+
+This read-only check works before oMLX is installed or running. Use the detected
+chip, memory, macOS version, installed tools, and ordered next steps to guide the
+user. Do not ask them to restate detected hardware or choose between Splash
+builds: M1/M2 uses Splash M1; M3 or newer uses official Splash. If detection is
+inconclusive, ask only for the missing fact. Keep the same selected speech and
+vision models across Macs; hardware detection selects the compatible launcher,
+not a different model. Report resource limits honestly and discuss a change
+only if needed; detection does not prove that the model fits or inference works.
+
+Reuse known configuration and choices. For a fresh setup, propose loopback port
+`8147`, `~/.omlx/models`, and the models in the bundled guide. For authentication,
+the default is a protected local configuration file: use `--init-config` to
+create a blank template, show its path, and have the user enter the same API key
+configured in oMLX directly in their editor. Wait for them to finish. Do not ask
+them to paste the key into chat, read their clipboard, or display the file.
+The local scripts load it automatically. Secret-manager injection is an optional
+alternative when the user chooses it; do not assume 1Password or enumerate a
+vault. Ask only about unresolved choices, an actual port conflict, or a test
+video when none was supplied. Preflight does not read the credential file.
+
+Honor the user's setup mode: when they want to do it themselves, give the next
+concrete step and its success check; when they request installation, perform
+the authorized steps using the host's tools. Preserve existing server/model
+settings unless a change is needed and authorized. After prerequisites and
+server configuration, run the authenticated `--check`, explicit `--configure`,
+then a short original-audio/frames test. Preflight success is not setup or
+inference success.
+
+Also use preflight when a requested local-model flow is unavailable. Explain
+the missing stage and guide setup if requested; an ordinary video-analysis
+request alone does not authorize installing runtimes or downloading models.
+Speech-only transcript answers and the Gemini route do not need this onboarding.
 
 ## Choose the route from the task
 

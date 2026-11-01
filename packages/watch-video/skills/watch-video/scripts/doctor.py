@@ -194,16 +194,21 @@ def check_local_runtime(
     if transcriber != "local" and analyzer != "local":
         return []
     from local_api import validate_base_url
+    from local_config import LocalConfigError, get_setting, resolve_api_key
 
     environment = env if env is not None else os.environ
+    config_errors = []
     try:
         endpoint = validate_base_url(
-            environment.get("WATCH_VIDEO_LOCAL_BASE_URL") or "http://127.0.0.1:8147/v1"
+            get_setting("WATCH_VIDEO_LOCAL_BASE_URL", env=environment) or "http://127.0.0.1:8147/v1"
         )
         endpoint_check = {
             "name": "local-endpoint", "ok": True,
             "message": f"{endpoint} (configuration only; server access not tested)",
         }
+    except LocalConfigError as exc:
+        endpoint_check = {"name": "local-endpoint", "ok": False, "message": str(exc),
+                          "fix": "Check local.env syntax and private permissions."}
     except ValueError:
         # An invalid URL may contain credentials; never include its value.
         endpoint_check = {
@@ -211,7 +216,12 @@ def check_local_runtime(
             "message": "local inference requires an HTTP(S) loopback /v1 endpoint",
             "fix": "Set WATCH_VIDEO_LOCAL_BASE_URL to the local server, for example http://127.0.0.1:8147/v1.",
         }
-    key_present = bool((environment.get("WATCH_VIDEO_LOCAL_API_KEY") or "").strip())
+    try:
+        key_present = bool(resolve_api_key(env=environment))
+    except LocalConfigError as exc:
+        key_present = False
+        config_errors.append({"name": "local-config", "ok": False, "message": str(exc)})
+    key_source = "environment" if "WATCH_VIDEO_LOCAL_API_KEY" in environment else "local.env"
     roles = []
     if transcriber == "local":
         roles.append("speech-to-text model")
@@ -222,16 +232,16 @@ def check_local_runtime(
         {
             "name": "WATCH_VIDEO_LOCAL_API_KEY", "ok": key_present,
             "message": (
-                "present in environment (not validated)" if key_present else
+                f"present in {key_source} (not validated)" if key_present else
                 "not set; required only if the local server enables authentication"
             ),
-            "fix": "Inject WATCH_VIDEO_LOCAL_API_KEY through your secret manager when authentication is enabled.",
+            "fix": "Enter WATCH_VIDEO_LOCAL_API_KEY in the private local.env file, or supply it through your chosen environment/secret manager when authentication is enabled.",
         },
         {
             "name": "local-models", "ok": True,
             "message": f"Requires a loaded or loadable {' and '.join(roles)}; model availability not tested",
         },
-    ]
+    ] + config_errors
 
 
 def validate_local_options(engine: str, transcriber: str | None, analyzer: str) -> None:

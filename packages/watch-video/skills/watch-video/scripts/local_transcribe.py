@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import shutil
 import subprocess
 import uuid
@@ -17,6 +16,7 @@ from groq_transcribe import (
     segments_from_response,
 )
 from local_api import LocalAPIError, LocalClient
+from local_config import get_setting
 
 
 DEFAULT_ASR_MODEL = "whisper-large-v3-asr-fp16"
@@ -33,7 +33,7 @@ class LocalTranscriptionValidationError(RuntimeError):
 
 
 def default_model() -> str:
-    return os.environ.get("WATCH_VIDEO_LOCAL_ASR_MODEL") or DEFAULT_ASR_MODEL
+    return get_setting("WATCH_VIDEO_LOCAL_ASR_MODEL") or DEFAULT_ASR_MODEL
 
 
 def _finite(value) -> bool:

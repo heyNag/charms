@@ -11,11 +11,11 @@ import base64
 import hashlib
 import json
 import math
-import os
 import time
 from pathlib import Path
 
 from local_api import LocalClient
+from local_config import LocalConfigError, get_setting, resolve_api_key
 
 DEFAULT_MODEL = "mlx-community--Qwen3.6-35B-A3B-4bit"
 DEFAULT_QUESTION = "Explain the recording, its key decisions, demonstrated steps, and uncertainties with source timestamps."
@@ -28,6 +28,10 @@ When available, sampled original video frames and automatic speech recognition (
 Use only the supplied evidence, not outside knowledge. Do not expand acronyms or reject visible names, versions, or dates based on memory. A minimum required version and a newer installed version are compatible, not contradictory. Results from different times, benchmark configurations, or hardware are not directly contradictory without matching conditions.
 Compare ASR and supplied text only when both are present and their actual passages align; shared window membership alone does not prove alignment. If either is absent, make no ASR-versus-transcript comparison. Do not invent missing evidence. Preserve source uncertainty rather than resolving it by speculation.
 Use actual source timestamps and evidence IDs. Separate spoken claims, visible facts, and your inferences. Do not infer unseen frames. Tiny text, charts, numbers, toggle states, and commands need conservative reading: say uncertain when unclear. Never invent timestamps for untimed text. Preserve gaps and limitations. Answer the user's question, without copying long passages."""
+
+
+def default_model() -> str:
+    return get_setting("WATCH_VIDEO_LOCAL_MODEL") or DEFAULT_MODEL
 
 
 def _read(path: Path, default=None):
@@ -58,7 +62,12 @@ def _digest(value) -> str:
 
 
 def _redact(text: str, api_key: str | None) -> str:
-    key = api_key or os.environ.get("WATCH_VIDEO_LOCAL_API_KEY")
+    try:
+        key = resolve_api_key(api_key)
+    except LocalConfigError:
+        # A malformed config error is already sanitized; do not replace it with
+        # a second failure while reporting setup/analysis errors.
+        key = None
     return text.replace(key, "[REDACTED]") if key else text
 
 
@@ -307,10 +316,11 @@ def analyze_local(run_dir: Path | str, *, model: str | None = None,
             "path": caption_path, "provenance": "native_captions",
             "content_hash": _digest(native), "blocks": native["segments"],
         }]}
-    selected_model = model or os.environ.get("WATCH_VIDEO_LOCAL_MODEL") or DEFAULT_MODEL
+    selected_model = model or default_model()
     task = question or metadata.get("question") or DEFAULT_QUESTION
     if len(task) > 6000:
         raise ValueError("Local analysis question exceeds 6000 characters")
+    api_key = resolve_api_key(api_key)
     client = LocalClient(base_url=base_url, api_key=api_key, timeout=timeout)
     chunks, expected, warnings = plan_chunks(
         evidence, transcript, supporting, max_frames_per_chunk=max_frames_per_chunk,

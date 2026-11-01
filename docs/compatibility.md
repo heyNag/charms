@@ -63,6 +63,10 @@ separate speech and vision-language models, and do not install or start a runtim
 The explicit `setup_local.py --configure` workflow queues missing weights through
 oMLX's native downloader into its configured model directory and sets the vision
 alias/Splash options. It requires a running, configured native runtime.
+Before that stage, `setup_local.py --preflight` detects Mac hardware and local
+prerequisites without contacting a server, resolving secrets, or installing
+anything. Its onboarding guidance distinguishes Splash M1 for M1/M2 from
+official Splash for M3 or later. It does not establish model or inference readiness.
 The vision-language model receives ASR text rather than raw audio.
 
 With `--engine gemini`, supported YouTube URLs are passed directly to Google,

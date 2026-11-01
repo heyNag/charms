@@ -153,7 +153,11 @@ Installation makes a plugin discoverable. It does not install external
 programs, create accounts, copy credentials, or grant permissions. Complete
 the requirements in the selected package README before using the skill.
 
-For `watch-video` local analysis, follow the bundled
+For `watch-video` local analysis, start a new session after installation and ask
+**“Set up watch-video on this Mac.”** The skill detects the hardware and missing
+prerequisites with `setup_local.py --preflight`, then guides the next steps.
+You do not need to supply the chip, RAM, or the matching Splash build in a prompt.
+For manual commands, follow the bundled
 [local Mac setup](../packages/watch-video/skills/watch-video/references/local-models.md#set-up-another-mac)
 after installing or updating through your chosen channel. It covers native
 oMLX, the shared model directory, credentials, and an original-audio/frames

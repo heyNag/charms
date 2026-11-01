@@ -19,6 +19,38 @@ installed skill directory containing `SKILL.md` and `scripts/`: this is
 `skills/watch-video` inside a plugin, or the standalone skill directory. Use
 the host's installed skill path rather than a separate checkout or copied scripts.
 
+The user can simply ask **“Set up watch-video on this Mac.”** Start by locating
+the installed skill and running its read-only hardware/prerequisite check:
+
+```sh
+python3 scripts/setup_local.py --preflight --json
+```
+
+It reports the Mac chip, memory, macOS version, app/launcher and dependency
+presence, and ordered setup steps without contacting oMLX or a provider. It
+works when the app is absent or stopped. Select Splash M1 for detected M1/M2
+hardware and official Splash for M3 or later. Unknown hardware or an unsupported
+OS needs clarification or another compatible runtime, not a guessed installer.
+Python 3.11+ and FFmpeg/ffprobe are required for the local flow; yt-dlp is optional
+until a source needs downloading. The credential environment and local.env are
+checked for presence only. The checker does not read the file or resolve secrets.
+
+Briefly report what was detected and the next missing step. Reuse existing
+choices; ask only for information that cannot be detected or is genuinely a
+preference, such as which credential method/item to use or which sample video
+to test. If the user wants manual steps, guide one stage at a time instead of
+running installers. A setup request permits progressing within the host's
+authorization rules; a request to analyze a video does not implicitly authorize
+installing runtimes or downloading model weights.
+
+Preflight completion means only that the offline prerequisites were found.
+Runtime authentication, model discovery, memory settings, and inference still
+need the checks below. Keep the selected model profile across Macs. Use detected
+memory and available disk space to explain resource constraints and guide memory
+settings, not to silently substitute another model. Do not claim that the model
+fits from those values alone. Preserve existing port, model directory, and
+runtime choices rather than overwriting them with defaults.
+
 These steps use the same speech and vision models on each Mac. Install the
 [native oMLX DMG](https://github.com/jundot/omlx#install), move it to Applications,
 and open it once. It includes the app controls, precompiled kernels, and the
@@ -52,36 +84,43 @@ The setup helper installs these repositories through oMLX's model downloader:
 | Frames and text analysis | `mlx-community/Qwen3.6-35B-A3B-4bit` | Alias `mlx-community--Qwen3.6-35B-A3B-4bit` |
 | Splash draft for Qwen | `incoai/Qwen3.6-35B-A3B-DFlash2` | Used by the vision model, not selected as an analyzer |
 
-For authentication, configure oMLX with the key in the user's chosen secret
-manager item. The examples use the 1Password CLI (`op`) with the desktop app's
-**Settings → Developer → Integrate with 1Password CLI** enabled. On another
-Mac, configure the server with the same chosen key if you want identical
-connection settings; a client secret reference does not set the server's key.
+For authentication, guide the user to create or set an API key in oMLX's app.
+The client must use the same key; a client configuration file does not set the
+server's key. Reuse an existing method if the user already chose one. A secret
+manager is optional, not a prerequisite.
 
-Create the configuration directory with `mkdir -p ~/.config/watch-video`, then
-create or update `~/.config/watch-video/local.env` with the following values.
-The key value here is a **secret reference**, not the key:
+The default onboarding creates a protected local template outside the plugin:
+
+```sh
+python3 scripts/setup_local.py --init-config
+```
+
+This creates `~/.config/watch-video/local.env` with mode `600` and refuses to
+overwrite an existing file. `WATCH_VIDEO_CONFIG_DIR` relocates its directory.
+Give the user its path and ask them to open it in a plain-text editor, enter the key
+from oMLX, and save. Wait for them to finish before checking the connection.
+Do not read the clipboard, display the file, or ask for the key in chat. The
+template contains these settings, with an empty key for the user to fill:
 
 ```dotenv
 WATCH_VIDEO_LOCAL_BASE_URL=http://127.0.0.1:8147/v1
 WATCH_VIDEO_LOCAL_ASR_MODEL=whisper-large-v3-asr-fp16
 WATCH_VIDEO_LOCAL_MODEL=mlx-community--Qwen3.6-35B-A3B-4bit
-WATCH_VIDEO_LOCAL_API_KEY="op://<vault>/<item>/<field>"
+WATCH_VIDEO_LOCAL_API_KEY=
 ```
 
-Replace the reference with **Copy Secret Reference** from the intended
-1Password field; do not guess its label or paste the secret itself. If local
-server authentication is disabled, omit the key variable and use ordinary
-commands without `op run`. Keep this file outside the repository with mode
-`600`. The scripts do not automatically load `local.env`; `op run` supplies it
-to each command and uses the user's normal 1Password approval.
+The local scripts automatically load the supported settings from this file;
+environment variables override it, and explicit CLI options take precedence.
+The parser treats values as data, never shell commands. Keep file permissions
+private. Missing or invalid credentials should lead to a local configuration
+fix, not disabling authentication. An empty key is appropriate only when the
+user has chosen an unauthenticated loopback server.
 
 From the skill directory, start the app-managed server and inspect setup:
 
 ```sh
-chmod 600 ~/.config/watch-video/local.env
 ~/.omlx/bin/omlx start
-op run --env-file ~/.config/watch-video/local.env -- python3 scripts/setup_local.py --check
+python3 scripts/setup_local.py --check
 ```
 
 Review the check's proposed changes. When ready to download the weights and
@@ -90,8 +129,20 @@ explicit setup operation. The target model must be unloaded before settings
 can change; use the app to unload it when it is not serving another task.
 
 ```sh
-op run --env-file ~/.config/watch-video/local.env -- python3 scripts/setup_local.py --configure --wait 600
+python3 scripts/setup_local.py --configure --wait 600
 ```
+
+If the user prefers a secret manager, inject the same environment variables
+instead. For example, a user who chooses 1Password can place a secret reference
+in the key field and invoke commands through its CLI:
+
+```sh
+op run --env-file ~/.config/watch-video/local.env -- python3 scripts/setup_local.py --check
+```
+
+That route needs the user's 1Password CLI integration and approval. An unresolved
+`op://` reference is not an API key; ordinary commands reject it and explain the
+need for environment injection. The skill never resolves it automatically.
 
 The default model directory is `~/.omlx/models`; `--model-dir` must match oMLX's
 configured primary directory. Missing models are queued through the native
@@ -113,8 +164,8 @@ beside the video so the same test also exercises supplementary transcript
 discovery:
 
 ```sh
-op run --env-file ~/.config/watch-video/local.env -- python3 scripts/doctor.py ./sample.mp4 --engine local --transcriber local --analyzer local --check
-op run --env-file ~/.config/watch-video/local.env -- python3 scripts/watch.py ./sample.mp4 --engine local --transcriber local --analyzer local --duration 30 --detail balanced --frame-format png --resolution 1024 --question "Describe the speech and visible content, and flag uncertainty."
+python3 scripts/doctor.py ./sample.mp4 --engine local --transcriber local --analyzer local --check
+python3 scripts/watch.py ./sample.mp4 --engine local --transcriber local --analyzer local --duration 30 --detail balanced --frame-format png --resolution 1024 --question "Describe the speech and visible content, and flag uncertainty."
 ```
 
 Check `local_analysis.json` for complete coverage and review the underlying
@@ -135,7 +186,7 @@ names.
 | Environment variable | Default or meaning |
 | --- | --- |
 | `WATCH_VIDEO_LOCAL_BASE_URL` | `http://127.0.0.1:8147/v1` |
-| `WATCH_VIDEO_LOCAL_API_KEY` | Optional; required if local server authentication is enabled. Supply through the user's secret manager. |
+| `WATCH_VIDEO_LOCAL_API_KEY` | Required if local server authentication is enabled. Read from the protected local config, or supplied through the user's chosen environment injection. |
 | `WATCH_VIDEO_LOCAL_ASR_MODEL` | `whisper-large-v3-asr-fp16` |
 | `WATCH_VIDEO_LOCAL_MODEL` | `mlx-community--Qwen3.6-35B-A3B-4bit` |
 

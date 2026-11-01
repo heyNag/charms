@@ -86,9 +86,11 @@ presence only, without verifying access or quota. For local models, pass
 URL and reports credential/model prerequisites without connecting or loading
 models. The installer does not install inference servers or model weights.
 
-Use your secret manager to supply credentials to the process environment;
-never paste keys into agent chats, command arguments, logs, or source files.
-The user's credential policy takes precedence over the optional storage helper.
+For local inference, use the protected `local.env` file created during setup,
+or inject credentials through a secret manager of your choice. Hosted providers
+retain their documented environment/storage options below. Never paste keys
+into agent chats, command arguments, logs, or source files. The user's
+credential policy takes precedence over optional storage helpers.
 
 - Groq is the local engine's default transcription fallback for fresh URLs:
   `GROQ_API_KEY`, model `whisper-large-v3` (`GROQ_MODEL` overrides it).
@@ -116,26 +118,45 @@ local speech model is unavailable, report the gap rather than treating a
 supplied transcript as a fresh audio review. See
 [Local model setup and evidence](skills/watch-video/references/local-models.md).
 
-## Repeat the local setup on another Mac
+## First-time local setup
 
 First install or update `watch-video` through one of the
 [supported channels](https://github.com/heyNag/charms/blob/main/docs/installing.md).
 Marketplace installs receive released packages; skill-only channels follow
 `main`. Use one channel per host.
 
+Then ask the installed skill: **“Set up watch-video on this Mac.”** It locates
+its bundled scripts and detects the Mac chip, memory, macOS version, and missing
+prerequisites before guiding setup. Hardware details and the Splash build do
+not need to be supplied in a prompt. The same read-only check is available from
+the installed skill directory before oMLX is installed or started:
+
+```sh
+python3 scripts/setup_local.py --preflight --json
+```
+
+Only unresolved choices, such as a sample video, need user input. The default
+credential flow creates a protected local configuration template with
+`setup_local.py --init-config`; enter the oMLX API key directly in that file
+using your editor. Local commands load it automatically. Secret managers such
+as 1Password are optional. Ask for step-by-step guidance if you want to run the
+installation yourself. Preflight does not install software, read credentials,
+or prove that the models fit in memory; runtime setup and a short inference test
+follow.
+
 Use the native oMLX app with loopback port `8147` and one model directory,
 `~/.omlx/models`. The app includes its own CLI. Use Splash M1 on M1/M2 Macs and
 official Splash on M3 or newer; both use the same Qwen vision and Whisper speech
 models. Follow the [local Mac setup steps](skills/watch-video/references/local-models.md#set-up-another-mac)
-for installation, 1Password references, model identities, and a short live test.
+for installation, local configuration, model identities, and a short live test.
 
 Once the runtime is configured and running, run these from the installed skill
 directory (`skills/watch-video` inside the plugin, or the standalone skill
 directory containing `SKILL.md` and `scripts/`):
 
 ```sh
-op run --env-file ~/.config/watch-video/local.env -- python3 scripts/setup_local.py --check
-op run --env-file ~/.config/watch-video/local.env -- python3 scripts/setup_local.py --configure --wait 600
+python3 scripts/setup_local.py --check
+python3 scripts/setup_local.py --configure --wait 600
 ```
 
 The helper checks by default. Explicit `--configure` queues missing model

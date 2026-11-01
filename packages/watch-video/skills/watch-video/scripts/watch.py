@@ -53,6 +53,7 @@ from groq_transcribe import (  # noqa: E402
 import gemini  # noqa: E402
 import local_transcribe  # noqa: E402
 import local_analyze  # noqa: E402
+from local_api import LocalClient  # noqa: E402
 from supporting_transcripts import (  # noqa: E402
     discover_supporting_transcripts,
     load_supporting_transcript,
@@ -1305,6 +1306,14 @@ def main() -> int:
             raise ValueError("--gemini-timeout must be finite and positive")
         if not math.isfinite(args.local_timeout) or not 0 < args.local_timeout <= 3600:
             raise ValueError("--local-timeout must be between 0 and 3600 seconds")
+        if args.engine == "local" and (args.transcriber == "local" or args.analyzer == "local"):
+            # Validate private settings before downloading/extracting media or
+            # creating run artifacts. Constructing the client makes no request.
+            LocalClient(timeout=args.local_timeout)
+            if args.transcriber == "local":
+                args.local_asr_model = args.local_asr_model or local_transcribe.default_model()
+            if args.analyzer == "local":
+                args.local_model = args.local_model or local_analyze.default_model()
         download_section = download_section_for_args(
             requested_start,
             requested_end,

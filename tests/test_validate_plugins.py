@@ -349,10 +349,12 @@ class ValidatePluginsTests(unittest.TestCase):
 
     def test_forbidden_artifacts_are_reported(self) -> None:
         (self.plugin / ".env").write_text("EXAMPLE=true\n", encoding="utf-8")
+        (self.plugin / "local.env").write_text("WATCH_VIDEO_LOCAL_API_KEY=private-fixture\n", encoding="utf-8")
         (self.plugin / ".venv").mkdir()
         (self.plugin / "capture.mp4").write_bytes(b"not real media")
         errors = self.plugin_errors()
         self.assertTrue(any(".env: forbidden local artifact file" in error for error in errors))
+        self.assertTrue(any("local.env: forbidden local artifact file" in error for error in errors))
         self.assertTrue(any(".venv: forbidden local artifact directory" in error for error in errors))
         self.assertTrue(any("capture.mp4: forbidden local artifact file" in error for error in errors))
 
