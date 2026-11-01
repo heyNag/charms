@@ -9,14 +9,14 @@
   "plugins": [
     {
       "name": "watch-video",
-      "description": "Inspect videos with transcripts, timestamps, scene-aware frames, and optional transcription fallbacks.",
-      "version": "1.1.0",
+      "description": "Analyze videos with Gemini or local models, original-audio transcription, matching transcripts, and timestamped frames.",
+      "version": "1.2.0",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/heyNag/charms.git",
         "path": "packages/watch-video",
-        "ref": "watch-video--v1.1.0",
-        "sha": "faec5d321bac7b5cf699f778a286593e616ecc3b"
+        "ref": "watch-video--v1.2.0",
+        "sha": "b329e0751375519675d983f36820a46b3e5bb578"
       }
     },
     {
