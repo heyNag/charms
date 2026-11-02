@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import io
 import json
 import os
@@ -10,6 +11,8 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+
+from jsonschema import Draft202012Validator
 
 TESTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TESTS))
@@ -141,6 +144,48 @@ class ObservationTests(unittest.TestCase):
         result = local_observations.parse_findings(json.dumps({"findings": findings}), observations, records)
         self.assertEqual([finding["text"] for finding in result], [finding["text"] for finding in findings])
 
+    def test_final_contract_and_parser_enforce_the_same_size_boundaries(self):
+        frames = [{"frame_id": f"frame:{i}", "timestamp_seconds": i} for i in range(1, 10)]
+        value = {"findings": [{"kind": "visual", "evidence_ids": [f"frame:{i}" for i in range(1, 9)],
+                               "text": "x" * 1200} for _ in range(16)]}
+        validator = Draft202012Validator(local_observations.FINAL_OUTPUT_CONTRACT)
+        validator.validate(value)
+        self.assertEqual(len(local_observations.parse_findings(json.dumps(value), frames, [])), 16)
+        oversized = []
+        more_findings = copy.deepcopy(value)
+        more_findings["findings"].append(copy.deepcopy(value["findings"][0]))
+        oversized.append(more_findings)
+        more_ids = copy.deepcopy(value)
+        more_ids["findings"][0]["evidence_ids"].append("frame:9")
+        oversized.append(more_ids)
+        long_text = copy.deepcopy(value)
+        long_text["findings"][0]["text"] += "x"
+        oversized.append(long_text)
+        for invalid in oversized:
+            with self.subTest(invalid=invalid["findings"][0]["evidence_ids"]):
+                self.assertTrue(list(validator.iter_errors(invalid)))
+                with self.assertRaises(ValueError):
+                    local_observations.parse_findings(json.dumps(invalid), frames, [])
+        for empty in ([], [{"kind": "visual", "evidence_ids": [], "text": "x"}],
+                      [{"kind": "visual", "evidence_ids": ["frame:1"], "text": " "}]):
+            self.assertTrue(list(validator.iter_errors({"findings": empty})))
+            with self.assertRaises(ValueError):
+                local_observations.parse_findings(json.dumps({"findings": empty}), frames, [])
+
+    def test_final_kind_rules_require_correct_sources_and_distinct_comparison_ids(self):
+        frames = self.parse(structured())["observations"]
+        valid = {"speech": ["primary:1.1"], "visual": ["frame:1"],
+                 "comparison": ["frame:1", "primary:1.1"], "inference": ["frame:1"],
+                 "limitation": ["primary:1.1"]}
+        for kind, identifiers in valid.items():
+            value = {"findings": [{"kind": kind, "evidence_ids": identifiers, "text": "A finding."}]}
+            self.assertEqual(local_observations.parse_findings(json.dumps(value), frames, self.records)[0]["kind"], kind)
+        for kind, identifiers in (("speech", ["frame:1"]), ("visual", ["primary:1.1"]),
+                                  ("comparison", ["frame:1", "frame:1"]), ("unsupported", ["frame:1"])):
+            value = {"findings": [{"kind": kind, "evidence_ids": identifiers, "text": "A finding."}]}
+            with self.subTest(kind=kind), self.assertRaises(ValueError):
+                local_observations.parse_findings(json.dumps(value), frames, self.records)
+
 
 class ObservationPipelineTests(unittest.TestCase):
     def setUp(self):
@@ -159,9 +204,9 @@ class ObservationPipelineTests(unittest.TestCase):
         self.client = mock.Mock()
         self.enterContext(mock.patch.object(local_analyze, "LocalClient", return_value=self.client))
 
-    def run_analysis(self):
+    def run_analysis(self, **kwargs):
         with contextlib.redirect_stdout(io.StringIO()):
-            return local_analyze.analyze_local(self.root)
+            return local_analyze.analyze_local(self.root, **kwargs)
 
     def test_source_anchored_chart_survives_bad_final_summary(self):
         self.client.request_json.side_effect = [reply(structured()), final_reply("No chart is visible anywhere.")]
@@ -225,6 +270,101 @@ class ObservationPipelineTests(unittest.TestCase):
                 for path in self.root.rglob("*.json"):
                     self.assertNotIn(secret, str(json.loads(path.read_text())))
                 self.assertNotIn(secret, (self.root / "local_analysis.md").read_text())
+
+    def test_invalid_final_id_repairs_once_preserves_draft_and_reuses_repaired_cache(self):
+        rejected = reply({"findings": [{"kind": "limitation", "evidence_ids": ["asr_gaps"],
+                                        "text": "An unsupported reference."}]})
+        self.client.request_json.side_effect = [reply(structured()), rejected, final_reply("A chart appears.")]
+        result = self.run_analysis()
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(self.client.request_json.call_count, 3)
+        final = result["synthesis"][-1]
+        self.assertEqual(final["repair"]["attempts"], 1)
+        self.assertEqual(final["repair"]["status"], "complete")
+        initial = json.loads(Path(final["repair"]["rejected_response_path"]).read_text())
+        self.assertEqual(initial["status"], "partial")
+        self.assertIn("asr_gaps", initial["text"])
+        repaired = json.loads(Path(final["repair"]["response_path"]).read_text())
+        self.assertEqual(repaired["status"], "complete")
+        payloads = [call.args[1] for call in self.client.request_json.call_args_list]
+        first_request, repair_request = [json.loads(p["messages"][1]["content"]) for p in payloads[1:]]
+        self.assertEqual(repair_request["notes"], first_request["notes"])
+        self.assertEqual(repair_request["final_output_contract"], first_request["final_output_contract"])
+        self.assertIn("cites missing evidence", repair_request["schema_repair"]["validation_error"])
+        self.assertLess(len(json.dumps(repair_request)) - len(json.dumps(first_request)), 1000)
+        self.client.reset_mock()
+        self.client.request_json.side_effect = AssertionError("A complete repaired result should be reused")
+        resumed = self.run_analysis()
+        self.assertEqual(resumed["status"], "complete")
+        self.client.request_json.assert_not_called()
+        self.assertTrue(resumed["synthesis"][-1]["reused"])
+        self.assertEqual(resumed["quality"]["status"], "requires_source_review")
+
+    def test_excess_final_citations_are_repaired_without_silent_truncation(self):
+        transcript_path = self.root / "transcript.json"
+        transcript = json.loads(transcript_path.read_text())
+        transcript["segments"] *= 8
+        transcript_path.write_text(json.dumps(transcript))
+        identifiers = ["frame:1", *[f"primary:{i}.1" for i in range(1, 9)]]
+        rejected = reply({"findings": [{"kind": "inference", "evidence_ids": identifiers, "text": "A long citation list."}]})
+        self.client.request_json.side_effect = [reply(structured()), rejected, final_reply("A focused chart finding.")]
+        result = self.run_analysis()
+        self.assertEqual(result["status"], "complete")
+        self.assertEqual(self.client.request_json.call_count, 3)
+        final = result["synthesis"][-1]
+        self.assertIn("1 to 8", final["repair"]["initial_validation_error"])
+        initial = json.loads(Path(final["repair"]["rejected_response_path"]).read_text())
+        self.assertEqual(json.loads(initial["text"])["findings"][0]["evidence_ids"], identifiers)
+        self.assertEqual(result["findings"][0]["text"], "A focused chart finding.")
+
+    def test_failed_final_repair_is_bounded_and_preserves_complete_evidence(self):
+        invalid = reply({"findings": [{"kind": "visual", "evidence_ids": ["frame:999"], "text": "Bad source."}]})
+        self.client.request_json.side_effect = [reply(structured()), invalid, invalid]
+        result = self.run_analysis()
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(self.client.request_json.call_count, 3)
+        self.assertEqual(result["findings"], [])
+        self.assertEqual(result["text"], "")
+        self.assertEqual(result["coverage"]["missing_frame_ids"], [])
+        self.assertEqual(result["coverage"]["missing_text_ids"], [])
+        self.assertEqual(result["synthesis"][-1]["repair"]["status"], "partial")
+        repair = json.loads(Path(result["synthesis"][-1]["repair"]["response_path"]).read_text())
+        self.assertEqual(repair["status"], "partial")
+
+    def test_incomplete_or_service_failed_final_does_not_trigger_schema_repair(self):
+        truncated = final_reply("An incomplete answer.")
+        truncated["choices"][0]["finish_reason"] = "length"
+        for response in (truncated, RuntimeError("access denied")):
+            with self.subTest(response=response):
+                self.client.reset_mock()
+                self.client.request_json.side_effect = [reply(structured()), response]
+                result = self.run_analysis(refresh=True)
+                self.assertEqual(result["status"], "partial")
+                self.assertEqual(self.client.request_json.call_count, 2)
+                self.assertNotIn("repair", result["synthesis"][-1])
+
+    def test_service_failure_during_repair_stops_and_retains_rejected_draft(self):
+        invalid = reply({"findings": [{"kind": "visual", "evidence_ids": ["frame:999"], "text": "Bad source."}]})
+        self.client.request_json.side_effect = [reply(structured()), invalid, RuntimeError("service stopped")]
+        result = self.run_analysis()
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(self.client.request_json.call_count, 3)
+        final = result["synthesis"][-1]
+        self.assertTrue(final["stop_remaining"])
+        self.assertEqual(final["repair"]["status"], "error")
+        self.assertTrue(Path(final["repair"]["rejected_response_path"]).is_file())
+
+    def test_rejected_and_repaired_outputs_redact_escaped_secrets(self):
+        secret = 'unit-quoted-"-key'
+        invalid = {"findings": [{"kind": "visual", "evidence_ids": ["frame:999"], "text": "Echo " + secret}]}
+        escaped = "```json\n" + json.dumps(invalid).replace("unit", "\\u0075nit") + "\n```"
+        self.client.request_json.side_effect = [reply(structured()), reply(escaped), final_reply("Echo " + secret)]
+        result = self.run_analysis(api_key=secret)
+        self.assertEqual(result["status"], "complete")
+        self.assertIn("[REDACTED]", result["text"])
+        for path in self.root.rglob("*.json"):
+            self.assertNotIn(secret, str(json.loads(path.read_text())))
+        self.assertNotIn(secret, (self.root / "local_analysis.md").read_text())
 
 
 if __name__ == "__main__":

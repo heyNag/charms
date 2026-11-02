@@ -412,13 +412,15 @@ class LocalAnalysisTests(unittest.TestCase):
             {"kind": "visual", "evidence_ids": ["frame:999"], "text": "An unsupported observation."}
         ]}))
         invalid.pop("_fixture_text")
-        self.client.request_json.side_effect = [completion(), invalid]
+        self.client.request_json.side_effect = [completion(), invalid, invalid]
         result = self.run_analysis()
         self.assertEqual(result["status"], "partial")
         self.assertEqual(result["text"], "")
         self.assertEqual(result["coverage"]["missing_frame_ids"], [])
         self.assertEqual(result["synthesis"][-1]["status"], "partial")
         self.assertIn("validation_error", result["synthesis"][-1])
+        self.assertEqual(self.client.request_json.call_count, 3)  # Evidence, final, one bounded repair.
+        self.assertEqual(result["synthesis"][-1]["repair"]["attempts"], 1)
 
         self.client.reset_mock()
         self.client.request_json.side_effect = None

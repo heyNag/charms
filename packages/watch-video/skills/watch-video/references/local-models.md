@@ -245,6 +245,14 @@ uncertain recognition with sidecar
 text and then call the result independent ASR. Local ASR supplies speech text,
 not a guarantee that recognition is accurate.
 
+If a local ASR response has invalid timestamps or text, the script retries
+only that interval as smaller pieces of at most 60 seconds. Subdivision happens
+once; failed recovery pieces remain gaps. Successful neighboring chunks are
+preserved, and the original response and recovery attempts remain in the raw
+transcription artifact. Authentication or fatal service errors stop further
+requests instead of triggering subdivision. Recovery never uses supplied text
+to fill missing speech.
+
 `--analyzer local` compares original-audio ASR and selected frames with supplied
 transcripts as supplementary evidence. Requests use bounded frame/text batches
 and preserve source times. Each image batch has its own exact frame timestamps
@@ -269,6 +277,15 @@ references and renders their original timestamps, rather than accepting model
 time headings. The report states the first and last retained visual samples;
 this span is not continuous coverage. A valid citation does not prove that the
 associated claim is true.
+
+The final-output contract and validator share the same limits: 1–16 findings,
+1–8 source IDs per finding, and explicit text-length and source-type rules.
+Metadata such as `asr_gaps` is not a citation source. A completed final response
+that fails validation gets one repair request with the validation feedback and
+the same source context. Both attempts remain in the analysis artifacts. A
+successful repair can complete the run; an invalid repair remains partial.
+Service errors and truncated responses do not trigger this schema repair.
+
 Read `local_analysis.md` and `local_analysis.json`, which link the per-batch
 results under `local_analysis/`. Complete results with matching request hashes
 can be reused when running the standalone analyzer again against the same run

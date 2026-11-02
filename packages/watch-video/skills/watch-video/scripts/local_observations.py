@@ -16,10 +16,38 @@ OUTPUT_CONTRACT = {
                      "description": "A meaningful comparison only when the actual source times align."}],
     "uncertainties": ["Evidence limitations local to this batch, not unseen portions."],
 }
+FINAL_MIN_FINDINGS = 1
+FINAL_MAX_FINDINGS = 16
+FINAL_MAX_EVIDENCE_IDS = 8
+FINAL_MAX_ID_CHARS = 120
+FINAL_MAX_TEXT_CHARS = 1200
+FINAL_KIND_RULES = {
+    "speech": {"source_type": "text", "minimum_distinct_sources": 1},
+    "visual": {"source_type": "frame", "minimum_distinct_sources": 1},
+    "comparison": {"source_type": "any", "minimum_distinct_sources": 2},
+    "inference": {"source_type": "any", "minimum_distinct_sources": 1},
+    "limitation": {"source_type": "any", "minimum_distinct_sources": 1},
+}
+# These are prompt instructions, not an endpoint-specific response_format.
+# The same constants and kind rules below enforce the advertised contract.
 FINAL_OUTPUT_CONTRACT = {
-    "findings": [{"kind": "speech, visual, comparison, inference, or limitation",
-                  "evidence_ids": ["actual frame or text record IDs from the supplied notes"],
-                  "text": "One concise finding. Do not write timestamps or invent section time ranges; the script attaches exact source times."}],
+    "type": "object",
+    "required": ["findings"],
+    "properties": {"findings": {
+        "type": "array", "minItems": FINAL_MIN_FINDINGS, "maxItems": FINAL_MAX_FINDINGS,
+        "items": {"type": "object", "required": ["kind", "evidence_ids", "text"],
+                  "properties": {
+                      "kind": {"type": "string", "enum": list(FINAL_KIND_RULES)},
+                      "evidence_ids": {
+                          "type": "array", "minItems": 1, "maxItems": FINAL_MAX_EVIDENCE_IDS,
+                          "items": {"type": "string", "minLength": 1, "maxLength": FINAL_MAX_ID_CHARS, "pattern": r"\S"},
+                          "description": "Nonblank actual frame/text IDs retained in the notes only. Metadata fields such as asr_gaps and note/chunk/synthesis IDs are not evidence IDs. Every source ID mentioned in text must also appear here.",
+                      },
+                      "text": {"type": "string", "minLength": 1, "maxLength": FINAL_MAX_TEXT_CHARS, "pattern": r"\S",
+                               "description": "One nonblank concise finding. Do not invent section time ranges; the script attaches exact source times."},
+                  }},
+    }},
+    "kind_source_rules": FINAL_KIND_RULES,
 }
 
 
@@ -123,8 +151,8 @@ def parse_findings(text, observations, records):
     except (ValueError, TypeError):
         raise ValueError("Final synthesis did not return source-cited findings JSON") from None
     findings = payload.get("findings") if isinstance(payload, dict) else None
-    if not isinstance(findings, list) or not 1 <= len(findings) <= 16:
-        raise ValueError("Final synthesis must contain 1 to 16 source-cited findings")
+    if not isinstance(findings, list) or not FINAL_MIN_FINDINGS <= len(findings) <= FINAL_MAX_FINDINGS:
+        raise ValueError(f"Final synthesis must contain {FINAL_MIN_FINDINGS} to {FINAL_MAX_FINDINGS} source-cited findings")
     known = {item["frame_id"]: {"id": item["frame_id"], "source": "frame",
                               "start": item["timestamp_seconds"]} for item in observations}
     known.update({record["id"]: {"id": record["id"], "source": record.get("provenance", "transcript"),
@@ -137,23 +165,27 @@ def parse_findings(text, observations, records):
         re.escape(identifier) for identifier in sorted(known, key=len, reverse=True)
     ) + r")(?![\w:])") if known else None
     output = []
-    for finding in findings:
+    for index, finding in enumerate(findings, 1):
         if not isinstance(finding, dict):
-            raise ValueError("Invalid final finding")
+            raise ValueError(f"Finding {index} must be an object")
         kind = finding.get("kind")
-        if kind not in {"speech", "visual", "comparison", "inference", "limitation"}:
-            raise ValueError("Invalid final finding kind")
-        identifiers = _strings(finding.get("evidence_ids"), "finding evidence IDs", 8, 120)
-        if not identifiers or not set(identifiers) <= set(known):
-            raise ValueError("Final finding cites missing evidence")
+        if not isinstance(kind, str) or kind not in FINAL_KIND_RULES:
+            raise ValueError(f"Finding {index} kind must be one of {', '.join(FINAL_KIND_RULES)}")
+        raw_ids = finding.get("evidence_ids")
+        if not isinstance(raw_ids, list) or not 1 <= len(raw_ids) <= FINAL_MAX_EVIDENCE_IDS:
+            raise ValueError(f"Finding {index} evidence_ids must contain 1 to {FINAL_MAX_EVIDENCE_IDS} source IDs")
+        identifiers = _strings(raw_ids, "finding evidence IDs", FINAL_MAX_EVIDENCE_IDS, FINAL_MAX_ID_CHARS)
+        if not set(identifiers) <= set(known):
+            raise ValueError(f"Finding {index} cites missing evidence; use only supplied frame/text IDs, not metadata fields")
         sources = [known[identifier] for identifier in dict.fromkeys(identifiers)]
-        if kind == "visual" and any(source["source"] != "frame" for source in sources):
+        rule = FINAL_KIND_RULES[kind]
+        if rule["source_type"] == "frame" and any(source["source"] != "frame" for source in sources):
             raise ValueError("A visual finding must cite frame observations")
-        if kind == "speech" and any(source["source"] == "frame" for source in sources):
+        if rule["source_type"] == "text" and any(source["source"] == "frame" for source in sources):
             raise ValueError("A speech finding must cite transcript records")
-        if kind == "comparison" and len(sources) < 2:
-            raise ValueError("A comparison must cite at least two sources")
-        claim = _string(finding.get("text"), "finding", 1200, required=True)
+        if len(sources) < rule["minimum_distinct_sources"]:
+            raise ValueError(f"A {kind} must cite at least {rule['minimum_distinct_sources']} distinct sources")
+        claim = _string(finding.get("text"), "finding", FINAL_MAX_TEXT_CHARS, required=True)
         mentioned = set(SOURCE_ID_MENTION.findall(claim))
         if known_mentions is not None:
             mentioned.update(known_mentions.findall(claim))

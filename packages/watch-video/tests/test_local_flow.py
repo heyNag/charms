@@ -68,6 +68,7 @@ class LocalFlowTests(unittest.TestCase):
 
         self.extract_audio = self.enterContext(mock.patch.object(
             watch.local_transcribe, "extract_audio_clip", side_effect=extract))
+        self.real_local_transcribe = watch.local_transcribe.transcribe_with_chunking
         self.asr = self.enterContext(mock.patch.object(
             watch.local_transcribe, "transcribe_with_chunking", return_value=(
                 TranscriptionSegments([{"start": 0, "end": 4, "text": "Original audio says alpha."}]), [],
@@ -130,6 +131,29 @@ class LocalFlowTests(unittest.TestCase):
         self.assertEqual(metadata["transcriber"], "local")
         self.frames.assert_called_once()
         self.analyze.assert_called_once()
+        self.assert_no_cloud()
+
+    def test_recovered_asr_completes_flow_without_substituting_supplied_captions(self):
+        self.full_caption(self.video.with_suffix(".srt"))
+        self.asr.side_effect = self.real_local_transcribe
+        client = mock.Mock(base_url="http://127.0.0.1:8147/v1")
+        client.request_json.side_effect = [
+            {"text": "Rejected timing", "segments": [{"start": 10, "end": 4, "text": "Rejected timing"}]},
+            {"text": "First recovered speech", "segments": [{"start": 1, "end": 4, "text": "First recovered speech"}]},
+            {"text": "Second recovered speech", "segments": [{"start": 1, "end": 4, "text": "Second recovered speech"}]},
+        ]
+        with mock.patch.object(watch.local_transcribe, "LocalClient", return_value=client), \
+                mock.patch.object(watch.local_transcribe, "audio_duration_seconds", return_value=120):
+            code, run = self.run_watch(self.video, "--analyzer", "local")
+        self.assertEqual(code, 0)
+        self.assertEqual(client.request_json.call_count, 3)
+        transcript = self.read(run, "transcript.json")
+        self.assertEqual(transcript["gaps"], [])
+        self.assertEqual([s["start"] for s in transcript["segments"]], [1, 61])
+        self.assertEqual([s["text"] for s in transcript["segments"]],
+                         ["First recovered speech", "Second recovered speech"])
+        self.assertEqual(self.read(run, "metadata.json")["original_audio"]["status"], "complete")
+        self.assertIn("Supplied captions say beta", self.read(run, "native_captions.json")["segments"][0]["text"])
         self.assert_no_cloud()
 
     def test_full_url_captions_still_download_original_audio_for_local_asr(self):

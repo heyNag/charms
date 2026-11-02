@@ -21,6 +21,7 @@ from local_config import get_setting
 
 DEFAULT_ASR_MODEL = "whisper-large-v3-asr-fp16"
 DEFAULT_CHUNK_SECONDS = 300.0
+RECOVERY_CHUNK_SECONDS = 60.0
 MAX_AUDIO_BYTES = 24_000_000
 
 
@@ -127,13 +128,24 @@ def transcribe_audio(audio_path, *, model=None, base_url=None, api_key=None, tim
     return data
 
 
+def _recovery_intervals(start: float, end: float) -> list[tuple[float, float]]:
+    """One subdivision, at most five children; never repeat the original interval."""
+    if end - start < 0.002:
+        return []
+    count = max(2, math.ceil((end - start) / RECOVERY_CHUNK_SECONDS))
+    boundaries = [round(start + (end - start) * i / count, 3) for i in range(count + 1)]
+    return [(a, b) for a, b in zip(boundaries, boundaries[1:]) if b > a]
+
+
 def transcribe_with_chunking(audio_path, *, out_json=None, model=None, api_key=None,
                             base_url=None, timeout=600, offset_seconds=0.0,
                             chunk_seconds=DEFAULT_CHUNK_SECONDS, language=None):
     """Transcribe sequential five-minute PCM chunks, retaining source-time gaps.
 
-    Returns the same list-compatible TranscriptionSegments/warnings contract as
-    hosted transcription. Request or model failures never trigger cloud fallback.
+    Malformed response evidence gets one attempt in smaller chunks; those
+    children are never subdivided again. Returns the same list-compatible
+    TranscriptionSegments/warnings contract as hosted transcription. Request or
+    model failures never trigger cloud fallback.
     """
     if not _finite(offset_seconds) or offset_seconds < 0:
         raise ValueError("Transcription timestamp offset must be finite and non-negative.")
@@ -155,13 +167,20 @@ def transcribe_with_chunking(audio_path, *, out_json=None, model=None, api_key=N
     warnings, records = [], []
     successes = 0
     last_failure = None
-    for index, (start, end) in enumerate(plan):
+
+    def gap(start, end):
+        segments.gaps.append({"start": round(start + offset_seconds, 3),
+                              "end": round(end + offset_seconds, 3)})
+
+    def attempt(start, end, *, index, filename, extract):
+        nonlocal successes, last_failure
+        record = {"index": index, "offset_seconds": start, "duration_seconds": end - start}
         chunk = audio
         data = None
         try:
-            if count > 1 or audio.stat().st_size > MAX_AUDIO_BYTES:
+            if extract:
                 chunk = extract_audio_clip(
-                    audio, audio.parent / "audio_chunks" / f"chunk_{index:03d}.wav",
+                    audio, audio.parent / "audio_chunks" / filename,
                     start=start, duration=end - start,
                 )
             data = transcribe_audio(chunk, model=model, client=client, language=language)
@@ -171,19 +190,15 @@ def transcribe_with_chunking(audio_path, *, out_json=None, model=None, api_key=N
                 segment["end"] = round(segment["end"] + start + offset_seconds, 3)
             segments.extend(parsed)
             successes += 1
-            records.append({"index": index + 1, "offset_seconds": start,
-                            "duration_seconds": end - start, "response": data})
+            record["response"] = data
+            return record, None
         except (RuntimeError, OSError) as exc:
             # Local API errors and our fixed validation descriptions are safe
             # to persist; arbitrary process exceptions can contain private text.
             known_error = isinstance(exc, (LocalAPIError, LocalTranscriptionValidationError))
             message = str(exc) if known_error else "audio processing or timestamp validation failed"
             last_failure = exc
-            warnings.append(f"Local ASR chunk {index + 1}/{count} failed: {message}.")
-            segments.gaps.append({"start": round(start + offset_seconds, 3),
-                                  "end": round(end + offset_seconds, 3)})
-            record = {"index": index + 1, "offset_seconds": start,
-                      "duration_seconds": end - start, "error": message}
+            record["error"] = message
             if isinstance(exc, LocalTranscriptionValidationError):
                 data = exc.response
             if data is not None:
@@ -191,20 +206,58 @@ def transcribe_with_chunking(audio_path, *, out_json=None, model=None, api_key=N
                 # invalid timestamp response for diagnosis without treating it
                 # as accepted transcript evidence or copying a prior chunk.
                 record["response"] = data
-            records.append(record)
-            if isinstance(exc, LocalAPIError) and exc.stop_remaining_chunks:
-                segments.gaps.extend({"start": round(a + offset_seconds, 3),
-                                      "end": round(b + offset_seconds, 3)}
-                                     for a, b in plan[index + 1:])
-                if index + 1 < count:
-                    warnings.append(f"{count - index - 1} remaining audio chunks skipped after local service failure.")
-                break
+            return record, exc
+
+    for index, (start, end) in enumerate(plan):
+        record, failure = attempt(start, end, index=index + 1, filename=f"chunk_{index:03d}.wav",
+                                  extract=count > 1 or audio.stat().st_size > MAX_AUDIO_BYTES)
+        records.append(record)
+        if failure is None:
+            continue
+        stop_remaining = isinstance(failure, LocalAPIError) and failure.stop_remaining_chunks
+        recovery_plan = _recovery_intervals(start, end) if isinstance(failure, LocalTranscriptionValidationError) else []
+        if recovery_plan:
+            recovery = {"strategy": "subdivide_once", "max_chunk_seconds": RECOVERY_CHUNK_SECONDS,
+                        "chunk_count": len(recovery_plan), "chunks": [], "status": "complete"}
+            record["recovery"] = recovery
+            for child_index, (a, b) in enumerate(recovery_plan):
+                child, child_failure = attempt(
+                    a, b, index=child_index + 1,
+                    filename=f"chunk_{index:03d}_recovery_{child_index:03d}.wav", extract=True,
+                )
+                recovery["chunks"].append(child)
+                if child_failure is None:
+                    continue
+                recovery["status"] = "partial"
+                gap(a, b)
+                warnings.append(f"Local ASR recovery {child_index + 1}/{len(recovery_plan)} "
+                                f"for chunk {index + 1}/{count} failed: {child['error']}.")
+                if isinstance(child_failure, LocalAPIError) and child_failure.stop_remaining_chunks:
+                    stop_remaining = True
+                    for c, d in recovery_plan[child_index + 1:]:
+                        gap(c, d)
+                    break
+            record["status"] = "recovered" if recovery["status"] == "complete" else "partial"
+            outcome = (f"recovered using {len(recovery_plan)} smaller chunks" if recovery["status"] == "complete"
+                       else "recovery remains incomplete")
+            warnings.append(f"Local ASR chunk {index + 1}/{count} returned invalid evidence "
+                            f"({record['error']}); {outcome}.")
+        else:
+            gap(start, end)
+            warnings.append(f"Local ASR chunk {index + 1}/{count} failed: {record['error']}.")
+        if stop_remaining:
+            for a, b in plan[index + 1:]:
+                gap(a, b)
+            if index + 1 < count:
+                warnings.append(f"{count - index - 1} remaining audio chunks skipped after local service failure.")
+            break
     segments.no_speech = not segments and not segments.gaps
     if out_json is not None:
         output = Path(out_json).expanduser().resolve()
         output.parent.mkdir(parents=True, exist_ok=True)
         result = {"provider": "local", "model": model, "base_url": client.base_url,
-                  "audio_format": "pcm_s16le_16000_mono", "chunked": count > 1,
+                  "audio_format": "pcm_s16le_16000_mono",
+                  "chunked": count > 1 or any("recovery" in record for record in records),
                   "chunk_count": count, "chunks": records, "gaps": segments.gaps,
                   "no_speech": segments.no_speech, "warnings": warnings}
         output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

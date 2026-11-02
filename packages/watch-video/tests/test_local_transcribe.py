@@ -261,6 +261,7 @@ class LocalTranscriptionTests(unittest.TestCase):
             opened = mock.MagicMock()
             opened.__enter__.return_value.read.return_value = json.dumps(invalid).encode()
             with mock.patch.object(asr, "audio_duration_seconds", return_value=109.493), \
+                    mock.patch.object(asr, "extract_audio_clip", side_effect=self._split), \
                     mock.patch.object(asr, "LocalClient", return_value=client), \
                     mock.patch.object(client._opener, "open", return_value=opened):
                 with self.assertRaises(asr.TranscriptionError):
@@ -268,7 +269,8 @@ class LocalTranscriptionTests(unittest.TestCase):
             saved = json.loads(raw.read_text())
             self.assertIn("timestamps beyond the audio chunk", saved["chunks"][0]["error"])
             self.assertEqual(saved["chunks"][0]["response"]["segments"][0]["end"], 112)
-            self.assertEqual(saved["gaps"], [{"start": 0, "end": 109.493}])
+            self.assertEqual(saved["gaps"], [{"start": 0, "end": 54.746}, {"start": 54.746, "end": 109.493}])
+            self.assertEqual(saved["chunks"][0]["recovery"]["status"], "partial")
             self.assertNotIn("secret-fixture", raw.read_text())
             self.assertIn("[REDACTED]", raw.read_text())
 
@@ -279,12 +281,147 @@ class LocalTranscriptionTests(unittest.TestCase):
             client = mock.Mock(base_url=api.DEFAULT_BASE_URL)
             client.request_json.return_value = {"text": "words without timestamps", "segments": None}
             with mock.patch.object(asr, "audio_duration_seconds", return_value=30), \
+                    mock.patch.object(asr, "extract_audio_clip", side_effect=self._split), \
                     mock.patch.object(asr, "LocalClient", return_value=client):
                 with self.assertRaises(asr.TranscriptionError):
                     asr.transcribe_with_chunking(audio, out_json=raw)
             record = json.loads(raw.read_text())["chunks"][0]
             self.assertIn("segments array", record["error"])
             self.assertEqual(record["response"], client.request_json.return_value)
+            self.assertEqual(client.request_json.call_count, 3)
+
+    def test_malformed_chunk_recovers_once_without_repeating_valid_neighbors(self):
+        invalid = {"text": "discard this", "segments": [{"start": 176.78, "end": 176.28, "text": "discard this"}]}
+        replies = [response("before"), invalid, *[response(f"recovery {i}") for i in range(5)], response("after")]
+        with tempfile.TemporaryDirectory() as tmp:
+            audio, raw = Path(tmp) / "audio.wav", Path(tmp) / "raw.json"
+            audio.write_bytes(b"audio")
+            with mock.patch.object(asr, "audio_duration_seconds", return_value=650), \
+                    mock.patch.object(asr, "extract_audio_clip", side_effect=self._split) as split, \
+                    mock.patch.object(asr, "transcribe_audio", side_effect=replies) as transcribe:
+                segments, warnings = asr.transcribe_with_chunking(audio, out_json=raw, offset_seconds=12)
+            self.assertEqual(transcribe.call_count, 8)
+            self.assertEqual([s["text"] for s in segments], ["before", *[f"recovery {i}" for i in range(5)], "after"])
+            self.assertEqual([s["start"] for s in segments], [13.5, 313.5, 373.5, 433.5, 493.5, 553.5, 613.5])
+            self.assertEqual([c.kwargs["start"] for c in split.call_args_list], [0, 300, 300, 360, 420, 480, 540, 600])
+            self.assertEqual([c.kwargs["duration"] for c in split.call_args_list], [300, 300, 60, 60, 60, 60, 60, 50])
+            self.assertEqual(len({c.args[1] for c in split.call_args_list}), 8)
+            self.assertEqual(segments.gaps, [])
+            self.assertFalse(segments.no_speech)
+            self.assertEqual(len(warnings), 1)
+            saved = json.loads(raw.read_text())
+            parent = saved["chunks"][1]
+            self.assertEqual(parent["response"], invalid)
+            self.assertEqual(parent["status"], "recovered")
+            self.assertEqual(parent["recovery"]["status"], "complete")
+            self.assertEqual(parent["recovery"]["chunk_count"], 5)
+            self.assertEqual([c["offset_seconds"] for c in parent["recovery"]["chunks"]], [300, 360, 420, 480, 540])
+            self.assertEqual(saved["chunks"][0]["response"], replies[0])
+            self.assertEqual(saved["chunks"][2]["response"], replies[-1])
+
+    def test_recovery_keeps_successful_children_and_only_marks_failed_intervals(self):
+        reversed_times = {"text": "bad", "segments": [{"start": 10, "end": 9, "text": "bad"}]}
+        beyond_end = {"text": "bad", "segments": [{"start": 1, "end": 61, "text": "bad"}]}
+        replies = [reversed_times, response("first"), reversed_times, response("third"), beyond_end,
+                   response("fifth"), response("next original")]
+        with tempfile.TemporaryDirectory() as tmp:
+            audio, raw = Path(tmp) / "audio.wav", Path(tmp) / "raw.json"
+            audio.write_bytes(b"audio")
+            with mock.patch.object(asr, "audio_duration_seconds", return_value=600), \
+                    mock.patch.object(asr, "extract_audio_clip", side_effect=self._split), \
+                    mock.patch.object(asr, "transcribe_audio", side_effect=replies) as transcribe:
+                segments, _warnings = asr.transcribe_with_chunking(audio, out_json=raw, offset_seconds=7)
+            self.assertEqual(transcribe.call_count, 7)  # No recursive subdivision of failed children.
+            self.assertEqual([s["start"] for s in segments], [8.5, 128.5, 248.5, 308.5])
+            self.assertEqual(segments.gaps, [{"start": 67, "end": 127}, {"start": 187, "end": 247}])
+            parent = json.loads(raw.read_text())["chunks"][0]
+            self.assertEqual(parent["status"], "partial")
+            self.assertEqual(len(parent["recovery"]["chunks"]), 5)
+            self.assertEqual(parent["recovery"]["chunks"][1]["response"], reversed_times)
+            self.assertEqual(parent["recovery"]["chunks"][3]["response"], beyond_end)
+
+    def test_fatal_recovery_error_stops_all_remaining_requests(self):
+        invalid = {"text": "missing segments"}
+        denial = api.LocalAPIError("Local API request rejected (HTTP 401).", http_status=401)
+        with tempfile.TemporaryDirectory() as tmp:
+            audio, raw = Path(tmp) / "audio.wav", Path(tmp) / "raw.json"
+            audio.write_bytes(b"audio")
+            with mock.patch.object(asr, "audio_duration_seconds", return_value=900), \
+                    mock.patch.object(asr, "extract_audio_clip", side_effect=self._split), \
+                    mock.patch.object(asr, "transcribe_audio", side_effect=[response("before"), invalid, response("recovered"), denial]) as transcribe:
+                segments, _warnings = asr.transcribe_with_chunking(audio, out_json=raw, offset_seconds=12)
+            self.assertEqual(transcribe.call_count, 4)
+            self.assertEqual([s["start"] for s in segments], [13.5, 313.5])
+            self.assertEqual(segments.gaps, [{"start": 372, "end": 432}, {"start": 432, "end": 492},
+                                           {"start": 492, "end": 552}, {"start": 552, "end": 612},
+                                           {"start": 612, "end": 912}])
+            saved = json.loads(raw.read_text())
+            self.assertEqual(len(saved["chunks"]), 2)
+            children = saved["chunks"][1]["recovery"]["chunks"]
+            self.assertEqual(len(children), 2)
+            self.assertNotIn("response", children[1])
+
+    def test_recovery_fatal_error_preserves_status_when_every_attempt_failed(self):
+        denial = api.LocalAPIError("Local API request rejected (HTTP 403).", http_status=403)
+        with tempfile.TemporaryDirectory() as tmp:
+            audio, raw = Path(tmp) / "audio.wav", Path(tmp) / "raw.json"
+            audio.write_bytes(b"audio")
+            with mock.patch.object(asr, "audio_duration_seconds", return_value=600), \
+                    mock.patch.object(asr, "extract_audio_clip", side_effect=self._split), \
+                    mock.patch.object(asr, "transcribe_audio", side_effect=[{"text": "missing segments"}, denial]) as transcribe:
+                with self.assertRaises(asr.TranscriptionError) as caught:
+                    asr.transcribe_with_chunking(audio, out_json=raw)
+            self.assertEqual(transcribe.call_count, 2)
+            self.assertEqual(caught.exception.http_status, 403)
+            saved = json.loads(raw.read_text())
+            self.assertEqual(saved["gaps"], [{"start": i * 60, "end": (i + 1) * 60} for i in range(5)]
+                             + [{"start": 300, "end": 600}])
+
+    def test_recovered_silence_counts_as_completed_audio(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio, raw = Path(tmp) / "audio.wav", Path(tmp) / "raw.json"
+            audio.write_bytes(b"audio")
+            with mock.patch.object(asr, "audio_duration_seconds", return_value=30), \
+                    mock.patch.object(asr, "extract_audio_clip", side_effect=self._split) as split, \
+                    mock.patch.object(asr, "transcribe_audio", side_effect=[{"text": "missing segments"},
+                        {"text": "", "segments": None}, {"text": "", "segments": []}]) as transcribe:
+                segments, _warnings = asr.transcribe_with_chunking(audio, out_json=raw)
+            self.assertEqual(transcribe.call_count, 3)
+            self.assertEqual([c.kwargs["duration"] for c in split.call_args_list], [15, 15])
+            self.assertEqual(segments, [])
+            self.assertTrue(segments.no_speech)
+            self.assertEqual(segments.gaps, [])
+            saved = json.loads(raw.read_text())
+            self.assertEqual(saved["chunks"][0]["status"], "recovered")
+            self.assertTrue(saved["chunked"])
+
+    def test_repeated_validation_failure_has_a_finite_recovery_budget(self):
+        invalid = {"text": "bad", "segments": [{"start": 10, "end": 9, "text": "bad"}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            audio, raw = Path(tmp) / "audio.wav", Path(tmp) / "raw.json"
+            audio.write_bytes(b"audio")
+            with mock.patch.object(asr, "audio_duration_seconds", return_value=300), \
+                    mock.patch.object(asr, "extract_audio_clip", side_effect=self._split), \
+                    mock.patch.object(asr, "transcribe_audio", return_value=invalid) as transcribe:
+                with self.assertRaises(asr.TranscriptionError):
+                    asr.transcribe_with_chunking(audio, out_json=raw)
+            self.assertEqual(transcribe.call_count, 6)
+            saved = json.loads(raw.read_text())
+            self.assertEqual(saved["gaps"], [{"start": i * 60, "end": (i + 1) * 60} for i in range(5)])
+            self.assertEqual(len(saved["chunks"][0]["recovery"]["chunks"]), 5)
+
+    def test_submillisecond_boundary_does_not_create_empty_recovery_chunks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio, raw = Path(tmp) / "audio.wav", Path(tmp) / "raw.json"
+            audio.write_bytes(b"audio")
+            with mock.patch.object(asr, "audio_duration_seconds", return_value=0.001), \
+                    mock.patch.object(asr, "transcribe_audio", return_value={"text": "missing segments"}) as transcribe, \
+                    mock.patch.object(asr, "extract_audio_clip") as split:
+                with self.assertRaises(asr.TranscriptionError):
+                    asr.transcribe_with_chunking(audio, out_json=raw)
+            self.assertEqual(transcribe.call_count, 1)
+            split.assert_not_called()
+            self.assertEqual(json.loads(raw.read_text())["gaps"], [{"start": 0, "end": 0.001}])
 
     def test_failure_without_response_never_reuses_previous_chunks_response(self):
         with tempfile.TemporaryDirectory() as tmp:

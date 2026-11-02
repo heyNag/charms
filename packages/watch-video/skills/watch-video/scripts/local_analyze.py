@@ -361,6 +361,57 @@ def _payload(model, content, max_tokens):
                          {"role": "user", "content": content}]}
 
 
+def _generate_final(client, cache_path, payload, summary, api_key, observations, records, *, refresh=False):
+    """Validate a final answer and allow one schema repair, never an error retry."""
+    result = _generate(client, cache_path, payload, summary, api_key, refresh=refresh)
+    if result["status"] != "complete":
+        return result, []
+    try:
+        return result, parse_findings(result["text"], observations, records)
+    except ValueError as exc:
+        initial_error = _redact(str(exc), api_key)
+        result.update(status="partial", validation_error=initial_error)
+
+    rejected_path = cache_path.with_name(cache_path.stem + ".rejected.json")
+    repair_path = cache_path.with_name(cache_path.stem + ".repair-1.json")
+    # Keep the rejected output, without treating it as source evidence. The
+    # repair repeats the bounded source context with concise validator feedback;
+    # appending the full draft could exceed context limits on long recordings.
+    _write(rejected_path, result)
+    _write(cache_path, result)
+    request = json.loads(payload["messages"][1]["content"])
+    request["schema_repair"] = {
+        "attempt": 1,
+        "validation_error": initial_error,
+        "instruction": "The previous completed answer failed validation. Regenerate one complete JSON object from the same source notes, obeying every final_output_contract bound and citation rule. Do not treat metadata or earlier generated claims as source IDs. This is the only repair attempt.",
+    }
+    repair_payload = _payload(payload["model"], json.dumps(request, ensure_ascii=False), payload["max_tokens"])
+    repair = _generate(client, repair_path, repair_payload,
+                       {**summary, "id": summary["id"] + "-repair-1", "kind": "synthesis-repair"},
+                       api_key, refresh=refresh)
+    findings = []
+    if repair["status"] == "complete":
+        try:
+            findings = parse_findings(repair["text"], observations, records)
+        except ValueError as exc:
+            repair.update(status="partial", validation_error=_redact(str(exc), api_key))
+        _write(repair_path, repair)
+    # A complete repaired result is cached under the original request hash so a
+    # resume does not reissue either request. Both original responses remain in
+    # separate artifacts. Incomplete repairs retain their error/stop flags.
+    effective = {**repair, **summary, "request_hash": result["request_hash"], "reused": False,
+                 "elapsed_seconds": round(result.get("elapsed_seconds", 0) + repair.get("elapsed_seconds", 0), 3),
+                 "repair": {"attempts": 1, "status": repair["status"],
+                            "initial_validation_error": initial_error,
+                            "rejected_response_path": str(rejected_path),
+                            "response_path": str(repair_path),
+                            "request_hash": repair["request_hash"]}}
+    effective["usage"] = {key: result.get("usage", {}).get(key, 0) + repair.get("usage", {}).get(key, 0)
+                          for key in result.get("usage", {}).keys() | repair.get("usage", {}).keys()}
+    _write(cache_path, effective)
+    return effective, findings
+
+
 def _summary_groups(notes: list[dict], budget: int = 18000) -> list[list[dict]]:
     groups, current, length = [], [], 0
     for note in notes:
@@ -557,8 +608,9 @@ def analyze_local(run_dir: Path | str, *, model: str | None = None,
             if len(groups) == 1:
                 request["final_output_contract"] = FINAL_OUTPUT_CONTRACT
                 request["requirements"] += (
-                    " Return ONLY JSON matching final_output_contract: up to 16 concise findings,"
-                    " at most 600 words total. Cite exact frame/text IDs, never chunk or synthesis IDs."
+                    " Return ONLY an object matching the final_output_contract JSON schema;"
+                    " its array/string bounds and kind_source_rules are mandatory. Use at most 600 words total."
+                    " Cite exact frame/text IDs, never metadata fields, chunk or synthesis IDs."
                     " Do not add prose headings, timeline bins, timestamps, or dates relative to today;"
                     " the script will attach actual source timestamps to every finding."
                     " Keep speech and visual findings separate unless making an explicitly attributed comparison."
@@ -581,19 +633,21 @@ def analyze_local(run_dir: Path | str, *, model: str | None = None,
                     " speech-only findings must stay within the cited transcript."
                 )
             output_budget = FINAL_SYNTHESIS_MAX_TOKENS if len(groups) == 1 else SYNTHESIS_MAX_TOKENS
-            result = _generate(client, artifacts / "synthesis" / f"{identifier}.json",
-                               _payload(selected_model, json.dumps(request, ensure_ascii=False), output_budget),
-                               {"id": identifier, "kind": "synthesis", "input_ids": [n["id"] for n in group],
-                                "source_ids": sorted({source for note in group for source in
-                                                      lineage.get(note.get("source_note_id", note["id"]), [])})},
-                               api_key, refresh=refresh)
-            if len(groups) == 1 and result["status"] == "complete":
-                try:
-                    findings = parse_findings(result["text"], observations, records)
-                except ValueError as exc:
-                    result.update(status="partial", validation_error=str(exc))
-                    warnings.append(str(exc))
-                _write(artifacts / "synthesis" / f"{identifier}.json", result)
+            cache_path = artifacts / "synthesis" / f"{identifier}.json"
+            payload = _payload(selected_model, json.dumps(request, ensure_ascii=False), output_budget)
+            summary = {"id": identifier, "kind": "synthesis", "input_ids": [n["id"] for n in group],
+                       "source_ids": sorted({source for note in group for source in
+                                             lineage.get(note.get("source_note_id", note["id"]), [])})}
+            if len(groups) == 1:
+                result, findings = _generate_final(client, cache_path, payload, summary, api_key,
+                                                   observations, records, refresh=refresh)
+                if result.get("repair"):
+                    warnings.append("Final synthesis recovered after one schema repair." if result["status"] == "complete"
+                                    else "Final synthesis schema repair did not complete; inspect saved responses.")
+                if result.get("validation_error"):
+                    warnings.append(result["validation_error"])
+            else:
+                result = _generate(client, cache_path, payload, summary, api_key, refresh=refresh)
             print(f"[watch-video] local synthesis {identifier}: {result['status']}", flush=True)
             summaries.append(result)
             if result.get("text"):
