@@ -247,7 +247,28 @@ not a guarantee that recognition is accurate.
 
 `--analyzer local` compares original-audio ASR and selected frames with supplied
 transcripts as supplementary evidence. Requests use bounded frame/text batches
-and preserve source times. The final synthesis combines the batch findings.
+and preserve source times. Each image batch has its own exact frame timestamps
+and a separate nearby-speech context window. Speech outside those frames is
+context, not evidence of what was visible then; unmatched and untimed text is
+handled separately without inventing timestamps.
+
+Visual responses must contain one structured observation per supplied frame.
+The script validates the frame references and attaches timestamps from the
+manifest. Invalid responses remain partial and are not counted as analyzed
+coverage. Two consecutive invalid structured responses stop further requests.
+This validates references and completeness, not the truth of descriptions.
+
+For bounded inputs, final synthesis receives the original observations and
+deduplicated source text directly. Larger inputs use bounded consolidation with
+saved evidence ancestry. Speculative batch comparisons are kept in the batch
+records for inspection rather than promoted into canonical source evidence.
+Every validated visual observation remains in `local_analysis.json` and the
+report's frame timeline, even if the prose synthesis misses or contradicts it.
+Final findings must cite actual frame/text IDs. The script validates those
+references and renders their original timestamps, rather than accepting model
+time headings. The report states the first and last retained visual samples;
+this span is not continuous coverage. A valid citation does not prove that the
+associated claim is true.
 Read `local_analysis.md` and `local_analysis.json`, which link the per-batch
 results under `local_analysis/`. Complete results with matching request hashes
 can be reused when running the standalone analyzer again against the same run
@@ -268,6 +289,10 @@ original `watch.py` metadata/report is not rewritten by this standalone command.
 Inspect recorded coverage, gaps, and truncation; a synthesis cannot recover
 evidence omitted or unreadable in earlier stages. Sampled frames do not prove
 that every transition or brief event was observed.
+`status: complete` means processing completed; `quality.status` remains
+`requires_source_review`. Verify consequential conclusions against the frame
+observations and underlying media. Recorded `asr_gaps` describe transcription
+failures, not ordinary pauses or gaps alleged by the language model.
 
 Local ASR or analysis failure leaves available evidence and returns a nonzero
 exit for the partial run; report the failed stage instead of treating the final

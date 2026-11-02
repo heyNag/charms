@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import io
 import json
 import os
@@ -29,9 +30,61 @@ def tearDownModule():
     network_guard.uninstall()
 
 
-def completion(text="At [00:03], the model settings are visible.", finish="stop"):
-    return {"choices": [{"finish_reason": finish, "message": {"content": text}}],
+def completion(text="The model settings are visible.", finish="stop"):
+    return {"_fixture_text": True,
+            "choices": [{"finish_reason": finish, "message": {"content": text}}],
             "usage": {"prompt_tokens": 321, "completion_tokens": 25}}
+
+
+def response_for_payload(payload, response, known_ids=None):
+    """Use the caller's actual evidence IDs while keeping service fixtures terse."""
+    if not response.get("_fixture_text"):
+        return response
+    response = copy.deepcopy(response)
+    response.pop("_fixture_text")
+    choice = response["choices"][0]
+    message = choice["message"]
+    note = message["content"]
+    if choice["finish_reason"] != "stop" or not note:
+        return response
+    content = payload["messages"][1]["content"]
+    if isinstance(content, list):
+        request = json.loads(content[0]["text"])
+        if known_ids is not None:
+            known_ids.extend(frame["id"] for frame in request.get("observed_frames", []))
+            known_ids.extend(record["id"] for record in request.get("records", []))
+        message["content"] = json.dumps({
+            "observations": [{"frame_id": frame["id"], "description": note[:1200],
+                              "visible_text": "", "uncertainty": ""}
+                             for frame in request.get("observed_frames", [])],
+            "speech_summary": note[:3000] if request.get("records") else "",
+            "comparisons": [], "uncertainties": [],
+        })
+    elif isinstance(content, str):
+        request = json.loads(content)
+        if request.get("final_output_contract"):
+            evidence_ids = [source_id for entry in request["notes"]
+                            for source_id in entry.get("source_ids", [])]
+            evidence_ids = evidence_ids or known_ids or []
+            message["content"] = json.dumps({"findings": [
+                {"kind": "inference", "evidence_ids": evidence_ids[:1], "text": note[:1200]}
+            ]})
+    return response
+
+
+class ResponseMock(mock.Mock):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._evidence_ids = []
+
+    def __call__(self, *args, **kwargs):
+        response = super().__call__(*args, **kwargs)
+        return response_for_payload(args[1], response, self._evidence_ids)
+
+
+def two_stage_groups(notes):
+    """Exercise intermediate and final calls without depending on prose length."""
+    return [notes[:2], notes[2:]] if len(notes) > 2 else [notes]
 
 
 class LocalAnalysisTests(unittest.TestCase):
@@ -39,6 +92,7 @@ class LocalAnalysisTests(unittest.TestCase):
         self.root = Path(self.enterContext(tempfile.TemporaryDirectory()))
         self.enterContext(mock.patch.dict(os.environ, {}, clear=True))
         self.client = mock.Mock()
+        self.client.request_json = ResponseMock()
         self.client.request_json.return_value = completion()
         self.factory = self.enterContext(mock.patch.object(local_analyze, "LocalClient", return_value=self.client))
         self.image = self.root / "frame.png"
@@ -164,16 +218,23 @@ class LocalAnalysisTests(unittest.TestCase):
         secret = "unit-key-must-not-be-recorded"
         client = local_api.LocalClient(api_key=secret)
         self.factory.return_value = client
-        complete_response = mock.MagicMock()
-        complete_response.__enter__.return_value.read.return_value = json.dumps(completion()).encode()
+        known_ids = []
+
+        def complete_response(request, **kwargs):
+            reply = response_for_payload(json.loads(request.data), completion(), known_ids)
+            response = mock.MagicMock()
+            response.__enter__.return_value.read.return_value = json.dumps(reply).encode()
+            return response
+
         # Exercise the actual stdlib chunk decoder, not merely a mocked error:
         # the server disconnects in the middle of its first chunk.
         wire = (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n100\r\n"
                 + b"private partial body " + secret.encode())
         interrupted_response = HTTPResponse(mock.Mock(makefile=mock.Mock(return_value=io.BytesIO(wire))))
         interrupted_response.begin()
+        responses = iter([complete_response, lambda *_args, **_kwargs: interrupted_response])
         with mock.patch.object(client._opener, "open",
-                               side_effect=[complete_response, interrupted_response]) as opened:
+                               side_effect=lambda *args, **kwargs: next(responses)(*args, **kwargs)) as opened:
             result = self.run_analysis(api_key=secret)
         self.assertEqual(opened.call_count, 2)
         self.assertEqual(result["status"], "partial")
@@ -185,7 +246,7 @@ class LocalAnalysisTests(unittest.TestCase):
         for path in self.root.rglob("*.json"):
             self.assertNotIn(secret, path.read_text())
             self.assertNotIn("private partial body", path.read_text())
-        with mock.patch.object(client._opener, "open", return_value=complete_response) as resumed:
+        with mock.patch.object(client._opener, "open", side_effect=complete_response) as resumed:
             result = self.run_analysis(api_key=secret)
         self.assertEqual(result["status"], "complete")
         self.assertEqual(resumed.call_count, 3)  # Two unfinished windows, then synthesis.
@@ -289,11 +350,12 @@ class LocalAnalysisTests(unittest.TestCase):
         self.evidence["frames"] = [{"path": str(self.image), "timestamp_seconds": stamp} for stamp in (3, 70, 130)]
         self.save_inputs()
         self.client.request_json.side_effect = [
-            completion("Evidence note. " * 650), completion("Evidence note. " * 650),
-            completion("Evidence note. " * 650), completion("First group consolidated."),
+            completion(), completion(), completion(), completion("First group consolidated."),
             RuntimeError("service stopped"),
         ]
-        result = self.run_analysis()
+        with mock.patch.object(local_analyze, "DIRECT_EVIDENCE_CHAR_BUDGET", 0), \
+                mock.patch.object(local_analyze, "_summary_groups", side_effect=two_stage_groups):
+            result = self.run_analysis()
         self.assertEqual(result["status"], "partial")
         self.assertEqual(self.client.request_json.call_count, 5)
         self.assertEqual(len(result["synthesis"]), 2)
@@ -306,25 +368,21 @@ class LocalAnalysisTests(unittest.TestCase):
                                    for stamp in (3, 70, 130)]
         self.save_inputs()
         self.client.request_json.side_effect = [
-            *[completion("Evidence note. " * 500) for _ in range(3)],
+            *[completion() for _ in range(3)],
             completion("Consolidated first group."), completion("Consolidated second group."),
             completion("Truncated final answer.", "length"),
         ]
+        self.enterContext(mock.patch.object(local_analyze, "DIRECT_EVIDENCE_CHAR_BUDGET", 0))
+        self.enterContext(mock.patch.object(local_analyze, "_summary_groups", side_effect=two_stage_groups))
         with mock.patch.object(local_analyze, "FINAL_SYNTHESIS_MAX_TOKENS", 4096):
             partial = self.run_analysis()
         self.assertEqual(partial["status"], "partial")
         payloads = [call.args[1] for call in self.client.request_json.call_args_list]
         intermediate = payloads[3:5]
         self.assertEqual(len(partial["synthesis"]), 3)
-        previous_requirements = (
-            "Preserve source timestamps, ASR/visible/supplied attribution, contradictions, and important uncertainty. "
-            "Do not claim direct audio listening or exhaustive frame inspection. No external facts. "
-            "Distinguish the speaker's performance claims from demonstrated measurements."
-        )
         for payload in intermediate:
             self.assertEqual(payload["max_tokens"], 4096)
-            self.assertEqual(json.loads(payload["messages"][1]["content"])["requirements"],
-                             previous_requirements)
+            self.assertTrue(json.loads(payload["messages"][1]["content"])["notes"])
         old_hashes = [result["request_hash"] for result in partial["synthesis"][:2]]
         self.client.reset_mock()
         self.client.request_json.side_effect = None
@@ -348,6 +406,28 @@ class LocalAnalysisTests(unittest.TestCase):
         self.assertEqual(result["synthesis"][-1]["status"], "partial")
         self.assertTrue(result["synthesis"][-1]["truncated"])
         self.assertEqual(self.client.request_json.call_args.args[1]["max_tokens"], 8192)
+
+    def test_invalid_final_source_is_partial_and_only_synthesis_is_retried(self):
+        invalid = completion(json.dumps({"findings": [
+            {"kind": "visual", "evidence_ids": ["frame:999"], "text": "An unsupported observation."}
+        ]}))
+        invalid.pop("_fixture_text")
+        self.client.request_json.side_effect = [completion(), invalid]
+        result = self.run_analysis()
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["text"], "")
+        self.assertEqual(result["coverage"]["missing_frame_ids"], [])
+        self.assertEqual(result["synthesis"][-1]["status"], "partial")
+        self.assertIn("validation_error", result["synthesis"][-1])
+
+        self.client.reset_mock()
+        self.client.request_json.side_effect = None
+        resumed = self.run_analysis()
+        self.assertEqual(resumed["status"], "complete")
+        self.assertEqual(self.client.request_json.call_count, 1)
+        self.assertTrue(resumed["chunks"][0]["reused"])
+        self.assertFalse(resumed["synthesis"][-1]["reused"])
+        self.assertNotIn("An unsupported observation.", resumed["text"])
 
     def test_missing_frame_remains_explicit_even_when_text_succeeds(self):
         self.image.unlink()
@@ -390,14 +470,25 @@ class LocalAnalysisTests(unittest.TestCase):
         result = self.run_analysis()
         self.assertEqual(result["status"], "partial")
         requests = [call.args[1] for call in self.client.request_json.call_args_list]
-        chunks = [json.loads(payload["messages"][1]["content"][0]["text"]) for payload in requests[:3]]
-        self.assertEqual([(chunk["has_primary_asr"], chunk["has_supporting"]) for chunk in chunks],
-                         [(True, True), (False, True), (False, False)])
-        synthesis = json.loads(requests[3]["messages"][1]["content"])
+        chunks = [json.loads(payload["messages"][1]["content"][0]["text"])
+                  for payload in requests if isinstance(payload["messages"][1]["content"], list)]
+        by_frames = {tuple(frame["id"] for frame in chunk["observed_frames"]): chunk for chunk in chunks}
+        self.assertEqual(len(chunks), 4)
+        self.assertEqual({ids: (chunk["has_primary_asr"], chunk["has_supporting"])
+                          for ids, chunk in by_frames.items()},
+                         {("frame:1",): (True, True), (): (False, True),
+                          ("frame:2",): (False, False), ("frame:3",): (False, False)})
+        self.assertEqual(by_frames[()]["records"][0]["start"], 65)
+        self.assertNotIn("end", by_frames[()]["records"][0])
+        synthesis = json.loads(requests[-1]["messages"][1]["content"])
         self.assertEqual(synthesis["asr_gaps"], self.transcript["gaps"])
         self.assertTrue(synthesis["original_audio_requested"])
-        self.assertEqual([(note["has_primary_asr"], note["has_supporting"]) for note in synthesis["notes"]],
-                         [(True, True), (False, True), (False, False)])
+        self.assertTrue(synthesis["direct_source_evidence"])
+        records = json.loads(synthesis["notes"][0]["text"])["records"]
+        self.assertEqual(len(records), 3)
+        self.assertEqual(sorted(record["start"] for record in records), [2, 2, 65])
+        self.assertEqual({record["provenance"] for record in records},
+                         {"local_whisper", "supplied_transcript"})
         self.assertFalse(result["chunks"][1]["has_primary_asr"])
 
     def test_model_synthesis_batches_long_notes_without_dropping_text(self):

@@ -389,6 +389,11 @@ For `--analyzer local`, read `local_analysis.md` and `local_analysis.json`;
 check stage completion, coverage, and gaps before relying on the synthesis.
 The local vision model receives ASR text, not raw audio. Its findings remain
 attributed model analysis until verified against the underlying evidence.
+The report retains every validated frame observation with its actual source
+timestamp, independently of the summary. Check important summary claims against
+that timeline and the source frames. A missing object in one batch does not
+establish its absence from the whole video. `status: complete` describes
+processing; `quality.status: requires_source_review` does not certify accuracy.
 
 Read `supporting_transcripts.json` when present and distinguish supplied TXT/SRT
 claims from ASR output generated from the original audio. Untimed
