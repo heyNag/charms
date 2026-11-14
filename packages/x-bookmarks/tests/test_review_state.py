@@ -311,6 +311,8 @@ class ReviewStateTest(unittest.TestCase):
             "the newest ID is a list": b'{"scopes": {"all": {"last_seen_id": ["970"]}}}',
             "the time is a number": b'{"scopes": {"all": {"last_seen_id": "970", "last_seen_created_at": 5}}}',
             "another scope is damaged": b'{"scopes": {"all": {"last_seen_id": "970"}, "folder:7": []}}',
+            # Too deep for Python to read, or, where the stack is large enough, a list.
+            "nested too deep": b"[" * 100_000 + b"]" * 100_000,
         }
         for label, content in damaged.items():
             for flags in (("--since-last",), ("--update-state",), ("--all", "--since-last", "--update-state")):

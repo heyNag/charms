@@ -279,14 +279,21 @@ class BirdOutputTest(BirdCase):
                 self.assertEqual(stderr.splitlines(), [f"error: {message}", FORMAT_FIX])
         self.assertFalse(self.state_file.exists())
 
-    def test_json_nested_too_deep_to_read_is_refused(self) -> None:
-        self.answer(b"[" * 100_000)
+    def test_json_nested_deeper_than_any_post_is_refused(self) -> None:
+        # Python up to 3.13 stops reading at a fixed depth, and later versions
+        # when the stack is full, each in its own words. Given a large stack
+        # they read all of it, and then the list holds no post.
+        self.answer(b"[" * 100_000 + b"]" * 100_000)
 
-        code, output, stderr = self.run_bird_helper("--count", "5")
+        code, output, stderr = self.run_bird_helper("--count", "5", "--since-last", "--update-state")
 
         self.assertEqual((code, output), (1, None))
-        self.assertRegex(stderr, r"\Aerror: bird did not print valid JSON: .*recursion")
+        self.assertRegex(
+            stderr,
+            r"\Aerror: (bird did not print valid JSON: .+|post 1 of bird's output is a list, not an object)\n",
+        )
         self.assertEqual(stderr.splitlines()[1:], [FORMAT_FIX])
+        self.assertFalse(self.state_file.exists())
 
     def test_an_empty_list_is_a_review_with_nothing_to_show(self) -> None:
         nothing_paged = b'{\n  "tweets": [],\n  "nextCursor": null\n}\n'
