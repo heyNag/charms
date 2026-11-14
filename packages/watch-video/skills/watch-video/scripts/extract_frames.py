@@ -30,6 +30,7 @@ from pathlib import Path
 import python_floor  # noqa: F401
 import plugin_version
 import timed_process
+import tool_hints
 
 
 DEFAULT_INTERVAL_SECONDS = 5.0
@@ -428,7 +429,7 @@ def _vfr_output_args() -> tuple[str, str]:
 
 def _require_ffmpeg() -> None:
     if shutil.which("ffmpeg") is None:
-        raise RuntimeError("ffmpeg is not installed. fix: brew install ffmpeg")
+        raise RuntimeError(tool_hints.missing_tool("ffmpeg"))
 
 
 def probe_duration(source: str | Path) -> float | None:

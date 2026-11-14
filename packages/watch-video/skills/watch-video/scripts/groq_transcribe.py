@@ -22,6 +22,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 import python_floor  # noqa: F401
 import plugin_version
 import timed_process
+import tool_hints
 
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -169,7 +170,7 @@ def set_stored_key(name: str, value: str) -> Path:
 
 def _require_ffmpeg() -> None:
     if shutil.which("ffmpeg") is None:
-        raise RuntimeError("ffmpeg is not installed. fix: brew install ffmpeg")
+        raise RuntimeError(tool_hints.missing_tool("ffmpeg"))
 
 
 def provider_label(provider: str) -> str:
@@ -510,7 +511,7 @@ def transcribe_audio(
 def audio_duration_seconds(audio_path: Path) -> float:
     """Return the duration of an audio file in seconds via ffprobe."""
     if shutil.which("ffprobe") is None:
-        raise RuntimeError("ffprobe is not installed. fix: brew install ffmpeg")
+        raise RuntimeError(tool_hints.missing_tool("ffprobe"))
     try:
         result = timed_process.run(
             [

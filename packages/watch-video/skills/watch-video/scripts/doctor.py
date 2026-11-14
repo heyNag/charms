@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import platform
 import shlex
 import shutil
 import subprocess
@@ -22,6 +21,8 @@ sys.path.insert(0, str(SCRIPT_DIR))
 import python_floor  # noqa: E402
 import plugin_version  # noqa: E402
 import prune_runs  # noqa: E402
+import tool_hints  # noqa: E402
+from tool_hints import brew_packages as _brew_packages, current_platform  # noqa: E402
 from groq_transcribe import (  # noqa: E402
     KEY_NAMES,
     config_env_path,
@@ -93,30 +94,12 @@ def needs_js_runtime(
 
 
 def install_hints(binaries: list[str] | None = None) -> dict[str, list[str]]:
-    packages = _brew_packages(list(LOCAL_BINARIES) if binaries is None else binaries)
-    return {
-        "macOS": [f"brew install {' '.join(packages)}"] if packages else [],
-        "Linux": (
-            (["sudo apt install ffmpeg"] if "ffmpeg" in packages else [])
-            # The extras bring what YouTube needs: the challenge solver
-            # scripts, and a Deno that yt-dlp finds inside its own environment.
-            + (['pipx install "yt-dlp[default,deno]"'] if "yt-dlp" in packages else [])
-        ),
-    }
-
-
-def current_platform(system: str | None = None) -> str:
-    system = system or platform.system()
-    if system == "Darwin":
-        return "macOS"
-    if system == "Linux":
-        return "Linux"
-    return "Unsupported"
+    return tool_hints.install_hints(list(LOCAL_BINARIES) if binaries is None else binaries)
 
 
 def platform_hints(binaries: list[str] | None = None) -> list[str]:
     hints = install_hints(binaries)
-    return hints.get(current_platform(), ["watch-video supports macOS and Linux only"])
+    return hints.get(current_platform(), [tool_hints.UNSUPPORTED])
 
 
 def check_platform(system: str | None = None) -> dict[str, object]:
@@ -621,15 +604,6 @@ def check_mode_error(status: dict[str, object]) -> str | None:
             fix = f" fix: {check['fix']}" if check.get("fix") else ""
             return f"{check['name']} check failed: {check.get('message', '')}.{fix}"
     return None
-
-
-def _brew_packages(missing: list[str]) -> list[str]:
-    packages: list[str] = []
-    for name in missing:
-        package = "ffmpeg" if name in {"ffmpeg", "ffprobe"} else name
-        if package not in packages:
-            packages.append(package)
-    return packages
 
 
 def _js_runtime_gap(

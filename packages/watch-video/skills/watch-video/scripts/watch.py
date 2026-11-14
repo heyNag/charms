@@ -24,6 +24,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: E402, F401
 import plugin_version  # noqa: E402
+import tool_hints  # noqa: E402
 from extract_frames import (  # noqa: E402
     DEFAULT_INTERVAL_SECONDS,
     DEFAULT_MAX_FRAMES,
@@ -165,9 +166,9 @@ def write_json(path: Path, data: object) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def require_tool(name: str, fix: str) -> None:
+def require_tool(name: str) -> None:
     if shutil.which(name) is None:
-        raise SystemExit(f"{name} is not installed. fix: {fix}")
+        raise SystemExit(tool_hints.missing_tool(name))
 
 
 def run_command(cmd: list[str], *, timeout: float | None = None) -> subprocess.CompletedProcess[str]:
@@ -459,7 +460,7 @@ def probe_url(
     for the video, and so the later media fetch does not request subtitles
     at all (subtitle fan-out is what gets rate-limited by big hosts).
     """
-    require_tool("yt-dlp", "brew install yt-dlp")
+    require_tool("yt-dlp")
     media_dir.mkdir(parents=True, exist_ok=True)
     output_template = str(media_dir / "video.%(ext)s")
     cmd = [
@@ -527,7 +528,7 @@ def download_media(
     than max_duration. The local engine checks both from the probe first; this
     filter also covers callers that download without probing.
     """
-    require_tool("yt-dlp", "brew install yt-dlp")
+    require_tool("yt-dlp")
     media_dir.mkdir(parents=True, exist_ok=True)
     output_template = str(media_dir / "video.%(ext)s")
     # "<=?" keeps sources whose duration yt-dlp cannot tell. A section
@@ -657,7 +658,7 @@ def resolve_local(source: str) -> tuple[Path, dict[str, object] | None, dict[str
 
 
 def ffprobe_metadata(video_path: Path) -> dict[str, object]:
-    require_tool("ffprobe", "brew install ffmpeg")
+    require_tool("ffprobe")
     cmd = [
         "ffprobe",
         "-v",

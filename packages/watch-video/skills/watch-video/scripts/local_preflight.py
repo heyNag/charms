@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 import python_floor
+import tool_hints
 from local_api import DEFAULT_BASE_URL, validate_base_url
 from local_config import config_path
 
@@ -148,7 +149,8 @@ def preflight(*, base_url=None, model_dir=None):
     missing_tools = [name for name in ("ffmpeg", "ffprobe") if not binaries[name]]
     if missing_tools:
         blockers.append("Missing local video tools: " + ", ".join(missing_tools) + ".")
-        next_steps.append({"id": "ffmpeg", "instruction": "Install FFmpeg, which includes ffprobe (brew install ffmpeg on macOS)."})
+        ffmpeg_fix = "; ".join(tool_hints.platform_hints(["ffmpeg"]))
+        next_steps.append({"id": "ffmpeg", "instruction": f"Install FFmpeg, which includes ffprobe ({ffmpeg_fix})."})
     if hardware["support"] == "supported":
         if not app:
             blockers.append("The native oMLX app was not found in /Applications or ~/Applications.")
