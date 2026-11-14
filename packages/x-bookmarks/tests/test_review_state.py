@@ -360,7 +360,9 @@ class ReviewStateTest(unittest.TestCase):
         self.save_state(last_seen_id="970")
         saved = self.state_file.read_bytes()
 
-        with mock.patch.object(self.api, "save_state", side_effect=PermissionError(13, "Permission denied")):
+        # The fetch helper saves through the shared review module.
+        shared = sys.modules[self.api.review.__module__]
+        with mock.patch.object(shared, "save_state", side_effect=PermissionError(13, "Permission denied")):
             code, output, stderr = self.run_main("--all", "--since-last", "--update-state")
 
         self.assertEqual(code, 1)
