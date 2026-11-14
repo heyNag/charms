@@ -150,9 +150,11 @@ A plugin with Python scripts also carries its own
 `skills/<name>/scripts/python_floor.py` and `plugin_version.py`; copy them
 from an existing plugin and change `PLUGIN` in each.
 
-Set the manifest version to `1.0.0` and keep its `$schema` fixed to the
-supported v1 identifier. The skill description must state its activation
-conditions. Add `compatibility` only for real runtime requirements.
+Set the manifest version with `python3 scripts/bump-plugin-version.py <name>`,
+which gives a plugin with no release the first version of the current month,
+such as `2026.11.0`. Keep the manifest's `$schema` fixed to the supported v1
+identifier. The skill description must state its activation conditions. Add
+`compatibility` only for real runtime requirements.
 
 Keep scripts and references inside the skill directory, plugin metadata in
 `plugin.json`, and skill metadata in `SKILL.md`. The current Charms package
@@ -166,16 +168,19 @@ first release adds it.
 
 ## Versions
 
-Each plugin uses Semantic Versioning, `MAJOR.MINOR.PATCH`, and starts at
-`1.0.0`. Bump the version in a normal commit when the plugin is ready to
-release:
+Each plugin uses calendar versions, `YEAR.MONTH.RELEASE`: the year and month
+in UTC, then the number of releases the plugin has already made in that
+month, such as `2026.11.0`. Set the next version in a normal commit when the
+plugin is ready to release:
 
 ```sh
-python3 scripts/bump-plugin-version.py watch-video minor
+git fetch --tags
+python3 scripts/bump-plugin-version.py watch-video
 ```
 
-The second argument is `major`, `minor`, or `patch`. Add `--dry-run` to print
-the next version without changing `plugin.json`.
+The helper works the version out from today's date and the plugin's releases,
+so there is no part to choose. Add `--dry-run` to print the version without
+changing `plugin.json`.
 
 `plugin.json` is the only place a version is written. The scripts read it
 through `skills/<name>/scripts/plugin_version.py`, which supplies what
@@ -185,9 +190,10 @@ copy of a skill without its plugin folder has no manifest and reports
 `unknown`.
 
 Commits on `main` do not reach marketplace installs until a release. A version
-may never be reused or go below a released one, and validation fails if a
-package's version is lower than its marketplace entry. See
-[Releasing](releasing.md).
+may never be reused or go below a released one. Validation fails if a
+package's version is lower than its marketplace entry, and if it is neither a
+version the plugin has released nor the next one the helper would write. See
+[Releasing](releasing.md#versions-and-tags).
 
 ## CI
 

@@ -26,10 +26,10 @@ Every plugin follows this repository contract:
 ```
 
 `plugin.json` is the only plugin manifest and version source. Versions are
-`MAJOR.MINOR.PATCH`, and releases are tagged `<name>--v<version>`. The sole
-skill is an immediate child of `skills/` and has the same name as the plugin.
-Charms currently bundles no MCP servers, so its plugin roots do not contain
-`mcp.json`.
+`YEAR.MONTH.RELEASE`, such as `2026.11.0`, and releases are tagged
+`<name>--v<version>`. The sole skill is an immediate child of `skills/` and
+has the same name as the plugin. Charms currently bundles no MCP servers, so
+its plugin roots do not contain `mcp.json`.
 
 Packages carry no `.claude-plugin/` directory. After a plugin's first release,
 the repository's `.claude-plugin/marketplace.json` lists it, pinned to its

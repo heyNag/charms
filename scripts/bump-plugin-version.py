@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
-"""Advance the semantic version of one Agent Plugin manifest."""
+"""Set one Agent Plugin manifest to the version of the plugin's next release.
+
+A version is YEAR.MONTH.RELEASE: the year and month in UTC, then the number of
+releases the plugin has already made in that month. The releases are read from
+the local release tags and from the marketplace, so run `git fetch --tags`
+first. Until the plugin is released, running the helper again in the same
+month prints the same version and leaves the manifest alone.
+"""
 
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import pathlib
 import stat
@@ -11,7 +19,12 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from plugin_release import BUMP_PARTS, bump_version, validate_plugin_name  # noqa: E402
+from plugin_release import (  # noqa: E402
+    known_releases,
+    next_version,
+    utc_today,
+    validate_plugin_name,
+)
 
 
 def package_plugin_path(root: pathlib.Path, package: str) -> pathlib.Path:
@@ -37,7 +50,7 @@ def write_plugin(path: pathlib.Path, data: dict) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
-def update_package(root: pathlib.Path, package: str, part: str, dry_run: bool) -> str:
+def update_package(root: pathlib.Path, package: str, today: datetime.date, dry_run: bool) -> str:
     path = package_plugin_path(root, package)
     for directory in (root / "packages", path.parent):
         try:
@@ -51,8 +64,8 @@ def update_package(root: pathlib.Path, package: str, part: str, dry_run: bool) -
     if manifest_name != package:
         raise ValueError(f"{path} name is {manifest_name!r}, expected {package!r}")
 
-    version = bump_version(data.get("version"), part)
-    if not dry_run:
+    version = next_version(known_releases(root, package), today)
+    if not dry_run and data.get("version") != version:
         data["version"] = version
         write_plugin(path, data)
     return version
@@ -61,7 +74,6 @@ def update_package(root: pathlib.Path, package: str, part: str, dry_run: bool) -
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("package", help="Plugin package name under packages/")
-    parser.add_argument("part", choices=BUMP_PARTS, help="Semantic version part to advance.")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -76,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        version = update_package(args.root.resolve(), args.package, args.part, args.dry_run)
+        version = update_package(args.root.resolve(), args.package, utc_today(), args.dry_run)
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

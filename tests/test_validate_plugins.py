@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import contextlib
+import datetime
 import hashlib
 import importlib.util
 import io
 import json
+import os
 import pathlib
 import shutil
 import sys
@@ -22,6 +24,9 @@ SCHEMA_SHA256 = "0a4aad95ce337878ad38802ebf0daa3fde76abe3f65400c86bcbb1ec0b3ab88
 # The watch-video plugin's own record of what a run creates.
 PRUNE_RUNS = ROOT / "packages/watch-video/skills/watch-video/scripts/prune_runs.py"
 IGNORE_REASON = "Git must ignore every local artifact the validator forbids"
+# The fixtures hold versions of March 2027, so the checks are given a day in it.
+TODAY = datetime.date(2027, 3, 15)
+RUN_HELPER = "; run `python3 scripts/bump-plugin-version.py demo-plugin`"
 
 
 def load_module():
@@ -37,6 +42,7 @@ class ValidatePluginsTests(unittest.TestCase):
     def setUp(self) -> None:
         isolate_git(self)
         self.module = load_module()
+        self.enterContext(mock.patch.object(self.module, "utc_today", return_value=TODAY))
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = pathlib.Path(self.temp.name)
@@ -53,7 +59,7 @@ class ValidatePluginsTests(unittest.TestCase):
         return {
             "$schema": self.module.CANONICAL_SCHEMA,
             "name": name,
-            "version": "1.0.0",
+            "version": "2027.3.0",
             "description": f"Portable {name} plugin.",
             "author": {"name": "Test Author", "url": "https://example.com/author"},
             "homepage": "https://example.com/plugins",
@@ -222,7 +228,7 @@ class ValidatePluginsTests(unittest.TestCase):
         errors = self.plugin_errors()
         self.assertTrue(any("must match plugin directory 'demo-plugin'" in error for error in errors))
 
-    def test_release_metadata_must_be_complete_and_semver(self) -> None:
+    def test_release_metadata_must_be_complete(self) -> None:
         manifest = self.manifest("demo-plugin")
         manifest.update(
             {
@@ -238,7 +244,7 @@ class ValidatePluginsTests(unittest.TestCase):
         self.write_manifest(self.plugin, manifest)
         errors = self.plugin_errors()
         for needle in [
-            "version must be MAJOR.MINOR.PATCH semantic versioning",
+            "version must be YEAR.MONTH.RELEASE, three plain numbers such as 2026.11.0",
             "description must be a non-empty string",
             "author.name must be a non-empty string",
             "author.url must be a non-empty string",
@@ -249,19 +255,133 @@ class ValidatePluginsTests(unittest.TestCase):
         ]:
             self.assertTrue(any(needle in error for error in errors), needle)
 
-    def test_versions_must_be_plain_semver(self) -> None:
+    def test_a_plugin_version_must_be_three_plain_numbers(self) -> None:
         manifest = self.manifest("demo-plugin")
-        for version in ["0.1.0", "12.3.45"]:
+        # A plugin checked on its own may be a 1.x release from before CalVer.
+        for version in ["2027.3.0", "2026.11.12", "1.3.2"]:
             with self.subTest(version=version):
                 manifest["version"] = version
                 self.write_manifest(self.plugin, manifest)
                 self.assertEqual(self.plugin_errors(), [])
-        for version in ["1.0", "01.0.0", "1.0.0-beta", "2026.8.10.1", "２.0.0"]:
+        for version in ["2027.3", "2027.03.0", "2027.3.0-beta", "2026.8.10.1", "２027.3.0"]:
             with self.subTest(version=version):
                 manifest["version"] = version
                 self.write_manifest(self.plugin, manifest)
                 errors = self.plugin_errors()
-                self.assertTrue(any("semantic versioning" in error for error in errors), errors)
+                self.assertTrue(any("version must be YEAR.MONTH.RELEASE" in error for error in errors), errors)
+
+    def version_errors(self, version: str) -> list[str]:
+        manifest = self.manifest("demo-plugin")
+        manifest["version"] = version
+        self.write_manifest(self.plugin, manifest)
+        prefix = "packages/demo-plugin/plugin.json: version "
+        return [error for error in self.repository_errors() if error.startswith(prefix)]
+
+    def test_a_plugin_never_released_starts_a_month_at_release_zero(self) -> None:
+        # Set this month, or in an earlier one and not released yet.
+        for version in ["2027.3.0", "2027.2.0", "2026.11.0"]:
+            with self.subTest(version=version):
+                self.assertEqual(self.version_errors(version), [])
+        cases = [
+            ("1.0.0", "version is not YEAR.MONTH.RELEASE, such as 2026.11.0: '1.0.0'"),
+            ("2027.3.15", "version 2027.3.15 must be 2027.3.0: the third number counts the releases "
+             "the plugin has already made in that month"),
+            ("2027.4.0", "version 2027.4.0 names a month after 2027.3, the current month in UTC"),
+        ]
+        for version, message in cases:
+            with self.subTest(version=version):
+                self.assertEqual(
+                    self.version_errors(version),
+                    [f"packages/demo-plugin/plugin.json: {message}{RUN_HELPER}"],
+                )
+
+    def test_a_version_waiting_for_release_must_follow_the_latest_release(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        # Between releases the manifest holds the version of the latest one.
+        self.assertEqual(self.repository_errors(), [])
+
+        self.assertEqual(self.version_errors("2027.3.1"), [])
+        cases = [
+            ("2027.3.2", "version 2027.3.2 must be 2027.3.1: the third number counts"),
+            ("2027.2.9", "version 2027.2.9 must be greater than the latest release 2027.3.0"),
+            ("2027.4.0", "version 2027.4.0 names a month after 2027.3"),
+            ("2.0.0", "version is not YEAR.MONTH.RELEASE"),
+        ]
+        for version, message in cases:
+            with self.subTest(version=version):
+                errors = self.version_errors(version)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn(message, errors[0])
+                self.assertTrue(errors[0].endswith(RUN_HELPER), errors[0])
+
+    def test_a_1_x_version_stays_valid_until_the_plugin_is_bumped(self) -> None:
+        manifest = self.manifest("demo-plugin")
+        manifest["version"] = "1.3.2"
+        self.write_manifest(self.plugin, manifest)
+        init_repository(self.root)
+        sha = commit_all(self.root, "Release demo-plugin 1.3.2")
+        for tag in ["demo-plugin--v1.3.1", "demo-plugin--v1.3.2"]:
+            git(self.root, "tag", tag)
+        write_marketplace(self.root, [self.demo_entry(sha, "1.3.2")])
+        self.assertEqual(self.repository_errors(), [])
+
+        # Its next version is CalVer. Another 1.x version is not.
+        self.assertEqual(self.version_errors("2027.3.0"), [])
+        for version in ["1.3.3", "1.4.0", "2.0.0"]:
+            with self.subTest(version=version):
+                self.assertEqual(
+                    self.version_errors(version),
+                    [
+                        "packages/demo-plugin/plugin.json: version is not YEAR.MONTH.RELEASE, "
+                        f"such as 2026.11.0: {version!r}{RUN_HELPER}"
+                    ],
+                )
+        # A branch cut before the latest release still holds an older one, so this
+        # check accepts it. The marketplace check reports a manifest that fell behind.
+        self.assertEqual(self.version_errors("1.3.1"), [])
+        self.assert_error_containing(
+            "released version 1.3.2 is newer than packages/demo-plugin/plugin.json version 1.3.1",
+            self.repository_errors(),
+        )
+
+    def test_versions_follow_the_marketplace_where_git_has_no_tags_to_read(self) -> None:
+        listed = {"name": "demo-plugin", "version": "2027.3.4"}
+        write_marketplace(self.root, [listed])
+
+        def check() -> None:
+            self.assertEqual(self.version_errors("2027.3.4"), [])
+            self.assertEqual(self.version_errors("2027.3.5"), [])
+            self.assertEqual(
+                self.version_errors("2027.3.6"),
+                [
+                    "packages/demo-plugin/plugin.json: version 2027.3.6 must be 2027.3.5: the third "
+                    f"number counts the releases the plugin has already made in that month{RUN_HELPER}"
+                ],
+            )
+
+        # The fixture is a plain directory, where Git cannot list tags.
+        ceiling = {"GIT_CEILING_DIRECTORIES": str(self.root.parent)}
+        with mock.patch.dict(os.environ, ceiling):
+            with self.assertRaises(RuntimeError):
+                self.module.known_releases(self.root, "demo-plugin")
+            check()
+        # Git is not installed.
+        missing = FileNotFoundError(2, "No such file or directory", "git")
+        with mock.patch.object(self.module, "known_releases", side_effect=missing):
+            check()
+        # A checkout whose tags were not fetched.
+        init_repository(self.root)
+        self.assertEqual(self.module.known_releases(self.root, "demo-plugin"), ["2027.3.4"])
+        check()
+
+    def test_versions_are_not_checked_for_a_plugin_validated_on_its_own(self) -> None:
+        # A release archive is checked this way, away from the tags and the marketplace.
+        manifest = self.manifest("demo-plugin")
+        manifest["version"] = "2027.4.9"
+        self.write_manifest(self.plugin, manifest)
+        self.assertEqual(self.plugin_errors(), [])
+        self.assertNotEqual(self.repository_errors(), [])
 
     def test_extension_namespaces_must_be_reverse_domain_style(self) -> None:
         manifest = self.manifest("demo-plugin")
@@ -585,11 +705,11 @@ class ValidatePluginsTests(unittest.TestCase):
 
     def release_demo(self) -> str:
         init_repository(self.root)
-        sha = commit_all(self.root, "Release demo-plugin 1.0.0")
-        git(self.root, "tag", "demo-plugin--v1.0.0")
+        sha = commit_all(self.root, "Release demo-plugin 2027.3.0")
+        git(self.root, "tag", "demo-plugin--v2027.3.0")
         return sha
 
-    def demo_entry(self, sha: str, version: str = "1.0.0", **changes: object) -> dict:
+    def demo_entry(self, sha: str, version: str = "2027.3.0", **changes: object) -> dict:
         entry = {
             "name": "demo-plugin",
             "description": "Portable demo-plugin plugin.",
@@ -659,7 +779,7 @@ class ValidatePluginsTests(unittest.TestCase):
     def test_marketplace_entry_name_must_be_a_package_string(self) -> None:
         write_marketplace(
             self.root,
-            [{"name": ["demo-plugin"], "description": "x", "version": "1.0.0", "source": {}}],
+            [{"name": ["demo-plugin"], "description": "x", "version": "2027.3.0", "source": {}}],
         )
         self.assert_error_containing("['demo-plugin'] is not a plugin under packages/", self.repository_errors())
 
@@ -681,17 +801,17 @@ class ValidatePluginsTests(unittest.TestCase):
         later = commit_all(self.root, "Later change")
 
         write_marketplace(self.root, [self.demo_entry(later)])
-        self.assert_error_containing(f"demo-plugin--v1.0.0 points at {sha}, not {later}", self.repository_errors())
+        self.assert_error_containing(f"demo-plugin--v2027.3.0 points at {sha}, not {later}", self.repository_errors())
 
         write_marketplace(self.root, [self.demo_entry(sha, description="Changed.")])
         self.assert_error_containing("version and description must match", self.repository_errors())
 
         manifest = self.manifest("demo-plugin")
-        manifest["version"] = "1.1.0"
+        manifest["version"] = "2027.3.1"
         self.write_manifest(self.plugin, manifest)
-        write_marketplace(self.root, [self.demo_entry(sha, "1.1.0")])
+        write_marketplace(self.root, [self.demo_entry(sha, "2027.3.1")])
         self.assert_error_containing(
-            "release tag demo-plugin--v1.1.0 is not available locally; run `git fetch --tags`",
+            "release tag demo-plugin--v2027.3.1 is not available locally; run `git fetch --tags`",
             self.repository_errors(),
         )
 
@@ -774,11 +894,11 @@ class ValidatePluginsTests(unittest.TestCase):
     def test_package_version_cannot_fall_below_its_release(self) -> None:
         sha = self.release_demo()
         manifest = self.manifest("demo-plugin")
-        manifest["version"] = "0.9.0"
+        manifest["version"] = "2027.2.4"
         self.write_manifest(self.plugin, manifest)
         write_marketplace(self.root, [self.demo_entry(sha)])
         self.assert_error_containing(
-            "released version 1.0.0 is newer than packages/demo-plugin/plugin.json version 0.9.0",
+            "released version 2027.3.0 is newer than packages/demo-plugin/plugin.json version 2027.2.4",
             self.repository_errors(),
         )
 

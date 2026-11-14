@@ -6,13 +6,30 @@ and then points that plugin's entry in `.claude-plugin/marketplace.json` at it.
 
 ## Versions and tags
 
-Versions are plain Semantic Versioning, `MAJOR.MINOR.PATCH`, with no
-prerelease or build suffix. Every plugin starts at `1.0.0`.
+Versions are calendar versions, `YEAR.MONTH.RELEASE`:
 
-- Bump `major` for incompatible changes, `minor` for compatible additions,
-  and `patch` for fixes.
+- `YEAR` and `MONTH` are the year and the month in UTC. The month has no
+  leading zero.
+- `RELEASE` is the number of releases the plugin has already made in that
+  month, so the first one is 0.
+
+`2026.11.0` is a plugin's first release of November 2026, `2026.11.1` is its
+second, and `2026.12.0` is its first of December. Each plugin counts its own
+releases.
+
 - A version is never reused. Each release must be greater than the plugin's
-  latest release.
+  latest release, and its third number must be the next one of its month.
+- A version says when a release was prepared, not what it changes. The
+  release notes list the subjects of the commits made to the plugin since
+  its previous release, the newest 30 at most, so a change that an existing
+  setup will notice belongs in the subject of its commit.
+- A version is three plain numbers, which makes it a valid semantic version
+  as well. Claude Code resolves version ranges against the release tags and
+  ignores a tag whose version it cannot read as a semantic version, so
+  there is no fourth number and no suffix.
+- The releases made before the move to calendar versions are numbered
+  `1.x`. Their tags and marketplace entries stay as they are, and every
+  calendar version is greater than any of them.
 
 Release tags follow Claude Code's plugin tag convention:
 
@@ -20,7 +37,7 @@ Release tags follow Claude Code's plugin tag convention:
 <name>--v<version>
 ```
 
-For example, `watch-video--v1.0.0`. Each release attaches
+For example, `watch-video--v2026.11.0`. Each release attaches
 `<name>-agent-plugin-v<version>.zip` and its `.sha256` checksum.
 
 Only the `Release Plugin` workflow creates these tags. Do not run
@@ -30,20 +47,30 @@ marketplace entry moves to a version only after its tag exists.
 
 ## Bump a version
 
-A plugin's first release publishes the `1.0.0` already in its manifest. Before
-each later release, change the version in a normal commit:
+Between releases a manifest holds the version of the plugin's latest release.
+Before the next release, set the next version in a normal commit:
 
 ```sh
-python3 scripts/bump-plugin-version.py watch-video patch
+git fetch --tags
+python3 scripts/bump-plugin-version.py watch-video
 ```
 
-The helper takes the package name and `major`, `minor`, or `patch`, rewrites
-only that `plugin.json`, and prints the new version. `--dry-run` prints the
-version without changing the file.
+The helper takes the package name. It reads the plugin's releases from the
+release tags and from the marketplace, works out the version for today's date
+in UTC, rewrites only that `plugin.json`, and prints the version. `--dry-run`
+prints the version without changing the file. A new plugin gets its first
+version the same way.
+
+Running the helper again before the release prints the same version and
+changes nothing. Once a new month has begun, it moves the version to that
+month instead. That second run is optional, because a version set in one
+month can still be released in a later one.
 
 Commit the bump on a branch, run `make check`, and merge its pull request once
-CI is green, as for any other change. The marketplace does not change until
-the release runs.
+CI is green, as for any other change. `make check` and the release workflow
+both refuse a version that breaks the rules above, with a message that names
+the helper, so do not type a version by hand. The marketplace does not change
+until the release runs.
 
 ## Record what the release was tested with
 
@@ -117,10 +144,10 @@ The workflow runs six jobs:
 2. `validate` is read-only. When the optional `RELEASE_SETTINGS_TOKEN` secret
    is set, it first requires release immutability to be turned on; see
    [Repository settings](#repository-settings). `scripts/plan-plugin-release.py`
-   refuses a tag that already exists and a version that is not greater than
-   the latest release, and the job also checks that the tag is absent on
-   GitHub. It then builds and validates the ZIP and records its digest. The
-   full check runs once, in `ci`.
+   refuses a tag that already exists and a version that is not the plugin's
+   next one under [Versions and tags](#versions-and-tags), and the job also
+   checks that the tag is absent on GitHub. It then builds and validates the
+   ZIP and records its digest. The full check runs once, in `ci`.
 3. `publish` has write access and runs after `ci` and `validate`. It requires
    the validated commit to still be on `main`, re-plans the release against
    the current tags and requires the same plan, rebuilds the ZIP from

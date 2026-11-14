@@ -28,13 +28,18 @@ if TYPE_CHECKING:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from plugin_release import (  # noqa: E402
+    BUMP_HELPER,
     GIT_SHA_RE,
     MARKETPLACE_NAME,
     MARKETPLACE_PATH,
+    check_next_version,
+    known_releases,
     manifest_at,
     marketplace_entry,
+    marketplace_version,
     parse_version,
     tag_commit,
+    utc_today,
 )
 
 
@@ -415,7 +420,9 @@ def _validate_manifest_quality(manifest: dict[str, Any], manifest_path: Path, ro
         try:
             parse_version(version)
         except ValueError:
-            errors.append(f"{display}: version must be MAJOR.MINOR.PATCH semantic versioning")
+            errors.append(
+                f"{display}: version must be YEAR.MONTH.RELEASE, three plain numbers such as 2026.11.0"
+            )
 
     author = manifest.get("author")
     if not isinstance(author, dict):
@@ -782,6 +789,46 @@ def _validate_marketplace(root: Path, plugin_roots: list[Path]) -> list[str]:
     return errors
 
 
+def _validate_versions(root: Path, plugin_roots: list[Path]) -> list[str]:
+    """Require each manifest version to be a release already made, or the next one.
+
+    Between releases a manifest holds the version of a release: the latest
+    one, or an earlier one on a branch cut before it. Either may be a 1.x
+    version from before CalVer. Any other version is waiting to be released,
+    and it must be the YEAR.MONTH.RELEASE that the bump helper writes. The
+    release workflow makes the same check, but only once a release has started.
+    """
+
+    today = utc_today()
+    errors: list[str] = []
+    for plugin_root in plugin_roots:
+        try:
+            manifest = json.loads((plugin_root / "plugin.json").read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue  # The plugin root check reports the broken manifest.
+        version = manifest.get("version") if isinstance(manifest, dict) else None
+        name = plugin_root.name
+        try:
+            parse_version(version)
+            released = known_releases(root, name)
+        except ValueError:
+            continue  # The plugin root check reports the version or the name.
+        except (OSError, RuntimeError):
+            # Not a Git checkout, so the marketplace is all that records a release.
+            listed = marketplace_version(root, name)
+            released = [listed] if listed is not None else []
+        if version in released:
+            continue
+        try:
+            check_next_version(version, released, today)
+        except ValueError as exc:
+            errors.append(
+                f"{_display(plugin_root / 'plugin.json', root)}: {exc}; "
+                f"run `python3 {BUMP_HELPER} {name}`"
+            )
+    return errors
+
+
 def _validate_readme(root: Path, plugin_roots: list[Path]) -> list[str]:
     """Require the root README to describe each plugin in its manifest's words.
 
@@ -907,6 +954,7 @@ def validate_repository(root: Path) -> tuple[list[Path], list[str]]:
         )
 
     errors.extend(_validate_marketplace(root, plugin_roots))
+    errors.extend(_validate_versions(root, plugin_roots))
     errors.extend(_validate_readme(root, plugin_roots))
 
     expected_manifests = {plugin_root / "plugin.json" for plugin_root in plugin_roots}
