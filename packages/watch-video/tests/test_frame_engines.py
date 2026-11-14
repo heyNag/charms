@@ -356,5 +356,69 @@ class FrameEngineTests(unittest.TestCase):
         self.assertTrue(all(frame["reason"] == "uniform" for frame in frames))
 
 
+def _ffmpeg_help() -> str:
+    if not HAVE_FFMPEG:
+        return ""
+    result = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-h", "full"], capture_output=True, text=True, check=False
+    )
+    return f"{result.stdout}\n{result.stderr}"
+
+
+# The question extract_frames asks of the same text, for each option.
+ACCEPTS_BOTH_OPTIONS = all(option in _ffmpeg_help() for option in ("-fps_mode", "-vsync"))
+
+
+@unittest.skipUnless(ACCEPTS_BOTH_OPTIONS, "needs an ffmpeg that accepts both -fps_mode and -vsync")
+class VsyncFallbackTests(unittest.TestCase):
+    """The engines against a real ffmpeg that is given -vsync.
+
+    FFmpeg older than 5.1 has no -fps_mode, and the engines pass -vsync to it.
+    Runner images no longer ship a build that old, so this makes the same
+    choice on a build that accepts both options. Current releases accept only
+    -fps_mode and skip it; CI requires one job whose ffmpeg still runs it.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.clip = Path(cls._tmp.name) / "cuts.mp4"
+        build_cut_clip(cls.clip)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls._tmp.cleanup()
+
+    def kept_with(self, option: str, extract) -> list[tuple[object, object]]:
+        """Run one engine with the given frame-rate option; return each frame's time and reason."""
+        run = extract_frames.timed_process.run
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            extract_frames, "_vfr_output_args", return_value=(option, "vfr")
+        ), mock.patch.object(extract_frames.timed_process, "run", wraps=run) as ran:
+            frames, _meta = extract(tmp)
+            sizes = [Path(str(frame["path"])).stat().st_size for frame in frames]
+        commands = [call.args[0] for call in ran.call_args_list]
+        extractions = [command for command in commands if command[0] == "ffmpeg" and "vfr" in command]
+        self.assertTrue(extractions, commands)
+        self.assertTrue(all(option in command for command in extractions), extractions)
+        self.assertTrue(all(size > 0 for size in sizes), sizes)
+        return [(frame["timestamp_seconds"], frame["reason"]) for frame in frames]
+
+    def test_every_engine_keeps_the_same_frames_with_either_option(self) -> None:
+        engines = {
+            "uniform": lambda out: extract_frames.extract_frames(self.clip, out, fps=2, dedup=False),
+            "keyframe": lambda out: extract_frames.extract_keyframes(self.clip, out, dedup=False),
+            "scene": lambda out: extract_frames.extract_scene_frames(self.clip, out, dedup=False),
+            "cue": lambda out: extract_frames.extract_at_timestamps(self.clip, out, [0.2, 1.4, 3.0]),
+        }
+        for name, extract in engines.items():
+            with self.subTest(engine=name):
+                modern = self.kept_with("-fps_mode", extract)
+                fallback = self.kept_with("-vsync", extract)
+
+                self.assertGreater(len(fallback), 1)
+                self.assertEqual(fallback, modern)
+
+
 if __name__ == "__main__":
     unittest.main()

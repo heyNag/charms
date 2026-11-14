@@ -145,18 +145,23 @@ package's version is lower than its marketplace entry. See
 
 ## CI
 
-The CI workflow runs on every push and pull request. The release workflow
-reuses it on the commit being released, and starts it once more on `main`
-after it pushes the marketplace commit:
+The CI workflow runs on every pull request and on every push to `main`. A
+newer push to a pull request cancels the run of the older one. The release
+workflow reuses CI on the commit being released, and starts it once more on
+`main` after it pushes the marketplace commit:
 
-- the Ubuntu job installs Ubuntu's packaged FFmpeg, which still accepts
-  `-vsync`, and runs `make ci` on Python 3.11 and on the newest Python release;
+- the Ubuntu job runs `make ci` on Python 3.11 and on the newest Python
+  release, with the FFmpeg that its runner image packages, and requires the
+  checks to leave the working tree clean;
 - the Python floor job runs `make test-plugins` on Python 3.9 with nothing
-  installed from `requirements-dev.txt`;
-- the macOS job installs current Homebrew FFmpeg, asserts that it lacks
-  `-vsync` so the `-fps_mode` path is covered, and runs `make test` on the
-  newest Python release. It then runs `make test-plugins` on the `python3`
-  that Apple's Command Line Tools provide.
+  installed from `requirements-dev.txt`. Its older runner image packages an
+  FFmpeg that accepts both `-fps_mode` and `-vsync`. The job asserts that,
+  because the test of the `-vsync` fallback is skipped on any other build;
+- the macOS job installs current Homebrew FFmpeg and asserts that it lacks
+  `-vsync`, which shows that the plugin passes `-fps_mode` to a build that
+  dropped the old option. It runs `make test` on the newest Python release,
+  then `make test-plugins` on the `python3` that Apple's Command Line Tools
+  provide.
 
 When a new Python release reaches `actions/setup-python`, raise the newest
 version in `.github/workflows/ci.yml`.

@@ -101,18 +101,8 @@ jobs:
             echo "commit_sha=$(git rev-parse HEAD)"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Full repository check
-        run: make check
-
-      - name: Require checks to leave the tree clean
-        run: |
-          changed="$(git status --porcelain)"
-          if [ -n "${changed}" ]; then
-            echo "Repository checks changed the working tree:" >&2
-            echo "${changed}" >&2
-            exit 1
-          fi
-
+      # The full check runs once, in the ci job above, which this release also
+      # waits for. This job only plans the release and checks its archive.
       - name: Build validation archive
         id: archive
         env:

@@ -73,8 +73,8 @@ The workflow runs six jobs:
    [Repository settings](#repository-settings). `scripts/plan-plugin-release.py`
    refuses a tag that already exists and a version that is not greater than
    the latest release, and the job also checks that the tag is absent on
-   GitHub. It then runs `make check`, requires a clean tree, builds and
-   validates the ZIP, and records its digest.
+   GitHub. It then builds and validates the ZIP and records its digest. The
+   full check runs once, in `ci`.
 3. `publish` has write access and runs after `ci` and `validate`. It requires
    the validated commit to still be on `main`, re-plans the release against
    the current tags and requires the same plan, rebuilds the ZIP from

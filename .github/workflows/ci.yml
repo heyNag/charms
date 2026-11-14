@@ -1,11 +1,20 @@
 name: CI
 
 on:
+  # A branch gets its run from its pull request, so a push to it starts no second one.
   push:
+    branches: [main]
   pull_request:
   workflow_call:
   # The release workflow starts a run on main after it pushes the marketplace commit.
   workflow_dispatch:
+
+# A newer push to a pull request replaces the run of the older one. Every other
+# run is in a group of its own, so a run on main or in a release is never
+# cancelled and never waits for another.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -40,6 +49,15 @@ jobs:
       - name: Test, lint, and validate plugins
         run: make ci
 
+      - name: Require checks to leave the tree clean
+        run: |
+          changed="$(git status --porcelain)"
+          if [ -n "${changed}" ]; then
+            echo "Repository checks changed the working tree:" >&2
+            echo "${changed}" >&2
+            exit 1
+          fi
+
   # The plugins support Python 3.9, which is older than the tooling above needs.
   # Their tests use the standard library only, so nothing is installed with pip
   # and one schema cross-check that needs jsonschema is skipped.
@@ -59,6 +77,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
           ffmpeg -version | sed -n '1p'
+
+      # FFmpeg older than 5.1 has no -fps_mode, and the plugin passes -vsync to
+      # it. This image's FFmpeg accepts both options, which lets a test run that
+      # fallback against a real build. Current releases have dropped -vsync, so
+      # on a newer image the test would be skipped without a word.
+      - name: Require an FFmpeg build that still accepts -vsync
+        run: |
+          help_output="$(ffmpeg -hide_banner -h full 2>&1)"
+          for option in -fps_mode -vsync; do
+            case "${help_output}" in
+              *"${option}"*) ;;
+              *) echo "Expected ${option} support, which the -vsync fallback test needs" >&2; exit 1 ;;
+            esac
+          done
 
       - name: Run the plugin tests on the oldest supported Python
         run: |
@@ -84,8 +116,9 @@ jobs:
           brew install ffmpeg
           ffmpeg -version | sed -n '1p'
 
-      # Current FFmpeg releases no longer accept -vsync, so Homebrew's build covers
-      # the -fps_mode path while Ubuntu's older packaged FFmpeg covers -vsync.
+      # Current FFmpeg releases no longer accept -vsync. Homebrew's build shows
+      # that the plugin does not pass it to them; the python-floor job covers a
+      # build that still accepts it.
       - name: Require an FFmpeg build without -vsync
         shell: bash
         run: |
