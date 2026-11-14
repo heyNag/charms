@@ -7,7 +7,9 @@
   user. The path user ID must be the authenticated user.
 - `GET /2/users/{id}/bookmarks/folders` returns bookmark folders.
 - `GET /2/users/{id}/bookmarks/folders/{folder_id}` returns post IDs in a
-  bookmark folder. The helper hydrates those IDs with `GET /2/tweets`.
+  bookmark folder. The helper hydrates those IDs with `GET /2/tweets`. X
+  documents `folder_id` as 1 to 19 digits, and `--folder-id` accepts nothing
+  else, so no other text can reach the request path.
 
 ## Auth
 

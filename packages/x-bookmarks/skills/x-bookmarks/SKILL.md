@@ -92,7 +92,8 @@ Bird can fetch a recent window with
 `scripts/fetch_bookmarks_bird.sh --count 100`, but it does not maintain a
 persisted review cutoff.
 
-List bookmark folders or fetch a folder:
+List bookmark folders or fetch a folder. `FOLDER_ID` is the numeric ID that
+`--folders` lists; the API helper refuses anything else before a request:
 
 ```sh
 python3 scripts/fetch_bookmarks_api.py --folders --pretty

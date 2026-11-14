@@ -618,6 +618,47 @@ class FolderTest(FakeXCase):
         self.assertEqual(output["meta"]["cutoff_mode"], "no_state")
         self.assertEqual(len(output["data"]), 252)
 
+    def test_a_folder_id_that_is_not_digits_is_refused_before_any_request(self) -> None:
+        refused = (
+            "../../me",
+            "7001/../../../tweets",
+            "7001?max_results=1",
+            "70 01",
+            "7001\n",
+            "-7001",
+            "seven",
+            "",
+            # Digits, but not the ASCII ones an ID is made of.
+            "\uff17\uff10\uff10\uff11",
+            # One digit more than X allows.
+            "12345678901234567890",
+        )
+        for value in refused:
+            for argv in (("--folder-id", value), (f"--folder-id={value}", "--all", "--since-last")):
+                with self.subTest(argv=argv):
+                    code, output, stderr = self.fetch(*argv)
+
+                    self.assertEqual(code, 2)
+                    self.assertIsNone(output)
+                    self.assertEqual(
+                        stderr.splitlines(),
+                        [
+                            "error: --folder-id must be a folder's numeric ID of 1 to 19 digits",
+                            "fix: list the folders with --folders, then pass one of their IDs",
+                        ],
+                    )
+        self.assertEqual(self.x.requests, [])
+
+    def test_the_longest_folder_id_x_allows_is_sent_as_it_is(self) -> None:
+        longest = "1234567890123456789"
+        self.x.folder_posts[longest] = ["500", "499"]
+
+        code, output, _stderr = self.fetch("--folder-id", longest, "--all")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(ids(output), ["500", "499"])
+        self.assertIn(f"/2/users/42/bookmarks/folders/{longest}", self.x.paths())
+
     def test_a_folder_x_does_not_know_is_an_api_error(self) -> None:
         code, output, stderr = self.fetch("--folder-id", "7999")
 

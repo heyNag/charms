@@ -9,6 +9,7 @@ import http.client
 import json
 import os
 from pathlib import Path
+import re
 import sys
 from typing import Any
 import urllib.error
@@ -28,6 +29,9 @@ DEFAULT_STATE_FILE = Path(
 # Newest reviewed bookmark IDs kept per scope, so removing the last reviewed
 # bookmark does not lose the review cutoff.
 STATE_ANCHORS = 50
+# X documents a bookmark folder ID as 1 to 19 digits. The ID goes into the
+# request path, where a value such as "../x" would leave the folders endpoint.
+FOLDER_ID = re.compile(r"[0-9]{1,19}")
 
 TWEET_FIELDS = ",".join(
     [
@@ -661,7 +665,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--all", action="store_true", help="Fetch all available pages.")
     parser.add_argument("--max-pages", type=int, help="Safety cap for paginated runs.")
     parser.add_argument("--folders", action="store_true", help="List bookmark folders instead of posts.")
-    parser.add_argument("--folder-id", help="Fetch bookmarks from a bookmark folder.")
+    parser.add_argument(
+        "--folder-id",
+        help="Fetch bookmarks from the bookmark folder with this numeric ID, as --folders lists it.",
+    )
     parser.add_argument("--query", help="Local text query over fetched bookmark data.")
     parser.add_argument(
         "--since-last",
@@ -683,8 +690,12 @@ def main(argv: list[str]) -> int:
     if args.count < 1:
         print("error: --count must be at least 1", file=sys.stderr)
         return 2
-    if args.folders and args.folder_id:
+    if args.folders and args.folder_id is not None:
         print("error: use either --folders or --folder-id, not both", file=sys.stderr)
+        return 2
+    if args.folder_id is not None and not FOLDER_ID.fullmatch(args.folder_id):
+        print("error: --folder-id must be a folder's numeric ID of 1 to 19 digits", file=sys.stderr)
+        print("fix: list the folders with --folders, then pass one of their IDs", file=sys.stderr)
         return 2
     if args.update_state and args.query:
         print(
