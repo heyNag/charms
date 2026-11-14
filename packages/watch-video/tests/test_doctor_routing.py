@@ -96,6 +96,20 @@ class DoctorRoutingTests(unittest.TestCase):
             _, output, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini")
         self.assertEqual(output.splitlines()[0], f"Watch Video Doctor (watch-video {version})")
 
+    def test_the_checkout_only_check_is_left_out_of_an_installed_plugin(self):
+        with mock.patch.object(doctor.shutil, "which", return_value=None):
+            with mock.patch.object(doctor, "find_repo_root", return_value=None):
+                _, output, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini", "--json")
+                installed = [check["name"] for check in json.loads(output)["checks"]]
+                _, report, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini")
+            with mock.patch.object(doctor, "find_repo_root", return_value=Path("/fixture/checkout")):
+                _, output, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini", "--json")
+                checkout = [check["name"] for check in json.loads(output)["checks"]]
+        self.assertNotIn(".env.local", installed)
+        self.assertNotIn(".env.local", report)
+        self.assertNotIn("repo root", report)
+        self.assertEqual(checkout, [*installed, ".env.local"])
+
     def test_local_file_ignores_missing_downloader_but_requires_media_tools(self):
         installed = {"ffmpeg", "ffprobe"}
         with mock.patch.object(

@@ -505,6 +505,7 @@ def is_gitignored(repo_root: Path, path: Path) -> bool | None:
 
 
 def check_env_local(repo_root: Path | None = None) -> dict[str, object]:
+    """Development check: a .env.local in a Charms checkout must be gitignored."""
     repo = repo_root or find_repo_root()
     if repo is None:
         return {
@@ -536,6 +537,7 @@ def collect_status(
     if analyzer == "local" and transcriber is None:
         transcriber = "local"
     binaries = required_binaries(engine, source, from_run)
+    repo_root = find_repo_root()
     source_kind = (
         "unspecified" if source is None else
         "YouTube URL" if is_url(source) and is_youtube_url(source) else
@@ -553,7 +555,9 @@ def collect_status(
         check_config_file(),
         check_run_artifacts(),
         check_run_privacy(),
-        check_env_local(),
+        # Only a Charms checkout has a .env.local to check. An installed
+        # plugin is not in one, and the check would only say it was skipped.
+        *([check_env_local(repo_root)] if repo_root is not None else []),
     ]
     required_ok = all(
         bool(check["ok"])

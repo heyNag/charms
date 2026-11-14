@@ -92,7 +92,7 @@ class LocalAnalysisTests(unittest.TestCase):
     def setUp(self):
         self.root = Path(self.enterContext(tempfile.TemporaryDirectory()))
         self.enterContext(mock.patch.dict(os.environ, {}, clear=True))
-        self.client = mock.Mock()
+        self.client = mock.Mock(base_url="http://127.0.0.1:8147/v1")
         self.client.request_json = ResponseMock()
         self.client.request_json.return_value = completion()
         self.factory = self.enterContext(mock.patch.object(local_analyze, "LocalClient", return_value=self.client))
@@ -112,8 +112,29 @@ class LocalAnalysisTests(unittest.TestCase):
             (self.root / filename).write_text(json.dumps(value))
 
     def run_analysis(self, **kwargs):
-        with contextlib.redirect_stdout(io.StringIO()):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             return local_analyze.analyze_local(self.root, **kwargs)
+
+    def test_progress_goes_to_stderr_and_the_server_address_is_recorded(self):
+        output, progress = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(progress):
+            result = local_analyze.analyze_local(self.root)
+        self.assertEqual(output.getvalue(), "")
+        self.assertRegex(progress.getvalue(), r"^\[watch-video\] local analysis \S+/1: complete\n")
+        self.assertIn("[watch-video] local synthesis ", progress.getvalue())
+        # The analyzer is the server at the configured address, whatever product it is.
+        self.assertEqual((result["analyzer"], result["base_url"]), ("local", "http://127.0.0.1:8147/v1"))
+        saved = json.loads((self.root / "local_analysis.json").read_text())
+        self.assertEqual((saved["analyzer"], saved["base_url"]), ("local", "http://127.0.0.1:8147/v1"))
+        self.assertNotIn("omlx", json.dumps(saved))
+        self.assertIn("\nServer: http://127.0.0.1:8147/v1\n", (self.root / "local_analysis.md").read_text())
+
+    def test_the_command_reports_failure_on_stderr(self):
+        output, errors = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+            code = local_analyze.main([str(self.root / "missing-run")])
+        self.assertEqual((code, output.getvalue()), (1, ""))
+        self.assertIn("[watch-video] local analysis failed: ", errors.getvalue())
 
     def test_full_hour_all_frames_and_speech_are_bounded_and_covered(self):
         evidence = {"range": {"start_seconds": 0, "end_seconds": 3600}, "frames": [

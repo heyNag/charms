@@ -206,11 +206,11 @@ class ObservationPipelineTests(unittest.TestCase):
             "metadata.json": {"visual_evidence_requested": True},
         }.items():
             (self.root / name).write_text(json.dumps(value))
-        self.client = mock.Mock()
+        self.client = mock.Mock(base_url="http://127.0.0.1:8147/v1")
         self.enterContext(mock.patch.object(local_analyze, "LocalClient", return_value=self.client))
 
     def run_analysis(self, **kwargs):
-        with contextlib.redirect_stdout(io.StringIO()):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             return local_analyze.analyze_local(self.root, **kwargs)
 
     def test_source_anchored_chart_survives_bad_final_summary(self):
@@ -268,7 +268,7 @@ class ObservationPipelineTests(unittest.TestCase):
             value = "```json\n" + payload + "\n```" if fenced else payload
             with self.subTest(fenced=fenced):
                 self.client.request_json.side_effect = [reply(value), final_reply("A chart appears.")]
-                with contextlib.redirect_stdout(io.StringIO()):
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                     result = local_analyze.analyze_local(self.root, api_key=secret, refresh=True)
                 self.assertEqual(result["status"], "complete")
                 self.assertIn("[REDACTED]", result["observations"][0]["description"])

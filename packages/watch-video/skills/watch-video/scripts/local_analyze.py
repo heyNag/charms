@@ -11,6 +11,7 @@ import base64
 import hashlib
 import json
 import math
+import sys
 import time
 from pathlib import Path
 
@@ -546,7 +547,9 @@ def analyze_local(run_dir: Path | str, *, model: str | None = None,
                     warnings.append("Repeated invalid structured responses; remaining model requests stopped.")
             _write(artifacts / "chunks" / f"{chunk['id']}.json", result)
         results.append(result)
-        print(f"[watch-video] local analysis {chunk['id']}/{len(chunks)}: {result['status']}", flush=True)
+        # Progress goes to stderr; stdout is for the report.
+        print(f"[watch-video] local analysis {chunk['id']}/{len(chunks)}: {result['status']}",
+              file=sys.stderr, flush=True)
         # Snapshot progress before the next potentially long request.
         _write(artifacts / "progress.json", {"expected": expected, "chunks": results})
         if result.get("stop_remaining"):
@@ -651,7 +654,8 @@ def analyze_local(run_dir: Path | str, *, model: str | None = None,
                     warnings.append(result["validation_error"])
             else:
                 result = _generate(client, cache_path, payload, summary, api_key, refresh=refresh)
-            print(f"[watch-video] local synthesis {identifier}: {result['status']}", flush=True)
+            print(f"[watch-video] local synthesis {identifier}: {result['status']}",
+                  file=sys.stderr, flush=True)
             summaries.append(result)
             if result.get("text"):
                 next_notes.append({"id": identifier, "text": result["text"], "status": result["status"],
@@ -686,7 +690,10 @@ def analyze_local(run_dir: Path | str, *, model: str | None = None,
     complete = (not audio_requested or audio_valid) and visual_valid and bool(final_text) and len(results) == len(chunks) and all(
         result["status"] == "complete" for result in [*results, *summaries]) and not (
         coverage["missing_frame_ids"] or coverage["missing_text_ids"] or expected["invalid_frame_ids"] or (audio_requested and transcript.get("gaps")))
-    output = {"schema_version": 1, "engine": "local", "analyzer": "omlx", "model": selected_model,
+    # The analyzer is whichever OpenAI-compatible server answers at the
+    # configured loopback address; record that address, not a product name.
+    output = {"schema_version": 1, "engine": "local", "analyzer": "local",
+              "base_url": client.base_url, "model": selected_model,
               "status": "complete" if complete else ("partial" if any(r.get("text") or r["status"] == "partial" for r in results) else "error"), "source": evidence.get("source"),
               "question": task, "audio_representation": audio_representation,
               "coverage": coverage, "warnings": warnings, "chunks": results, "synthesis": summaries,
@@ -700,6 +707,7 @@ def analyze_local(run_dir: Path | str, *, model: str | None = None,
     output = json.loads(_redact(json.dumps(output, ensure_ascii=False), api_key))
     _write(root / "local_analysis.json", output)
     lines = ["# Local video analysis", "", f"Status: {output['status']}", f"Model: {selected_model}",
+             f"Server: {client.base_url}",
              f"Evidence chunks: {len(results)}/{len(chunks)}", "",
              f"Audio evidence: {audio_representation}. The vision model did not hear raw audio. Frames are sampled.", "",
              "Processing completion does not establish factual accuracy. Review the source-anchored observations below.", ""]
@@ -730,7 +738,7 @@ def main(argv=None):
         result = analyze_local(args.run_dir, model=args.model, base_url=args.base_url,
                                question=args.question, timeout=args.timeout, refresh=args.refresh)
     except (OSError, ValueError, RuntimeError) as exc:
-        print(f"[watch-video] local analysis failed: {_redact(str(exc), None)}")
+        print(f"[watch-video] local analysis failed: {_redact(str(exc), None)}", file=sys.stderr)
         return 1
     print(f"[watch-video] local analysis: {result['report_path']}")
     return 0 if result["status"] == "complete" else 1
