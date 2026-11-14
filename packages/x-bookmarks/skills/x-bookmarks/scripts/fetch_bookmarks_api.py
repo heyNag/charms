@@ -18,7 +18,7 @@ import urllib.request
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
 import plugin_version
-from x_api_auth import AuthError, get_valid_token, open_request
+from x_api_auth import AuthError, get_valid_token, open_request, private_write_json
 
 BASE_URL = "https://api.x.com/2"
 MAX_RESULTS = 100
@@ -476,15 +476,7 @@ def load_state(path: Path) -> dict[str, Any]:
 
 
 def save_state(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    os.chmod(path.parent, 0o700)
-    tmp = path.with_name(path.name + ".tmp")
-    with tmp.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, indent=2, sort_keys=True)
-        handle.write("\n")
-    os.chmod(tmp, 0o600)
-    tmp.replace(path)
-    os.chmod(path, 0o600)
+    private_write_json(path, data)
 
 
 def state_scope(folder_id: str | None) -> str:

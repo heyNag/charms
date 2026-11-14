@@ -25,6 +25,7 @@ import webbrowser
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
 import plugin_version
+import private_files
 
 AUTHORIZE_URL = "https://x.com/i/oauth2/authorize"
 TOKEN_URL = "https://api.x.com/2/oauth2/token"
@@ -74,15 +75,8 @@ def now() -> int:
 
 
 def private_write_json(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    os.chmod(path.parent, 0o700)
-    tmp = path.with_name(path.name + ".tmp")
-    with tmp.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, indent=2, sort_keys=True)
-        handle.write("\n")
-    os.chmod(tmp, 0o600)
-    tmp.replace(path)
-    os.chmod(path, 0o600)
+    """Save JSON that only this account can read; see private_files."""
+    private_files.write_private_text(path, json.dumps(data, indent=2, sort_keys=True) + "\n")
 
 
 def read_json(path: Path) -> dict[str, Any]:

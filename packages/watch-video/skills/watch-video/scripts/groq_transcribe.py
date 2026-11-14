@@ -21,6 +21,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
 import plugin_version
+import private_files
 import timed_process
 import tool_hints
 
@@ -133,7 +134,11 @@ def read_stored_key(name: str) -> str | None:
 
 
 def set_stored_key(name: str, value: str) -> Path:
-    """Store a key in the config file with private permissions (0600)."""
+    """Store a key in the config file, which only this account can read.
+
+    The config folder is made private when it has to be created; one that
+    already exists keeps its permissions.
+    """
     if name not in KEY_NAMES.values():
         raise ValueError(f"unsupported key name: {name}")
     value = value.strip()
@@ -143,8 +148,6 @@ def set_stored_key(name: str, value: str) -> Path:
         raise ValueError("key must be a single line")
 
     path = config_env_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    os.chmod(path.parent, 0o700)
 
     lines: list[str] = []
     replaced = False
@@ -160,11 +163,7 @@ def set_stored_key(name: str, value: str) -> Path:
     if not replaced:
         lines.append(f"{name}={value}")
 
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    os.chmod(tmp, 0o600)
-    tmp.replace(path)
-    os.chmod(path, 0o600)
+    private_files.write_private_text(path, "\n".join(lines) + "\n")
     return path
 
 

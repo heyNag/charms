@@ -62,7 +62,9 @@ Default local-only state lives outside this repo:
 
 `X_BOOKMARKS_CONFIG_DIR`, `X_BOOKMARKS_TOKEN_FILE`, and
 `X_BOOKMARKS_STATE_FILE` override the x-bookmarks defaults. Keep every override
-outside the plugin and source checkout.
+outside the plugin and source checkout. The three files are readable only by
+your account (mode 600). A folder the helpers create for them is private too;
+a folder that already exists keeps its permissions.
 
 Do not commit credentials, tokens, bookmark exports, or search indexes.
 

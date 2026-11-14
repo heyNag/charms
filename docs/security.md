@@ -62,6 +62,14 @@ fixtures. The user's secret-manager and credential-access policy overrides an
 optional plugin storage helper; prefer environment injection through that
 approved workflow.
 
+The files the plugins write for credentials and state (the watch-video key
+file, and the x-bookmarks config, token and review-state files) are created
+with mode 600 from their first byte and then moved into place. Their content
+is never in a file another account can read, and a symbolic link planted
+beside them is not written through. A folder the scripts create for these
+files gets mode 700. A folder that already exists, including one named by an
+override, keeps its permissions.
+
 ## Plugin-specific boundaries
 
 ### watch-video
