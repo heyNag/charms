@@ -295,6 +295,7 @@ visual frames.
   when the later part of the range is uncovered.
 - `--sub-langs` selects captions; for example `"es,es.*"` for Spanish.
 - `--question` records the task with local evidence for the host agent.
+- Spell every flag in full. Abbreviations such as `--det` are rejected.
 
 ## Credentials and transcription
 

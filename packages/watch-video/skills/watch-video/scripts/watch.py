@@ -1168,7 +1168,12 @@ def run_directory(args, requested_start, requested_end, requested_duration, cue_
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Analyze a video source for local agents.")
+    # Abbreviated flags are rejected. The Gemini guard below compares the
+    # flags as typed, so an accepted "--det" would slip a local-only option
+    # past it without any error.
+    parser = argparse.ArgumentParser(
+        description="Analyze a video source for local agents.", allow_abbrev=False,
+    )
     parser.add_argument("source", help="Video URL, local video file, or local folder (recursive)")
     parser.add_argument("--engine", choices=["local", "gemini"], default="local",
                         help="local extracts evidence; gemini sends the video to Google for analysis (default: local)")

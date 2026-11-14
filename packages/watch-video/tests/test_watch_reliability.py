@@ -181,6 +181,24 @@ class WatchReliabilityTests(unittest.TestCase):
         analyze.assert_not_called()
         create.assert_not_called()
 
+    def test_abbreviated_flags_are_rejected_for_both_engines(self):
+        # argparse would otherwise read "--det" as --detail, and the Gemini
+        # guard, which compares the flags as typed, would not see it.
+        cases = (
+            ["--engine", "gemini", "--det", "transcript"],
+            ["--engine", "gemini", "--transcr=none"],
+            ["--engine", "gemini", "--no-fr"],
+            ["--det", "transcript"],
+        )
+        for flags in cases:
+            with self.subTest(flags=flags), mock.patch.object(sys, "argv", ["watch", "https://example.com/meeting", *flags]), mock.patch.object(watch.gemini, "analyze_video") as analyze, mock.patch.object(watch, "create_run_dir") as create, contextlib.redirect_stderr(io.StringIO()) as stderr:
+                with self.assertRaises(SystemExit) as error:
+                    watch.main()
+                self.assertEqual(error.exception.code, 2)
+                self.assertIn("unrecognized arguments", stderr.getvalue())
+                analyze.assert_not_called()
+                create.assert_not_called()
+
     def test_gemini_failure_report_retains_cleanup_warning(self):
         with tempfile.TemporaryDirectory() as temporary:
             error = watch.gemini.GeminiError("processing", "failed")

@@ -260,6 +260,7 @@ Useful local options:
   frame cap; the report warns when later parts of the range are uncovered.
 - `--sub-langs` selects captions; for example, `"es,es.*"` for Spanish.
 - `--question` can record the user's question with local evidence for the host.
+- Flags must be spelled in full; abbreviations such as `--det` are rejected.
 
 ## Transcription and reuse
 
