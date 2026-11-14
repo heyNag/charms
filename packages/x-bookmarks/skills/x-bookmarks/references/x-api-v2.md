@@ -52,6 +52,14 @@ The fetch helper also accepts an existing OAuth user access token from
 `X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN`. `x_api_auth.py --status` checks
 saved local OAuth files only and does not inspect either variable.
 
+A saved access token is refreshed when it is within two minutes of its
+recorded expiry. If X still answers `401`, because the token was revoked or
+ran out early, the fetch helper refreshes it once and repeats that one
+request, so pages already fetched are not requested again. A second `401`
+ends the run. A token from the environment is never refreshed, since the
+helper holds no refresh token for it. `x_api_auth.py --refresh` refreshes the
+saved login on request, without printing it.
+
 ## Query Shape
 
 Bookmark lookup supports `max_results`, `pagination_token`, `tweet.fields`,

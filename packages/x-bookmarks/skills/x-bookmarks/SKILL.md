@@ -212,6 +212,10 @@ Bird can fetch a recent window but does not persist the last reviewed bookmark.
   and allow any browser cookie or Keychain prompt.
 - Missing X API auth: explain that API access requires a personal Developer app
   and OAuth setup.
+- X API `401`: the fetch helper refreshes the saved login once and repeats
+  the request. If the error remains, ask the user to rerun OAuth setup. A
+  token from `X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN` is never refreshed:
+  ask the user to set a current one, or to unset it and use the saved login.
 - X API `402`: this usually indicates an API payment, credit, or access-plan
   restriction. Use Bird or review the Developer account's access.
 - X API `429`: report the rate-limit reset time from the helper, if it gives

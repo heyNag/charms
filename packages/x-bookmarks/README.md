@@ -41,6 +41,8 @@ installed plugin version.
 
 The API fetch helper can instead use an existing OAuth user access token from
 `X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN`. Do not print either variable.
+When X rejects the saved login with `401`, the fetch helper refreshes it once
+and repeats the request; a token from the environment is never refreshed.
 `--include-write-scope` is an option of `x_api_auth.py`, not a fetch-helper
 option, and is only for a separate workflow that changes X bookmarks. Each
 setup requests the read-only scopes plus only that run's

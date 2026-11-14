@@ -18,7 +18,7 @@ import urllib.request
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
 import plugin_version
-from x_api_auth import AuthError, get_valid_token, open_request, private_write_json
+from x_api_auth import AuthError, get_valid_token, open_request, private_write_json, token_variable
 
 BASE_URL = "https://api.x.com/2"
 MAX_RESULTS = 100
@@ -173,6 +173,36 @@ def api_get(path: str, token: str, params: dict[str, str] | None = None) -> tupl
         raise ApiError(0, f"response was not valid JSON: {exc}") from exc
 
 
+class Session:
+    """The access token for one run, replaced once if X rejects it.
+
+    X answers 401 when a saved token was revoked or ran out early. The first
+    401 refreshes the saved login and repeats that one request, so pages
+    already fetched are not requested again. A second 401 is reported. A token
+    from the environment is never refreshed: there is no refresh token for it.
+    """
+
+    def __init__(self, token: str) -> None:
+        self.token = token
+        self.refreshed = False
+
+    def get(self, path: str, params: dict[str, str] | None = None) -> tuple[Any, dict[str, str]]:
+        try:
+            return api_get(path, self.token, params)
+        except ApiError as exc:
+            if exc.status != 401 or self.refreshed or token_variable():
+                raise
+        self.refreshed = True
+        try:
+            self.token = get_valid_token(force_refresh=True)
+        except AuthError as exc:
+            raise AuthError(
+                f"X rejected the saved access token (HTTP 401), and refreshing it failed: {exc}"
+            ) from exc
+        print("note: X rejected the saved access token; refreshed it and repeated the request", file=sys.stderr)
+        return api_get(path, self.token, params)
+
+
 def common_post_params(page_size: int, pagination_token: str | None = None) -> dict[str, str]:
     params = {
         "max_results": str(page_size),
@@ -186,8 +216,8 @@ def common_post_params(page_size: int, pagination_token: str | None = None) -> d
     return params
 
 
-def get_me(token: str) -> dict[str, Any]:
-    payload, _headers = api_get("/users/me", token, {"user.fields": "id,username,name"})
+def get_me(session: Session) -> dict[str, Any]:
+    payload, _headers = session.get("/users/me", {"user.fields": "id,username,name"})
     data = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(data, dict) or not data.get("id"):
         raise ApiError(0, "could not resolve authenticated X user")
@@ -195,7 +225,7 @@ def get_me(token: str) -> dict[str, Any]:
 
 
 def fetch_bookmark_pages(
-    token: str,
+    session: Session,
     user_id: str,
     count: int,
     fetch_all: bool,
@@ -212,9 +242,8 @@ def fetch_bookmark_pages(
         if remaining is not None and remaining <= 0:
             break
         page_size = MAX_RESULTS if remaining is None else max(1, min(MAX_RESULTS, remaining))
-        payload, last_headers = api_get(
+        payload, last_headers = session.get(
             f"/users/{user_id}/bookmarks",
-            token,
             common_post_params(page_size, next_token),
         )
         bookmarks.extend(normalize_posts(payload))
@@ -230,7 +259,7 @@ def fetch_bookmark_pages(
 
 
 def fetch_folders(
-    token: str,
+    session: Session,
     user_id: str,
     count: int,
     fetch_all: bool,
@@ -249,7 +278,7 @@ def fetch_folders(
         params = {"max_results": str(page_size)}
         if next_token:
             params["pagination_token"] = next_token
-        payload, last_headers = api_get(f"/users/{user_id}/bookmarks/folders", token, params)
+        payload, last_headers = session.get(f"/users/{user_id}/bookmarks/folders", params)
         data = payload.get("data", []) if isinstance(payload, dict) else []
         if isinstance(data, list):
             folders.extend(item for item in data if isinstance(item, dict))
@@ -265,7 +294,7 @@ def fetch_folders(
 
 
 def fetch_folder_post_ids(
-    token: str,
+    session: Session,
     user_id: str,
     folder_id: str,
     count: int,
@@ -286,11 +315,7 @@ def fetch_folder_post_ids(
         params = {"max_results": str(page_size)}
         if next_token:
             params["pagination_token"] = next_token
-        payload, last_headers = api_get(
-            f"/users/{user_id}/bookmarks/folders/{folder_id}",
-            token,
-            params,
-        )
+        payload, last_headers = session.get(f"/users/{user_id}/bookmarks/folders/{folder_id}", params)
         data = payload.get("data", []) if isinstance(payload, dict) else []
         if isinstance(data, list):
             for item in data:
@@ -307,16 +332,15 @@ def fetch_folder_post_ids(
     return ids, last_headers, not next_token
 
 
-def hydrate_posts(token: str, post_ids: list[str]) -> tuple[list[dict[str, Any]], dict[str, str]]:
+def hydrate_posts(session: Session, post_ids: list[str]) -> tuple[list[dict[str, Any]], dict[str, str]]:
     if not post_ids:
         return [], {}
     by_id: dict[str, dict[str, Any]] = {}
     last_headers: dict[str, str] = {}
     for start in range(0, len(post_ids), MAX_RESULTS):
         batch = post_ids[start : start + MAX_RESULTS]
-        payload, last_headers = api_get(
+        payload, last_headers = session.get(
             "/tweets",
-            token,
             {
                 "ids": ",".join(batch),
                 "tweet.fields": TWEET_FIELDS,
@@ -687,14 +711,14 @@ def main(argv: list[str]) -> int:
             return 1
 
     try:
-        token = get_valid_token()
-        user = get_me(token)
+        session = Session(get_valid_token())
+        user = get_me(session)
         user_id = str(user["id"])
         headers: dict[str, str] = {}
         state_error: str | None = None
 
         if args.folders:
-            folders, headers = fetch_folders(token, user_id, args.count, args.all, args.max_pages)
+            folders, headers = fetch_folders(session, user_id, args.count, args.all, args.max_pages)
             output: dict[str, Any] = {
                 "data": folders,
                 "meta": {
@@ -708,20 +732,20 @@ def main(argv: list[str]) -> int:
         else:
             if args.folder_id:
                 post_ids, headers, reached_end = fetch_folder_post_ids(
-                    token,
+                    session,
                     user_id,
                     args.folder_id,
                     args.count,
                     args.all,
                     args.max_pages,
                 )
-                items, hydrate_headers = hydrate_posts(token, post_ids)
+                items, hydrate_headers = hydrate_posts(session, post_ids)
                 headers = hydrate_headers or headers
                 for item in items:
                     item["folder_id"] = args.folder_id
             else:
                 items, headers, reached_end = fetch_bookmark_pages(
-                    token,
+                    session,
                     user_id,
                     args.count,
                     args.all,
@@ -818,6 +842,21 @@ def main(argv: list[str]) -> int:
             else:
                 print("fix: wait for the X API rate limit window to reset, then retry", file=sys.stderr)
             return 75
+        if exc.status == 401:
+            variable = token_variable()
+            if variable:
+                print(
+                    f"fix: X rejected the access token in {variable}; set a current one, "
+                    "or unset it to use the saved login",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    "fix: X rejected the saved login even after a refresh; rerun setup with "
+                    "python3 scripts/x_api_auth.py",
+                    file=sys.stderr,
+                )
+            return 1
         if exc.status == 402:
             print(
                 "fix: use the Bird no-credit backend first: "

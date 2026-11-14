@@ -63,6 +63,8 @@ KNOWN_SCOPES = frozenset(
 )
 # How long setup waits for the browser to return to the local callback.
 CALLBACK_TIMEOUT_SECONDS = 300
+# An access token in one of these replaces the saved login; the first one set wins.
+TOKEN_VARIABLES = ("X_API_ACCESS_TOKEN", "X_API_BEARER_TOKEN")
 
 CONFIG_DIR = Path(os.environ.get("X_BOOKMARKS_CONFIG_DIR", "~/.config/x-bookmarks")).expanduser()
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -384,10 +386,23 @@ def refresh_tokens(config: dict[str, Any], tokens: dict[str, Any]) -> dict[str, 
     return stamped
 
 
+def token_variable() -> str | None:
+    """Name the environment variable that supplies the access token, if one does."""
+    for name in TOKEN_VARIABLES:
+        if os.environ.get(name):
+            return name
+    return None
+
+
 def get_valid_token(force_refresh: bool = False) -> str:
-    env_token = os.environ.get("X_API_ACCESS_TOKEN") or os.environ.get("X_API_BEARER_TOKEN")
-    if env_token:
-        return env_token
+    """Return the access token to use, refreshing the saved one when it is due.
+
+    A token from the environment is returned as it is: this helper holds no
+    refresh token for it, so force_refresh cannot replace it.
+    """
+    variable = token_variable()
+    if variable:
+        return os.environ[variable]
 
     config = load_config()
     tokens = load_tokens()
