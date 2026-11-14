@@ -208,6 +208,35 @@ class LocalPrivacyTests(unittest.TestCase):
         self.assertNotIn("is configured", warnings)
         self.assert_no_cloud_or_audio()
 
+    def test_chosen_hosted_transcriber_without_its_key_fails_before_any_work(self):
+        cases = ((URL, "groq", "GROQ_API_KEY"), (self.media, "openai", "OPENAI_API_KEY"))
+        for source, provider, key_name in cases:
+            out_dir = self.root / f"no-key-{provider}"
+            with self.subTest(provider=provider), mock.patch.dict(os.environ, {key_name: " "}), \
+                    mock.patch.object(sys, "argv", [
+                        "watch.py", str(source), "--out-dir", str(out_dir), "--transcriber", provider,
+                    ]), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as error:
+                    watch.main()
+                message = str(error.exception)
+                self.assertIn(f"--transcriber {provider} needs {key_name}", message)
+                self.assertIn(f"--set-key {provider}", message)
+                # Nothing was probed, downloaded, extracted or written.
+                self.assertFalse(out_dir.exists())
+        self.probe.assert_not_called()
+        self.download.assert_not_called()
+        self.assert_no_cloud_or_audio()
+
+    def test_stored_key_satisfies_the_early_key_check(self):
+        config = self.root / "stored-config"
+        config.mkdir()
+        (config / ".env").write_text("GROQ_API_KEY=test-placeholder-stored\n", encoding="utf-8")
+        (config / ".env").chmod(0o600)
+        with mock.patch.dict(os.environ, {"GROQ_API_KEY": "", "WATCH_VIDEO_CONFIG_DIR": str(config)}):
+            metadata, _ = self.run_watch(URL, "--detail", "transcript", "--transcriber", "groq")
+        self.assertEqual(metadata["transcriber"], "groq")
+        self.transcribe.assert_called_once()
+
     def test_silent_media_does_not_suggest_transcription(self):
         with mock.patch.object(watch, "ffprobe_metadata", return_value={
             "duration_seconds": 30.0, "width": 1280, "height": 720, "has_audio": False,

@@ -1357,6 +1357,15 @@ def main() -> int:
             raise ValueError("--gemini-timeout must be finite and positive")
         if not math.isfinite(args.local_timeout) or not 0 < args.local_timeout <= 3600:
             raise ValueError("--local-timeout must be between 0 and 3600 seconds")
+        if args.engine == "local" and args.transcriber in KEY_NAMES and not has_api_key(args.transcriber):
+            # A chosen provider without its key cannot transcribe. Say so now,
+            # not after the probe, the download and the audio extraction.
+            key_name = KEY_NAMES[args.transcriber]
+            raise ValueError(
+                f"--transcriber {args.transcriber} needs {key_name}, and it is not set. "
+                f"fix: export {key_name}=..., store it once with scripts/doctor.py --set-key "
+                f"{args.transcriber}, or rerun without --transcriber to use captions and frames only."
+            )
         if args.engine == "local" and (args.transcriber == "local" or args.analyzer == "local"):
             # Validate private settings before downloading/extracting media or
             # creating run artifacts. Constructing the client makes no request.

@@ -310,7 +310,8 @@ credential policy. Prefer supplying credentials to the process environment.
 
 A transcription key is needed only when native captions are insufficient,
 speech matters, and hosted ASR is appropriate under the routing rules. The
-CLI never selects a hosted transcriber itself. If no key is available, offer
+CLI never selects a hosted transcriber itself, and a selected one without its
+key stops the run before anything is downloaded. If no key is available, offer
 setup through the user's approved credential workflow for Groq or OpenAI, or
 continue without one.
 Do not repeatedly ask after the user declines for this video.

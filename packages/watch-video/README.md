@@ -108,6 +108,7 @@ Every source defaults to `--transcriber none`, including fresh URLs: a
 configured key never uploads audio by itself. An authorized cloud
 transcription requires an explicit `--transcriber groq` or `openai`. When
 captions leave speech uncovered, the report says so and names those flags.
+A selected provider without its key stops the run before any download.
 For private or uncertain URLs, use `--transcriber local` when configured.
 Use `--transcriber local` to transcribe original audio on a configured local
 server, and `--analyzer local` to analyze frames together with that ASR and any
