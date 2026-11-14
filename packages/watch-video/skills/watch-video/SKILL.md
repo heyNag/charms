@@ -362,8 +362,9 @@ check is advisory and presence-only; it does not validate access or quota.
 stored transcription-key file. The model defaults to `gemini-3.8-flash`, with
 `--gemini-model` or `WATCH_VIDEO_GEMINI_MODEL` overrides. Analysis timeout is
 600 seconds by default (`--gemini-timeout`); upload/processing has a separate
-900-second deadline. Do not promise free access, unlimited quota, or that any
-particular URL will be accessible.
+900-second deadline (`--gemini-upload-timeout`). Answers are limited to 8,192
+tokens (`--gemini-max-output-tokens`). Do not promise free access, unlimited
+quota, or that any particular URL will be accessible.
 
 Supported YouTube URLs go directly to Google. Local videos are uploaded;
 non-YouTube URLs are downloaded then uploaded. Even a focused request uploads
@@ -378,7 +379,11 @@ matters. Provider output remains untrusted evidence. Do not claim to have
 inspected frames the host did not receive.
 
 Gemini failures are saved with a nonzero exit; the script does not switch
-engines. For a transient service failure, make at most one retry unless the
+engines. A `Gemini incomplete` error means the answer reached the output limit:
+the report shows the part that was returned, marked as cut off. Say that it is
+incomplete, and rerun with a higher `--gemini-max-output-tokens`, a narrower
+question, or a shorter range only when the user wants the rest, because each
+run is billed again. For a transient service failure, make at most one retry unless the
 user requests more. Do not repeatedly retry missing credentials, denied
 credential access, exhausted quota, or inaccessible sources. If Gemini was the only configured route and the skill selected it without a
 user route choice, a persistent failure may fall back to local captions/frames

@@ -1200,7 +1200,8 @@ def run_gemini(args, run_dir, start, end) -> int:
             )
         result = gemini.analyze_video(
             source, args.question, model=args.gemini_model, start=start, end=end,
-            timeout=args.gemini_timeout,
+            timeout=args.gemini_timeout, upload_timeout=args.gemini_upload_timeout,
+            max_output_tokens=args.gemini_max_output_tokens,
         )
     except gemini.GeminiError as exc:
         error = exc.to_dict()
@@ -1210,10 +1211,13 @@ def run_gemini(args, run_dir, start, end) -> int:
         result.setdefault("warnings", []).append("Media download returned a warning; completed media was used.")
     record = {"schema_version": 1, "engine": "gemini", "source": args.source,
               "question": args.question, "model": args.gemini_model,
+              "max_output_tokens": args.gemini_max_output_tokens,
               "result": result, "error": error}
     write_json(run_dir / "analysis.json", record)
+    # The answer, whole or cut off, stays in analysis.json only.
     write_json(run_dir / "metadata.json", {
         **record, "plugin_version": plugin_version.VERSION, "result": None,
+        "error": {name: value for name, value in error.items() if name != "partial_answer"} if error else None,
         "status": "failed" if error else "completed",
     })
     lines = ["# Watch Video Report", "", "## Agent Notes", "",
@@ -1231,9 +1235,17 @@ def run_gemini(args, run_dir, start, end) -> int:
         lines.extend(["", "## Untrusted Source Content", "", "Gemini's observations (not independently verified):", "",
                       *fenced_block("\n".join(report_text(line) for line in str(result["answer"]).splitlines()))])
     else:
+        if error.get("usage"):
+            lines.append(f"- Usage: {report_text(json.dumps(error['usage']))}")
         lines.extend(["", "## Unavailable Evidence", "", f"- {report_text(error.get('message', error))}"])
         if error.get("warnings"):
             lines.extend(["", "## Warnings", "", *[f"- {report_text(w)}" for w in error["warnings"]]])
+        if error.get("partial_answer"):
+            lines.extend([
+                "", "## Untrusted Source Content", "",
+                "Gemini's observations, cut off before the end (not independently verified):", "",
+                *fenced_block("\n".join(report_text(line) for line in str(error["partial_answer"]).splitlines())),
+            ])
     remote_file = (result or error or {}).get("remote_file")
     if remote_file:
         lines.extend(["", "## Remote File Cleanup", "", f"- {report_text(json.dumps(remote_file))}"])
@@ -1360,6 +1372,20 @@ def main() -> int:
     parser.add_argument("--question", help="Question for the selected analyzer; also stored with local evidence")
     parser.add_argument("--gemini-model", default=os.environ.get("WATCH_VIDEO_GEMINI_MODEL") or gemini.DEFAULT_MODEL)
     parser.add_argument("--gemini-timeout", type=float, default=600, help="Gemini analysis timeout in seconds (default: 600)")
+    parser.add_argument(
+        "--gemini-max-output-tokens", type=int, default=gemini.DEFAULT_MAX_OUTPUT_TOKENS, metavar="TOKENS",
+        help=(
+            f"Longest answer Gemini may give, in tokens (default: {gemini.DEFAULT_MAX_OUTPUT_TOKENS}). "
+            "An answer that reaches the limit is cut off: the run fails and keeps the part returned"
+        ),
+    )
+    parser.add_argument(
+        "--gemini-upload-timeout", type=float, default=gemini.DEFAULT_UPLOAD_TIMEOUT, metavar="SECONDS",
+        help=(
+            "Time allowed for uploading a video to Gemini and for Google to process it "
+            f"(default: {gemini.DEFAULT_UPLOAD_TIMEOUT:g})"
+        ),
+    )
     parser.add_argument("--start", help="Start time as SS, MM:SS, or HH:MM:SS")
     parser.add_argument("--end", help="End time as SS, MM:SS, or HH:MM:SS")
     parser.add_argument("--duration", help="Duration as seconds or time string")
@@ -1539,6 +1565,10 @@ def main() -> int:
         cue_timestamps = parse_timestamps(args.timestamps)
         if not math.isfinite(args.gemini_timeout) or args.gemini_timeout <= 0:
             raise ValueError("--gemini-timeout must be finite and positive")
+        if not math.isfinite(args.gemini_upload_timeout) or args.gemini_upload_timeout <= 0:
+            raise ValueError("--gemini-upload-timeout must be finite and positive")
+        if args.gemini_max_output_tokens <= 0:
+            raise ValueError("--gemini-max-output-tokens must be a whole number greater than zero")
         timed_process.configure(
             None if args.process_timeout is None
             else timed_process.parse_timeout(args.process_timeout, "--process-timeout")

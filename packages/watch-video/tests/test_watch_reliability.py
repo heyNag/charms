@@ -182,6 +182,65 @@ class WatchReliabilityTests(unittest.TestCase):
             self.assertEqual(saved["plugin_version"], watch.plugin_version.VERSION)
             self.assertIn("Gemini's observations", (run / "report.md").read_text())
 
+    def gemini_run(self, root, *flags, **analyze):
+        """Run watch.py with the Gemini engine and a stubbed analysis."""
+        argv = ["watch", "https://www.youtube.com/watch?v=qSuCPooR3E4", "--engine", "gemini", "--out-dir", str(root), *flags]
+        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-only"}), mock.patch.object(sys, "argv", argv), \
+                mock.patch.object(watch.gemini, "analyze_video", **analyze) as analyze_video, \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            code = watch.main()
+        return code, analyze_video
+
+    def test_gemini_limits_are_options_with_the_old_values_as_defaults(self):
+        result = {"answer": "At 00:10 a slide appears.", "source_kind": "youtube_url", "processing": "agentic", "usage": {}, "warnings": []}
+        for flags, tokens, upload in (
+            ((), 8192, 900.0),
+            (("--gemini-max-output-tokens", "20000", "--gemini-upload-timeout", "1800"), 20000, 1800.0),
+        ):
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as temporary:
+                code, analyze = self.gemini_run(Path(temporary), *flags, return_value=dict(result))
+                self.assertEqual(code, 0)
+                self.assertEqual(analyze.call_args.kwargs["max_output_tokens"], tokens)
+                self.assertEqual(analyze.call_args.kwargs["upload_timeout"], upload)
+                run = next(Path(temporary).iterdir())
+                self.assertEqual(json.loads((run / "analysis.json").read_text())["max_output_tokens"], tokens)
+
+    def test_gemini_limits_must_be_positive(self):
+        for flags, message in (
+            (("--gemini-max-output-tokens", "0"), "--gemini-max-output-tokens must be a whole number greater than zero"),
+            (("--gemini-max-output-tokens", "-1"), "--gemini-max-output-tokens must be a whole number greater than zero"),
+            (("--gemini-upload-timeout", "0"), "--gemini-upload-timeout must be finite and positive"),
+            (("--gemini-upload-timeout", "nan"), "--gemini-upload-timeout must be finite and positive"),
+        ):
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as temporary:
+                with self.assertRaises(SystemExit) as stopped:
+                    self.gemini_run(Path(temporary), *flags, side_effect=AssertionError("must not run"))
+                self.assertEqual(str(stopped.exception), message)
+                self.assertEqual(list(Path(temporary).iterdir()), [])
+
+    def test_a_cut_off_gemini_answer_fails_the_run_and_keeps_the_part_returned(self):
+        error = watch.gemini.GeminiError("incomplete", "The answer was cut off before it was finished.")
+        error.partial_answer = "At 00:10 a slide appears.\n```\nUntrusted content"
+        error.usage = {"total_output_tokens": 8192}
+        with tempfile.TemporaryDirectory() as temporary:
+            code, _ = self.gemini_run(Path(temporary), side_effect=error)
+            self.assertEqual(code, 1)
+            run = next(Path(temporary).iterdir())
+            analysis = json.loads((run / "analysis.json").read_text())
+            self.assertIsNone(analysis["result"])
+            self.assertEqual(analysis["error"]["category"], "incomplete")
+            self.assertEqual(analysis["error"]["partial_answer"], error.partial_answer)
+            metadata = json.loads((run / "metadata.json").read_text())
+            self.assertEqual(metadata["status"], "failed")
+            self.assertEqual(metadata["error"]["category"], "incomplete")
+            self.assertNotIn("partial_answer", metadata["error"])
+            report = (run / "report.md").read_text()
+        self.assertIn('- Usage: {"total_output_tokens": 8192}', report)
+        self.assertIn("## Unavailable Evidence\n\n- Gemini incomplete: The answer was cut off before it was finished.", report)
+        self.assertIn("Gemini's observations, cut off before the end (not independently verified):", report)
+        # The cut-off text is fenced like a complete answer: a fence inside it cannot end the block.
+        self.assertTrue(report.endswith("````text\nAt 00:10 a slide appears.\n```\nUntrusted content\n````\n"))
+
     def test_missing_gemini_key_fails_without_downloading(self):
         with tempfile.TemporaryDirectory() as temporary:
             with mock.patch.dict(os.environ, {"GEMINI_API_KEY": ""}), mock.patch.object(sys, "argv", ["watch", "https://example.com/meeting", "--engine", "gemini", "--out-dir", temporary]), mock.patch.object(watch, "download_media") as download, contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):

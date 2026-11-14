@@ -331,8 +331,15 @@ explicit ranges use static processing with source-relative offsets.
 The configured default model is `gemini-3.8-flash`; override it with
 `--gemini-model` or `WATCH_VIDEO_GEMINI_MODEL`. `--gemini-timeout` controls the
 analysis request timeout (600 seconds by default). Upload and processing have
-a separate 900-second deadline. Availability, access, and quota depend on the
-Google project; this package makes no guarantee of free usage.
+a separate deadline, 900 seconds unless `--gemini-upload-timeout` changes it.
+Availability, access, and quota depend on the Google project; this package
+makes no guarantee of free usage.
+
+Gemini's answer may be at most 8,192 tokens long unless
+`--gemini-max-output-tokens` raises the limit; the model's own maximum still
+applies. An answer that reaches the limit is cut off. The run then fails with
+an error that names the limit, and the part Gemini returned is kept in
+`analysis.json` and shown in the report as cut off.
 
 Gemini saves `analysis.json`, `metadata.json`, and `report.md`. Findings are
 explicitly attributed to Gemini, not independently inspected local frames.
