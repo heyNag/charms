@@ -59,6 +59,10 @@ class DoctorRoutingTests(unittest.TestCase):
             side_effect=lambda provider: ok_check(f"{provider.upper()}_API_KEY"),
         ))
         self.enterContext(mock.patch.object(doctor, "current_platform", return_value="macOS"))
+        # An installed yt-dlp is not started to ask about its JavaScript runtime.
+        self.enterContext(mock.patch.object(doctor, "yt_dlp_self_report", return_value={
+            "runtimes": "deno-2.9.8", "libraries": "yt_dlp_ejs-0.8.0",
+        }))
         self.subprocess_run = self.enterContext(mock.patch.object(
             doctor.subprocess, "run", side_effect=AssertionError("unexpected subprocess"),
         ))

@@ -65,6 +65,16 @@ on the selected source and engine:
 | Gemini supported YouTube URL or local file | None |
 | Gemini other URL | `yt-dlp`, `ffmpeg`, `ffprobe` |
 
+For YouTube, yt-dlp also runs the site's player JavaScript, which needs a
+JavaScript runtime and yt-dlp's solver scripts. Homebrew's `yt-dlp` and
+`pipx install "yt-dlp[default,deno]"` bring both. Without them yt-dlp returns
+fewer formats or fails. Doctor asks the installed yt-dlp what it can use and
+shows the answer as the advisory `js-runtime` check, with the fix. yt-dlp
+enables only Deno by itself and leaves Node, QuickJS, and Bun off for security
+reasons; `--js-runtime node|quickjs|bun` (or `WATCH_VIDEO_JS_RUNTIME`) opts in
+to one of them for both `watch.py` and doctor. A run that meets yt-dlp's
+missing-runtime warning repeats it in the report.
+
 Pass the same source and engine to doctor that you plan to use for analysis:
 
 ```sh
@@ -78,7 +88,8 @@ Omitting both the source and `--from-run` checks the full local toolkit, even
 with `--engine gemini`. For cached local runs, pass the same `--from-run` to
 doctor to skip the downloader check. Doctor checks dependencies, not source
 accessibility or cache validity.
-`--install` and installation hints cover only the selected route's binaries.
+`--install` and installation hints cover only the selected route's binaries,
+plus Deno when a YouTube route's yt-dlp has no runtime it can use.
 Installation uses Homebrew when available on macOS; otherwise doctor prints
 commands and never executes `sudo`. Its Gemini key check is advisory and reports
 presence only, without verifying access or quota. For local models, pass

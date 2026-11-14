@@ -63,8 +63,12 @@ fixtures = Path(os.environ["FAKE_YTDLP_FIXTURES"])
 log = os.environ.get("FAKE_YTDLP_LOG")
 if log:
     call = "probe" if probing else "download " + options[options.index("--match-filters") + 1]
+    if "--js-runtimes" in options:
+        call += " js=" + options[options.index("--js-runtimes") + 1]
     with open(log, "a", encoding="utf-8") as out:
         out.write(call + "\\n")
+if probing and os.environ.get("FAKE_YTDLP_WARNING"):
+    print(os.environ["FAKE_YTDLP_WARNING"], file=sys.stderr)
 if os.environ.get("FAKE_YTDLP_HANG") == ("probe" if probing else "download"):
     # Like the real tool mid-download: its helper (ffmpeg) is running too.
     helper = (
@@ -468,6 +472,47 @@ class OfflinePipelineTests(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(self._shim_calls(raised), ["probe", "download !is_live & duration<=?18000"])
+
+    def test_an_opted_in_javascript_runtime_reaches_both_yt_dlp_calls(self) -> None:
+        scratch = Path(tempfile.mkdtemp(dir=self.base))
+        flag, env, default = scratch / "flag.log", scratch / "env.log", scratch / "default.log"
+
+        proc, _ = self.run_watch(
+            "--js-runtime", "node", "--max-frames", "4", env={"FAKE_YTDLP_LOG": str(flag)},
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(
+            self._shim_calls(flag), ["probe js=node", "download !is_live & duration<=?14400 js=node"],
+        )
+
+        proc, _ = self.run_watch(
+            "--max-frames", "4", env={"FAKE_YTDLP_LOG": str(env), "WATCH_VIDEO_JS_RUNTIME": "bun"},
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(
+            self._shim_calls(env), ["probe js=bun", "download !is_live & duration<=?14400 js=bun"],
+        )
+
+        # Unasked, yt-dlp keeps its own default of Deno only.
+        proc, _ = self.run_watch("--detail", "transcript", env={"FAKE_YTDLP_LOG": str(default)})
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(self._shim_calls(default), ["probe"])
+
+    def test_a_missing_javascript_runtime_is_a_warning_in_the_report(self) -> None:
+        warning = (
+            "WARNING: [youtube] No supported JavaScript runtime could be found. Only deno is "
+            "enabled by default; to use another runtime add  --js-runtimes RUNTIME[:PATH]  to "
+            "your command/config."
+        )
+        proc, out_dir = self.run_watch("--detail", "transcript", env={"FAKE_YTDLP_WARNING": warning})
+
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        report = (self._single_run_dir(out_dir) / "report.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "- yt-dlp found no JavaScript runtime it may use, so YouTube formats may be missing "
+            "or the download may fail. Run scripts/doctor.py with this URL for the fix.",
+            self._warnings(report),
+        )
 
 
 if __name__ == "__main__":

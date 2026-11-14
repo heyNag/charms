@@ -89,7 +89,11 @@ configured; select Groq or OpenAI only when hosted ASR is already authorized.
 The local engine downloads through `yt-dlp --ignore-config` and
 extracts evidence locally. Every yt-dlp, FFmpeg, and ffprobe call has a time
 limit; a tool that passes it is stopped together with the helpers it started,
-such as the FFmpeg that yt-dlp runs. Audio is sent to Groq or OpenAI only when that
+such as the FFmpeg that yt-dlp runs. For YouTube, yt-dlp runs the site's
+player JavaScript in an external runtime. It enables only Deno by itself;
+watch-video passes Node, QuickJS, or Bun on to yt-dlp only when `--js-runtime`
+or `WATCH_VIDEO_JS_RUNTIME` names one, and never lets yt-dlp download solver
+scripts at run time. Audio is sent to Groq or OpenAI only when that
 provider is selected with `--transcriber` and captions are insufficient. When
 speech is missing and nothing was selected, the report names the available
 flags instead of uploading. Audio chunks and multipart sizes are checked before sending;

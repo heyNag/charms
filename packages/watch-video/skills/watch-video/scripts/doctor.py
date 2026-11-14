@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -24,7 +25,14 @@ from groq_transcribe import (  # noqa: E402
     set_stored_key,
 )
 from gemini import is_youtube_url  # noqa: E402
-from watch import default_run_root, is_url  # noqa: E402
+from watch import (  # noqa: E402
+    JS_RUNTIME_ENV,
+    OPT_IN_JS_RUNTIMES,
+    default_js_runtime,
+    default_run_root,
+    is_url,
+    js_runtime_args,
+)
 
 
 MIN_PYTHON = (3, 11)
@@ -32,13 +40,19 @@ ENV_LOCAL = ".env" + ".local"
 # Key checks are advisory: watch-video still works caption/frames-only.
 ADVISORY_CHECKS = {
     "GROQ_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "whisper-config", "run-artifacts",
-    "run-privacy", "WATCH_VIDEO_LOCAL_API_KEY", "local-models",
+    "run-privacy", "WATCH_VIDEO_LOCAL_API_KEY", "local-models", "js-runtime",
 }
 RUN_ARTIFACTS_WARN_BYTES = 500 * 1024 * 1024
 # Limits for doctor's own helper commands, in seconds.
 COMMAND_TIMEOUT = 10
+YT_DLP_REPORT_TIMEOUT = 20
 INSTALL_TIMEOUT = 1800
 LOCAL_BINARIES = ("yt-dlp", "ffmpeg", "ffprobe")
+# The yt-dlp extractor for these hosts runs the site's player JavaScript.
+YOUTUBE_HOSTS = ("youtube.com", "youtu.be", "youtube-nocookie.com")
+# The names yt-dlp uses for the runtimes it leaves off, and their programs.
+JS_RUNTIME_PROGRAMS = {"node": "node", "quickjs": "qjs", "bun": "bun"}
+DENO_INSTALL_PAGE = "https://docs.deno.com/runtime/getting_started/installation/"
 
 
 def required_binaries(
@@ -60,13 +74,30 @@ def required_binaries(
     return list(LOCAL_BINARIES if remote else ("ffmpeg", "ffprobe"))
 
 
+def needs_js_runtime(
+    engine: str = "local", source: str | None = None, from_run: str | None = None,
+) -> bool:
+    """True when this flow has yt-dlp read YouTube, or names no source at all."""
+    if "yt-dlp" not in required_binaries(engine, source, from_run):
+        return False
+    if source is None:
+        return True
+    try:
+        host = (urlsplit(source).hostname or "").lower()
+    except ValueError:
+        return False
+    return any(host == name or host.endswith(f".{name}") for name in YOUTUBE_HOSTS)
+
+
 def install_hints(binaries: list[str] | None = None) -> dict[str, list[str]]:
     packages = _brew_packages(list(LOCAL_BINARIES) if binaries is None else binaries)
     return {
         "macOS": [f"brew install {' '.join(packages)}"] if packages else [],
         "Linux": (
             (["sudo apt install ffmpeg"] if "ffmpeg" in packages else [])
-            + (["pipx install yt-dlp"] if "yt-dlp" in packages else [])
+            # The extras bring what YouTube needs: the challenge solver
+            # scripts, and a Deno that yt-dlp finds inside its own environment.
+            + (['pipx install "yt-dlp[default,deno]"'] if "yt-dlp" in packages else [])
         ),
     }
 
@@ -118,6 +149,103 @@ def check_binary(name: str) -> dict[str, object]:
         "message": "ok" if path else f"{name} is not installed",
         "fix": "; ".join(platform_hints([name])),
     }
+
+
+def yt_dlp_self_report(js_runtime: str | None = None) -> dict[str, str] | None:
+    """Ask the installed yt-dlp what it can run YouTube's JavaScript with.
+
+    No URL is given, so yt-dlp prints its debug header and stops without
+    making a request. None means it could not be asked.
+    """
+    cmd = ["yt-dlp", "--ignore-config", "--verbose", *js_runtime_args(js_runtime)]
+    try:
+        result = subprocess.run(
+            cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", check=False, timeout=YT_DLP_REPORT_TIMEOUT,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    labels = {"runtimes": "[debug] JS runtimes:", "libraries": "[debug] Optional libraries:"}
+    report: dict[str, str] = {}
+    for line in f"{result.stdout}\n{result.stderr}".splitlines():
+        for key, label in labels.items():
+            if line.startswith(label):
+                report[key] = line[len(label):].strip()
+    return report
+
+
+def _deno_fix() -> str:
+    if current_platform() == "macOS":
+        return "brew install deno"
+    return f"pipx inject yt-dlp deno (when yt-dlp came from pipx), or install Deno: {DENO_INSTALL_PAGE}"
+
+
+def check_js_runtime(js_runtime: str | None = None) -> dict[str, object]:
+    """Advisory: can yt-dlp run YouTube's player JavaScript?
+
+    yt-dlp needs an external JavaScript runtime and its solver scripts for
+    full YouTube support, and returns fewer formats without them. Only yt-dlp
+    knows what it will accept: it finds a Deno inside its own environment,
+    rejects old versions, and enables nothing but Deno unless told to. So the
+    answer comes from yt-dlp, and `problem` says which part is missing.
+    """
+    check: dict[str, object] = {"name": "js-runtime", "ok": True, "problem": None}
+    if shutil.which("yt-dlp") is None:
+        check["message"] = "not checked until yt-dlp is installed"
+        return check
+    report = yt_dlp_self_report(js_runtime)
+    listed = None if report is None else report.get("runtimes")
+    if listed is None:
+        check["message"] = "not checked: this yt-dlp did not report its JavaScript runtimes"
+        return check
+
+    consequence = "YouTube formats may be missing or downloads may fail"
+    entries = [entry.strip() for entry in listed.split(",") if entry.strip()]
+    # "none", "none (disabled)", "node-18.0.0 (unsupported)", "foo (unknown)".
+    usable = [entry for entry in entries if not entry.startswith("none") and "(" not in entry]
+    if usable:
+        if "yt_dlp_ejs" in (report.get("libraries") or ""):
+            check["message"] = f"{usable[0]} (reported by yt-dlp)"
+            return check
+        check.update(
+            ok=False,
+            problem="scripts",
+            message=(
+                f"yt-dlp can use {usable[0]} but is installed without its challenge solver "
+                f"scripts (yt-dlp-ejs), so {consequence}"
+            ),
+            fix=(
+                'install yt-dlp with its default extras (pipx install --force "yt-dlp[default,deno]"), '
+                "or use the Homebrew formula or an official yt-dlp build, which include them"
+            ),
+        )
+        return check
+
+    rejected = [entry for entry in entries if "(" in entry and not entry.startswith("none")]
+    idle = [
+        name for name, program in JS_RUNTIME_PROGRAMS.items()
+        if name != js_runtime and shutil.which(program)
+    ]
+    if js_runtime:
+        found = f"; yt-dlp reported {', '.join(rejected)}" if rejected else ""
+        message = f"yt-dlp could not use the selected runtime {js_runtime}{found}, so {consequence}"
+    elif rejected:
+        message = f"yt-dlp cannot use {', '.join(rejected)}, so {consequence}"
+    elif idle:
+        message = (
+            f"yt-dlp has no JavaScript runtime it may use: it enables only Deno by itself, and "
+            f"leaves {', '.join(idle)} off for security reasons. {consequence[0].upper()}{consequence[1:]}"
+        )
+    else:
+        message = f"yt-dlp found no JavaScript runtime, so {consequence}"
+    fix = _deno_fix()
+    if idle:
+        fix += (
+            f"; or, when the user agrees, let yt-dlp use one it found: --js-runtime {idle[0]} "
+            f"(or {JS_RUNTIME_ENV}={idle[0]})"
+        )
+    check.update(ok=False, problem="runtime", message=message, fix=fix)
+    return check
 
 
 def key_shape_status(value: str | None, prefix: str = "gsk_") -> dict[str, object]:
@@ -412,7 +540,7 @@ def check_env_local(repo_root: Path | None = None) -> dict[str, object]:
 
 def collect_status(
     engine: str = "local", source: str | None = None, from_run: str | None = None,
-    transcriber: str | None = None, analyzer: str = "none",
+    transcriber: str | None = None, analyzer: str = "none", js_runtime: str | None = None,
 ) -> dict[str, object]:
     validate_local_options(engine, transcriber, analyzer)
     if analyzer == "local" and transcriber is None:
@@ -427,6 +555,7 @@ def collect_status(
         check_platform(),
         check_python_version(),
         *(check_binary(name) for name in binaries),
+        *([check_js_runtime(js_runtime)] if needs_js_runtime(engine, source, from_run) else []),
         check_whisper_key("groq"),
         check_whisper_key("openai"),
         check_gemini_key(),
@@ -495,8 +624,19 @@ def _brew_packages(missing: list[str]) -> list[str]:
     return packages
 
 
+def _js_runtime_gap(
+    engine: str, source: str | None, from_run: str | None, js_runtime: str | None,
+) -> dict[str, object] | None:
+    """The failed js-runtime check for this flow, or None when there is nothing to fix."""
+    if shutil.which("yt-dlp") is None or not needs_js_runtime(engine, source, from_run):
+        return None
+    check = check_js_runtime(js_runtime)
+    return None if check["ok"] else check
+
+
 def install_missing(
     engine: str = "local", source: str | None = None, from_run: str | None = None,
+    js_runtime: str | None = None,
 ) -> int:
     """Opt-in installer: brew on macOS, exact Linux commands. Never sudo."""
     binaries = required_binaries(engine, source, from_run)
@@ -507,12 +647,19 @@ def install_missing(
         name for name in binaries
         if shutil.which(name) is None
     ]
-    if not missing:
+    # A YouTube flow also needs a JavaScript runtime that yt-dlp can use.
+    runtime = _js_runtime_gap(engine, source, from_run, js_runtime)
+    if not missing and runtime is None:
         print("all required binaries are already installed")
         return 0
 
+    packages: list[str] = []
     if current_platform() == "macOS" and shutil.which("brew"):
         packages = _brew_packages(missing)
+        # Homebrew's own yt-dlp brings Deno; another yt-dlp needs it added.
+        if runtime is not None and runtime["problem"] == "runtime":
+            packages.append("deno")
+    if packages:
         print(f"[doctor] running: brew install {' '.join(packages)}", file=sys.stderr)
         try:
             result = subprocess.run(
@@ -533,12 +680,18 @@ def install_missing(
             )
             return 2
         print(f"installed via brew: {', '.join(packages)}")
-        return 0
+        missing = []
+        # Ask the yt-dlp that is installed now.
+        runtime = _js_runtime_gap(engine, source, from_run, js_runtime)
 
-    print(f"missing: {', '.join(missing)}. Install manually (this script never uses sudo):")
-    for hint in platform_hints(missing):
-        print(f"  {hint}")
-    return 2
+    if missing:
+        print(f"missing: {', '.join(missing)}. Install manually (this script never uses sudo):")
+        for hint in platform_hints(missing):
+            print(f"  {hint}")
+    if runtime is not None:
+        print(f"{runtime['message']}.")
+        print(f"  fix: {runtime['fix']}")
+    return 2 if missing or runtime is not None else 0
 
 
 def store_key(provider: str) -> int:
@@ -584,6 +737,13 @@ def main() -> int:
         "--analyzer", choices=["none", "local"], default="none",
         help="Match the selected local-engine model analysis route (default: none)",
     )
+    parser.add_argument(
+        "--js-runtime", choices=OPT_IN_JS_RUNTIMES,
+        help=(
+            "Match watch.py's --js-runtime (default: $WATCH_VIDEO_JS_RUNTIME); checks whether "
+            "yt-dlp can use that runtime for YouTube"
+        ),
+    )
     parser.add_argument("--check", action="store_true", help="Silent success; concise error on failure")
     parser.add_argument("--json", action="store_true", help="Print structured status JSON")
     parser.add_argument(
@@ -603,13 +763,14 @@ def main() -> int:
     try:
         validate_local_options(args.engine, args.transcriber, args.analyzer)
         required_binaries(args.engine, args.source, args.from_run)
+        js_runtime = args.js_runtime or default_js_runtime()
     except ValueError as exc:
         parser.error(str(exc))
     if args.install:
-        return install_missing(args.engine, args.source, args.from_run)
+        return install_missing(args.engine, args.source, args.from_run, js_runtime)
 
     status = collect_status(
-        args.engine, args.source, args.from_run, args.transcriber, args.analyzer,
+        args.engine, args.source, args.from_run, args.transcriber, args.analyzer, js_runtime,
     )
     if args.json:
         print(json.dumps(status, indent=2, ensure_ascii=False))

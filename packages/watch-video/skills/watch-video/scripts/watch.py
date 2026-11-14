@@ -77,6 +77,11 @@ PRIVATE_DIR_MODE = 0o700
 # stops an accidental ten-hour download; --max-download-duration overrides it.
 MAX_DOWNLOAD_ENV = "WATCH_VIDEO_MAX_DOWNLOAD_DURATION"
 DEFAULT_MAX_DOWNLOAD_SECONDS = 4 * 3600.0
+# yt-dlp runs YouTube's player JavaScript in an external runtime. It enables
+# only Deno by itself and leaves these off for security reasons, so watch-video
+# passes one on only when the user asks for it by name.
+JS_RUNTIME_ENV = "WATCH_VIDEO_JS_RUNTIME"
+OPT_IN_JS_RUNTIMES = ("node", "quickjs", "bun")
 # English-preferred by default. Requesting every language ("all") fans out to
 # 100+ auto-translated tracks and gets the whole download rate-limited by the
 # source site; use --sub-langs for non-English videos instead.
@@ -183,6 +188,39 @@ def default_max_download_seconds() -> float:
     if not seconds:
         raise ValueError(f"{MAX_DOWNLOAD_ENV} must be greater than zero")
     return seconds
+
+
+def default_js_runtime() -> str | None:
+    """Session default for --js-runtime; None leaves yt-dlp on Deno alone."""
+    raw = (os.environ.get(JS_RUNTIME_ENV) or "").strip()
+    # Deno needs no opt-in: yt-dlp uses it whenever it is installed.
+    if not raw or raw == "deno":
+        return None
+    if raw not in OPT_IN_JS_RUNTIMES:
+        raise ValueError(f"{JS_RUNTIME_ENV} must be one of: {', '.join(OPT_IN_JS_RUNTIMES)}")
+    return raw
+
+
+def js_runtime_args(js_runtime: str | None) -> list[str]:
+    """yt-dlp options that let it use a runtime the user opted in to."""
+    return ["--js-runtimes", js_runtime] if js_runtime else []
+
+
+def youtube_support_notes(output: str) -> list[str]:
+    """Turn yt-dlp's notes about its JavaScript support into advice for the report.
+
+    Without a runtime, or without its solver scripts, yt-dlp still returns
+    something for YouTube, with formats missing. The run must say so.
+    """
+    advice = (
+        "so YouTube formats may be missing or the download may fail. "
+        "Run scripts/doctor.py with this URL for the fix."
+    )
+    if "No supported JavaScript runtime could be found" in output:
+        return [f"yt-dlp found no JavaScript runtime it may use, {advice}"]
+    if "Remote component" in output and "skipped" in output:
+        return [f"yt-dlp is installed without its challenge solver scripts (yt-dlp-ejs), {advice}"]
+    return []
 
 
 def live_source_problem(info: dict[str, object]) -> str | None:
@@ -409,6 +447,8 @@ def probe_url(
     url: str,
     media_dir: Path,
     sub_langs: str = SUBTITLE_LANGS,
+    *,
+    js_runtime: str | None = None,
 ) -> tuple[dict[str, object] | None, dict[str, object]]:
     """Fetch metadata and captions without downloading media.
 
@@ -424,6 +464,7 @@ def probe_url(
         # Never load yt-dlp.conf from the working directory or user config:
         # a planted config can add --exec hooks, cookies, or archives.
         "--ignore-config",
+        *js_runtime_args(js_runtime),
         "--skip-download",
         "--ignore-errors",
         "--no-playlist",
@@ -458,6 +499,9 @@ def probe_url(
     info = compact_info(info_path, fallback_url=url)
     if result.returncode != 0:
         info["yt_dlp_probe_warning"] = (result.stderr or result.stdout).strip()[-1200:]
+    notes = youtube_support_notes(f"{result.stdout}\n{result.stderr}")
+    if notes:
+        info["yt_dlp_notes"] = notes
     return caption_info, info
 
 
@@ -468,6 +512,7 @@ def download_media(
     audio_only: bool = False,
     download_section: str | None = None,
     max_duration: float | None = None,
+    js_runtime: str | None = None,
 ) -> tuple[Path, str | None]:
     """Download media only (captions come from probe_url).
 
@@ -489,6 +534,7 @@ def download_media(
     cmd = [
         "yt-dlp",
         "--ignore-config",
+        *js_runtime_args(js_runtime),
         "-N",
         "4",
         "--no-playlist",
@@ -1146,6 +1192,7 @@ def run_gemini(args, run_dir, start, end) -> int:
         if is_url(source) and not gemini.is_youtube_url(source):
             source, warning = download_media(
                 source, media_dir, max_duration=args.max_download_duration,
+                js_runtime=args.js_runtime,
             )
         result = gemini.analyze_video(
             source, args.question, model=args.gemini_model, start=start, end=end,
@@ -1432,6 +1479,16 @@ def main() -> int:
             "or $WATCH_VIDEO_MAX_DOWNLOAD_DURATION). A longer source needs a range or a raised limit."
         ),
     )
+    parser.add_argument(
+        "--js-runtime",
+        choices=OPT_IN_JS_RUNTIMES,
+        default=None,
+        help=(
+            "Let yt-dlp run YouTube's JavaScript in this runtime when Deno is not installed "
+            "(default: $WATCH_VIDEO_JS_RUNTIME, else Deno only). yt-dlp leaves these off by "
+            "default for security reasons, so choose one only when the user agrees."
+        ),
+    )
     parser.add_argument("--cleanup", action="store_true", help="Remove media/audio artifacts after report")
     parser.add_argument(
         "--cleanup-frames",
@@ -1476,6 +1533,8 @@ def main() -> int:
             else timed_process.parse_timeout(args.process_timeout, "--process-timeout")
         )
         timed_process.step_timeout()  # rejects a malformed environment value now
+        if args.js_runtime is None:
+            args.js_runtime = default_js_runtime()
         if args.max_download_duration is None:
             args.max_download_duration = default_max_download_seconds()
         else:
@@ -1551,10 +1610,14 @@ def run_source(args, run_dir, requested_start, requested_end, requested_duration
         download_section = None
     elif is_url(args.source):
         print("[watch-video] probing metadata and captions with yt-dlp", file=sys.stderr)
-        caption_info, source_info = probe_url(args.source, media_dir, args.sub_langs)
+        caption_info, source_info = probe_url(
+            args.source, media_dir, args.sub_langs, js_runtime=args.js_runtime,
+        )
         live_problem = live_source_problem(source_info)
         if live_problem:
             raise SystemExit(live_problem)
+        # Report-only advice; the structured source record stays as probed.
+        errors.extend(source_info.pop("yt_dlp_notes", []))
     else:
         print("[watch-video] using local source", file=sys.stderr)
         video_path, caption_info, source_info = resolve_local(args.source)
@@ -1602,7 +1665,7 @@ def run_source(args, run_dir, requested_start, requested_end, requested_duration
             try:
                 video_path, media_warning = download_media(
                     args.source, media_dir, audio_only=audio_only, download_section=download_section,
-                    max_duration=args.max_download_duration,
+                    max_duration=args.max_download_duration, js_runtime=args.js_runtime,
                 )
             except SystemExit as exc:
                 if not filter_segments(all_caption_segments, decision_start, decision_end):

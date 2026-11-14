@@ -303,6 +303,9 @@ visual frames.
   (default 4:00:00). A longer source is refused before any download: select a
   range, use `--detail transcript`, or raise it when the user wants the whole
   recording.
+- `--js-runtime node|quickjs|bun` lets yt-dlp run YouTube's player JavaScript
+  in a runtime it leaves off by default. Deno needs no flag. Pass it only when
+  doctor reports no usable runtime and the user agrees.
 - `--process-timeout SECONDS` limits each yt-dlp or FFmpeg step (default 1800).
   A step that passes it is stopped and reported. Narrow the range first; raise
   the limit only for a step that is known to be slow.
@@ -428,6 +431,11 @@ that limits the answer.
   doctor prints commands and never executes `sudo`.
 - Subtitle errors are isolated from media downloads. Usable captions can
   survive a failed media download; explain missing visual/audio evidence.
+- yt-dlp needs a JavaScript runtime for full YouTube support and enables only
+  Deno by itself. When a report warns that none is usable, run doctor with the
+  URL and without `--check`: its `js-runtime` line names the fix. Prefer
+  installing Deno. yt-dlp leaves Node, QuickJS, and Bun off for security
+  reasons, so ask the user before passing `--js-runtime`.
 - Every yt-dlp and FFmpeg step is time-limited, so a stalled download ends
   with a message instead of holding the run open. A stopped download is never
   used, and captions survive it. A stream that is still live, or only
