@@ -41,8 +41,9 @@ The helper takes the package name and `major`, `minor`, or `patch`, rewrites
 only that `plugin.json`, and prints the new version. `--dry-run` prints the
 version without changing the file.
 
-Commit the bump, run `make check`, and push it to `main`. The marketplace does
-not change until the release runs.
+Commit the bump on a branch, run `make check`, and merge its pull request once
+CI is green, as for any other change. The marketplace does not change until
+the release runs.
 
 ## Run a release
 
@@ -57,7 +58,7 @@ gh workflow run release-plugin.yml \
 ```
 
 The workflow releases the `main` commit it starts from, normally the one you
-just pushed. It does not change versions or commit to `main`, except for the
+just merged. It does not change versions or commit to `main`, except for the
 marketplace update at the end.
 
 Several plugins can be released at once. Each plugin has its own concurrency
@@ -123,7 +124,7 @@ After the run succeeds, confirm:
 - `validate` failed because release immutability is off, or because GitHub
   refused the token in `RELEASE_SETTINGS_TOKEN`: nothing was published. Follow
   the `fix:` line in the job log and dispatch again.
-- `publish` failed before the release existed: fix the cause, push, and
+- `publish` failed before the release existed: fix the cause on `main` and
   dispatch again.
 - `verify` or `marketplace` failed: use **Re-run failed jobs** on the
   workflow run. It does not republish the release. To finish only the
@@ -188,6 +189,14 @@ Immutability applies only to releases published after it is turned on.
    workflow pushes the marketplace commit with `GITHUB_TOKEN`, which can
    neither satisfy nor bypass those rules. CI is enforced inside the release
    workflow instead.
+
+   Changes still reach `main` through pull requests that are merged once CI
+   is green; see [Development](development.md#branches-and-pull-requests).
+   That is a working rule, which this ruleset does not enforce. To enforce
+   it, the `marketplace` job would have to push with the token of a GitHub
+   App that the ruleset names as a bypass actor, and the ruleset could then
+   require pull requests and the CI checks. The workflow does not do that
+   today.
 
 4. **Optional: a token that can read the immutability setting.** GitHub
    shows the setting only to a token with the repository's Administration

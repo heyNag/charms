@@ -54,7 +54,9 @@ Charms has no `.agents/plugins/marketplace.json`.
 ## Install only the skill
 
 Hosts without a plugin system can install a package's skill directory directly.
-These channels follow `main`, not releases.
+These channels follow `main`, not releases: an install or update brings
+whatever `main` holds at that moment. Changes reach `main` through pull
+requests that passed CI, but they have not been through a release.
 
 With [Skillshare](https://skillshare.runkids.cc):
 

@@ -62,6 +62,25 @@ Then run the complete check before committing:
 make check
 ```
 
+## Branches and pull requests
+
+Skill-only installs take whatever `main` holds, so `main` has to stay fit to
+use at every commit:
+
+1. Work on a short-lived branch, one change to a branch.
+2. Open a pull request. CI runs on pull requests and on `main`, not on a
+   branch by itself, so open one, as a draft if need be, to get a run.
+3. Merge when every CI job is green, then delete the branch.
+
+Dependabot's pull requests follow the same rule. Only the release workflow
+pushes to `main` directly, for the marketplace commit, which it validates
+first.
+
+This is a working rule, not one the repository enforces: the branch ruleset
+on `main` cannot require a pull request or a status check. See
+[Repository settings](releasing.md#repository-settings) for the reason and
+for what enforcing it would take.
+
 ## Python versions
 
 Each plugin states its oldest supported Python once, as `MIN_PYTHON` in
@@ -176,5 +195,7 @@ version in `.github/workflows/ci.yml`.
 - Package behavior tests cover the change.
 - Package and root documentation describe the resulting behavior.
 - A version bump, when needed, uses `scripts/bump-plugin-version.py`.
+- The change is on a branch, and CI is green on its pull request before the
+  merge.
 - `.claude-plugin/marketplace.json` is unchanged; only releases update it.
 - `make check` passes from a clean checkout with release tags fetched.
