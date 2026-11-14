@@ -52,11 +52,11 @@ local ASR/VLM for original audio and frames, or `--transcriber none` with provid
 captions. Hosted transcription requires approval. Other or unclear sources use local unless Gemini is requested;
 for uncertain privacy, use `--transcriber local` when configured, otherwise
 `--transcriber none` unless hosted ASR is approved.
-The CLI also defaults to no hosted transcription for local files and cached
-runs. Cloud use requires the user's consent for that source and provider;
-a configured API key is not consent. Fresh URL runs retain Groq as the CLI
-fallback, so agents must explicitly disable it for private or uncertain URLs.
-`--analyzer local` defaults an omitted transcriber to local rather than Groq;
+The CLI also defaults to no hosted transcription for every source, fresh URLs
+included. Cloud use requires the user's consent for that source and provider;
+a configured API key is not consent. Groq or OpenAI transcription runs only
+with an explicit `--transcriber groq` or `--transcriber openai`.
+`--analyzer local` defaults an omitted transcriber to local;
 an explicit `--transcriber none` is respected. Local model failures never
 select a hosted fallback. These clients use loopback endpoints only, with
 separate speech and vision-language models, and do not install or start a runtime.

@@ -46,8 +46,11 @@ from captions import (  # noqa: E402,F401
     filter_segments, parse_vtt, transcript_coverage_seconds, vtt_time_to_seconds,
 )
 from groq_transcribe import (  # noqa: E402
+    KEY_NAMES,
     default_model,
     extract_audio_clip,
+    has_api_key,
+    provider_label,
     transcribe_with_chunking,
 )
 import gemini  # noqa: E402
@@ -596,6 +599,28 @@ def reusable_transcript(prior: Path, start: float | None, end: float | None) -> 
         return {**raw, "segments": filter_segments(segments, start, end), "reused_from": str(prior)}
     except (OSError, ValueError, TypeError, KeyError):
         return None
+
+
+def transcription_options_hint() -> str:
+    """Name the opt-in transcribers once captions leave speech uncovered.
+
+    Hosted providers are named as ready only when their key is configured,
+    and always with the consent condition, so the hint cannot be read as
+    permission to upload.
+    """
+    ready = [provider for provider in KEY_NAMES if has_api_key(provider)]
+    local = "--transcriber local transcribes on this computer when the local speech model is set up"
+    if not ready:
+        return (
+            f"To add speech: {local}; --transcriber groq or openai needs an API key "
+            "and uploads the audio to that provider, which needs the user's consent for this source."
+        )
+    flags = " or ".join(f"--transcriber {provider}" for provider in ready)
+    names = " or ".join(provider_label(provider) for provider in ready)
+    return (
+        f"To add speech: {local}; {flags} is configured and uploads the audio to {names}, "
+        "so use it only with the user's consent for this source."
+    )
 
 
 def fill_transcript_gaps(fallback, captions, gaps, provider):
@@ -1207,9 +1232,10 @@ def main() -> int:
         choices=["local", "groq", "openai", "none"],
         default=None,
         help=(
-            "Transcription fallback when captions are missing or weak "
-            "(default: none for local files/cached runs; groq for fresh URLs). "
-            "Selecting groq/openai enables cloud audio upload; local always transcribes original audio on this computer."
+            "Transcription when captions are missing or weak. Default: none for every "
+            "source, so no audio leaves this computer unless you choose it. "
+            "groq/openai upload the audio to that provider; local always transcribes "
+            "original audio on this computer (and is the default with --analyzer local)."
         ),
     )
     parser.add_argument("--analyzer", choices=["none", "local"], default="none",
@@ -1303,8 +1329,9 @@ def main() -> int:
         parser.error("Local folders require --engine local and cannot use --from-run; select a video for a cached follow-up.")
 
     if args.transcriber is None:
-        args.transcriber = ("local" if args.analyzer == "local" else
-                            "groq" if is_url(args.source) and not args.from_run else "none")
+        # Hosted transcription is opt-in for every source. A key in the
+        # environment is not consent to upload a recording's audio.
+        args.transcriber = "local" if args.analyzer == "local" else "none"
 
     if args.engine == "gemini":
         local_options = {
@@ -1547,6 +1574,16 @@ def run_source(args, run_dir, requested_start, requested_end, requested_duration
     if cached is None and captions_insufficient and transcript_segments:
         next_step = "trying transcription fallback" if needs_transcription else "transcription fallback is disabled"
         errors.append(f"Native captions may be incomplete in the selected range; {next_step}.")
+    if cached is None and captions_insufficient and args.transcriber == "none" and probe.get("has_audio") is not False:
+        # Hosted transcription never runs unasked, so say what is missing and
+        # which explicit choices would add it.
+        if not transcript_segments:
+            errors.append(
+                "No captions cover the selected range and no transcriber was selected, so "
+                + ("speech comes only from the supplied transcript files, which are not checked against the audio."
+                   if supporting_transcripts["count"] else "this evidence has no speech.")
+            )
+        errors.append(transcription_options_hint())
     if needs_transcription:
         if video_path is not None:
             try:

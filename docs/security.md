@@ -82,14 +82,15 @@ requires approval. Every local file requires consent for the source and
 provider before its video or audio is uploaded. Existing authorization for
 that upload does not need repeated approval; a configured key or approval for
 another source does not authorize it. The CLI defaults to no hosted
-transcription for local files and cached runs, even when API keys are present.
-For sources with uncertain privacy, use `--transcriber local` when configured;
-otherwise pass `--transcriber none` unless hosted ASR is already authorized.
+transcription for every source, fresh URLs included, even when API keys are
+present. For sources with uncertain privacy, use `--transcriber local` when
+configured; select Groq or OpenAI only when hosted ASR is already authorized.
 
 The local engine downloads through `yt-dlp --ignore-config` and
-extracts evidence locally. When its configured Groq or OpenAI fallback is
-needed, audio is sent to the selected provider. `--transcriber none` disables
-those uploads. Audio chunks and multipart sizes are checked before sending;
+extracts evidence locally. Audio is sent to Groq or OpenAI only when that
+provider is selected with `--transcriber` and captions are insufficient. When
+speech is missing and nothing was selected, the report names the available
+flags instead of uploading. Audio chunks and multipart sizes are checked before sending;
 failed intervals remain explicit, even when native captions provide some
 evidence there. Transcription requests refuse redirects.
 

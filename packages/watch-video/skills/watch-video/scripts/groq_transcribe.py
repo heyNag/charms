@@ -192,6 +192,12 @@ def default_model(provider: str) -> str:
     raise ValueError("provider must be groq or openai")
 
 
+def has_api_key(provider: str) -> bool:
+    """Report whether a provider key is configured, without returning it."""
+    env_name = KEY_NAMES[provider]
+    return bool((os.environ.get(env_name) or "").strip() or read_stored_key(env_name))
+
+
 def _read_key(provider: str = "groq", api_key: str | None = None) -> str:
     env_name = "GROQ_API_KEY" if provider == "groq" else "OPENAI_API_KEY"
     key = api_key or os.environ.get(env_name, "") or (read_stored_key(env_name) or "")

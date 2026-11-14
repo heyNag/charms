@@ -92,7 +92,7 @@ retain their documented environment/storage options below. Never paste keys
 into agent chats, command arguments, logs, or source files. The user's
 credential policy takes precedence over optional storage helpers.
 
-- Groq is the local engine's default transcription fallback for fresh URLs:
+- Groq transcription is explicit with `--transcriber groq`:
   `GROQ_API_KEY`, model `whisper-large-v3` (`GROQ_MODEL` overrides it).
   Set `GROQ_MODEL=whisper-large-v3-turbo` to select the faster option.
 - OpenAI transcription is explicit with `--transcriber openai`:
@@ -104,10 +104,11 @@ Where permitted by your credential policy, `doctor.py --set-key groq` or
 `doctor.py --set-key openai` accepts a key on stdin. It stores only those
 transcription keys in `~/.config/watch-video/.env` with mode 600;
 `WATCH_VIDEO_CONFIG_DIR` relocates the file. Environment values take precedence.
-Local files and cached runs default to `--transcriber none`; an authorized
-cloud transcription requires an explicit `--transcriber groq` or `openai`.
-For private or uncertain URLs, use `--transcriber local` when configured;
-otherwise use `--transcriber none` without upload consent.
+Every source defaults to `--transcriber none`, including fresh URLs: a
+configured key never uploads audio by itself. An authorized cloud
+transcription requires an explicit `--transcriber groq` or `openai`. When
+captions leave speech uncovered, the report says so and names those flags.
+For private or uncertain URLs, use `--transcriber local` when configured.
 Use `--transcriber local` to transcribe original audio on a configured local
 server, and `--analyzer local` to analyze frames together with that ASR and any
 matching transcript. Selecting `--analyzer local` also selects local ASR when
@@ -190,9 +191,9 @@ python3 scripts/watch.py "<same-source>" --from-run "<prior-run-dir>" \
 ```
 
 Metadata and captions are probed before media. Caption sufficiency is checked
-inside the requested range. Transcript-only requests with usable captions and
-no pinned frames skip media; otherwise transcription-only requests download
-audio. Finite URL ranges download the selected section. Local files also pick
+inside the requested range. Transcript-only requests with no pinned frames
+skip media unless a transcriber was selected and captions are insufficient;
+then they download audio. Finite URL ranges download the selected section. Local files also pick
 up VTT/SRT sidecars. Audio extraction runs when transcription is needed.
 Explicit `--transcriber local` requests original-audio ASR even when captions
 are sufficient; a matching complete local ASR result can still be reused.

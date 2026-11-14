@@ -36,6 +36,8 @@ class WatchReliabilityTests(unittest.TestCase):
         def audio(_source, target, **_kwargs):
             target.write_bytes(b"audio fixture")
         with contextlib.ExitStack() as stack:
+            # Hosted transcription is opt-in and needs its key before any download.
+            stack.enter_context(mock.patch.dict(os.environ, {"GROQ_API_KEY": "test-placeholder-groq", "WATCH_VIDEO_CONFIG_DIR": str(root / "unused-config")}))
             source_info = {} if source_duration is None else {"duration": source_duration}
             stack.enter_context(mock.patch.object(watch, "probe_url", return_value=({"path": str(caption)}, source_info)))
             download = stack.enter_context(mock.patch.object(watch, "download_media", side_effect=SystemExit("unavailable") if download_error else None, return_value=(media, None)))
@@ -51,11 +53,22 @@ class WatchReliabilityTests(unittest.TestCase):
 
     def test_missing_focus_captions_download_audio_before_fallback(self):
         with tempfile.TemporaryDirectory() as temporary:
-            _, transcript, download, _, transcribe, _ = self.run_url(Path(temporary), 60, "--start", "80", "--end", "90")
+            _, transcript, download, _, transcribe, _ = self.run_url(Path(temporary), 60, "--start", "80", "--end", "90", "--transcriber", "groq")
             self.assertTrue(download.call_args.kwargs["audio_only"])
             self.assertEqual(download.call_args.kwargs["download_section"], "*00:01:20-00:01:30")
             self.assertEqual(transcribe.call_args.kwargs["offset_seconds"], 80)
             self.assertEqual(transcript["segments"][0]["text"], "fallback")
+
+    def test_weak_focus_captions_do_not_download_audio_without_a_transcriber(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            _, transcript, download, extract, transcribe, run = self.run_url(Path(temporary), 60, "--start", "80", "--end", "90")
+            download.assert_not_called()
+            extract.assert_not_called()
+            transcribe.assert_not_called()
+            self.assertEqual(transcript["source"], "none")
+            metadata = json.loads((run / "metadata.json").read_text())
+            self.assertEqual(metadata["transcriber"], "none")
+            self.assertTrue(any("--transcriber groq is configured" in error for error in metadata["errors"]))
 
     def test_fully_captioned_focus_does_not_download_or_transcribe(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -78,7 +91,7 @@ class WatchReliabilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fallback = [{"start": 0, "end": 60, "text": "complete speech"}]
             _, transcript, download, extract, transcribe, _ = self.run_url(
-                Path(temporary), 1, "--start", "0", "--end", "60",
+                Path(temporary), 1, "--start", "0", "--end", "60", "--transcriber", "groq",
                 source_duration=None, media_duration=60, fallback=fallback,
             )
             download.assert_called_once()
@@ -106,7 +119,7 @@ class WatchReliabilityTests(unittest.TestCase):
     def test_no_speech_is_a_completed_transcription(self):
         with tempfile.TemporaryDirectory() as temporary:
             fallback = TranscriptionSegments([], no_speech=True)
-            _, transcript, _, _, _, _ = self.run_url(Path(temporary), 60, "--start", "80", "--end", "90", fallback=fallback)
+            _, transcript, _, _, _, _ = self.run_url(Path(temporary), 60, "--start", "80", "--end", "90", "--transcriber", "groq", fallback=fallback)
             self.assertTrue(transcript["no_speech"])
             self.assertEqual(transcript["segments"], [])
 

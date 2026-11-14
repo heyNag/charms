@@ -1,4 +1,4 @@
-"""Local and cached media require an explicit cloud transcription choice."""
+"""Every source requires an explicit cloud transcription choice."""
 
 from __future__ import annotations
 
@@ -151,17 +151,69 @@ class LocalPrivacyTests(unittest.TestCase):
         self.assertEqual(metadata["transcriber"], "none")
         self.assert_no_cloud_or_audio()
 
-    def test_fresh_url_retains_groq_fallback_default(self):
+    def test_fresh_url_with_keys_does_not_download_or_upload_audio_by_default(self):
         metadata, transcript = self.run_watch(URL, "--detail", "transcript")
         self.probe.assert_called_once()
+        # Captions are missing, but nothing was chosen: no audio download,
+        # no extraction and no provider request.
+        self.download.assert_not_called()
+        self.assertEqual(metadata["transcriber"], "none")
+        self.assertEqual(transcript["source"], "none")
+        self.assert_no_cloud_or_audio()
+
+    def test_fresh_url_frames_download_video_without_uploading_audio(self):
+        metadata, transcript = self.run_watch(URL)
         self.download.assert_called_once()
-        self.assertTrue(self.download.call_args.kwargs["audio_only"])
-        self.audio.assert_called_once()
-        self.transcribe.assert_called_once()
-        self.assertEqual(self.transcribe.call_args.kwargs["provider"], "groq")
-        self.assertEqual(metadata["transcriber"], "groq")
-        self.assertEqual(transcript["source"], "groq_whisper")
+        self.assertFalse(self.download.call_args.kwargs["audio_only"])
+        self.frames.assert_called_once()
+        self.assertEqual(metadata["transcriber"], "none")
+        self.assertEqual(transcript["source"], "none")
+        self.assert_no_cloud_or_audio()
+
+    def test_explicit_hosted_transcriber_on_a_fresh_url_is_preserved(self):
+        for provider in ("groq", "openai"):
+            with self.subTest(provider=provider):
+                self.download.reset_mock()
+                self.audio.reset_mock()
+                self.transcribe.reset_mock()
+                metadata, transcript = self.run_watch(
+                    URL, "--detail", "transcript", "--transcriber", provider,
+                )
+                self.download.assert_called_once()
+                self.assertTrue(self.download.call_args.kwargs["audio_only"])
+                self.audio.assert_called_once()
+                self.transcribe.assert_called_once()
+                self.assertEqual(self.transcribe.call_args.kwargs["provider"], provider)
+                self.assertEqual(metadata["transcriber"], provider)
+                self.assertEqual(transcript["source"], f"{provider}_whisper")
         self.gemini.assert_not_called()
+
+    def test_missing_speech_names_the_opt_in_flags_and_the_consent_condition(self):
+        metadata, _ = self.run_watch(URL, "--detail", "transcript")
+        warnings = " ".join(metadata["errors"])
+        self.assertIn("no transcriber was selected", warnings)
+        self.assertIn("--transcriber local", warnings)
+        # Both keys are configured in this fixture, so both flags are named,
+        # each time with the upload and the consent it needs.
+        self.assertIn("--transcriber groq or --transcriber openai is configured", warnings)
+        self.assertIn("uploads the audio to Groq or OpenAI", warnings)
+        self.assertIn("only with the user's consent for this source", warnings)
+        self.assertNotIn("test-placeholder", warnings)
+
+    def test_missing_speech_hint_without_keys_does_not_call_a_provider_ready(self):
+        with mock.patch.dict(os.environ, {"GROQ_API_KEY": "", "OPENAI_API_KEY": ""}):
+            metadata, _ = self.run_watch(self.media)
+        warnings = " ".join(metadata["errors"])
+        self.assertIn("--transcriber groq or openai needs an API key", warnings)
+        self.assertNotIn("is configured", warnings)
+        self.assert_no_cloud_or_audio()
+
+    def test_silent_media_does_not_suggest_transcription(self):
+        with mock.patch.object(watch, "ffprobe_metadata", return_value={
+            "duration_seconds": 30.0, "width": 1280, "height": 720, "has_audio": False,
+        }):
+            metadata, _ = self.run_watch(self.media)
+        self.assertFalse(any("--transcriber" in error for error in metadata["errors"]))
 
 
 if __name__ == "__main__":

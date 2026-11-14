@@ -88,7 +88,7 @@ supplied transcript answers do not need a video-model route choice.
 | YouTube visual/model analysis, both routes configured, no route chosen | Ask Gemini or local once for the video/batch, then use the selected route. Recommend local for exact UI text, code, debugging, layouts, or private recordings. |
 | Known-public YouTube general analysis with only one route configured | Use that configured route; Gemini uses `--engine gemini --question "<user's task>"`, local models use `--engine local --transcriber local --analyzer local`. |
 | Exact visual verification with no video-model choice needed | `--engine local`, usually PNG at 1024 pixels, with focused ranges or pinned timestamps. |
-| Other sources or uncertain privacy | Local extraction or configured local models. Pass `--transcriber none` if local ASR is unavailable and hosted ASR is not authorized. Use Gemini when the user chooses and authorizes it. |
+| Other sources or uncertain privacy | Local extraction or configured local models. Without a transcriber flag no audio is uploaded. Use hosted ASR or Gemini only when the user chooses and authorizes it. |
 
 For every local file, keep both video and audio out of Gemini, Groq, OpenAI,
 and other external providers unless the user has authorized that provider and
@@ -182,6 +182,7 @@ is sampled evidence and does not mean every video frame was inspected.
 ```sh
 python3 scripts/doctor.py "<source>" --engine local --check
 python3 scripts/watch.py "<source>" --engine local --detail transcript
+python3 scripts/watch.py "<public-url>" --engine local --detail transcript --transcriber groq  # uploads audio: consent first
 python3 scripts/watch.py ./meeting.mp4 --engine local --detail transcript --transcriber none
 python3 scripts/watch.py ./recordings --engine local --transcriber none
 python3 scripts/watch.py ./meeting.mp4 --engine local --transcriber local --analyzer local \
@@ -219,8 +220,13 @@ Doctor checks dependencies, not source accessibility or cache validity. Pass
 these validate the loopback URL without contacting the server or loading models.
 
 The script probes URL captions first and judges their coverage inside the
-requested range. Transcript-only fallback downloads audio; finite local-engine
-URL ranges download only that section. Local files discover VTT/SRT sidecars.
+requested range. Hosted transcription is opt-in for every source: without
+`--transcriber groq` or `openai`, no audio is uploaded, whatever keys exist.
+When captions leave speech uncovered and no transcriber was chosen, the report
+warns and names the flags that would add it. Hosted ASR needs the user's
+consent for that source, so ask before rerunning with one of them. A chosen
+transcriber downloads audio for a transcript-only run; finite local-engine URL
+ranges download only that section. Local files discover VTT/SRT sidecars.
 Audio is extracted when transcription is needed. Explicit `--transcriber local`
 requests fresh original-audio ASR even when captions are available, unless a
 matching complete local ASR result is reused.
@@ -274,10 +280,9 @@ visual frames.
 
 - `--mode general|tutorial|ui-bug|notes` selects a report scaffold.
 - `--transcriber local|groq|openai|none` selects original-audio local ASR or hosted
-  fallback. Without a local analyzer, the CLI defaults
-  to none for local files and cached runs, and Groq for fresh URLs. Pass none
-  for private URLs unless hosted ASR is authorized. Select Groq or OpenAI for
-  a local file only after the user's consent to that source/provider upload.
+  fallback. Without a local analyzer, the CLI defaults to none for every
+  source, including fresh URLs. Select Groq or OpenAI only after the user's
+  consent to that source/provider upload; a configured key is not consent.
 - `--analyzer local` analyzes extracted frames and transcript evidence through a
   local vision-language model; it defaults an omitted transcriber to local.
   An explicit `--transcriber none` remains respected. The default analyzer
@@ -304,9 +309,10 @@ reports, or repository files. Follow the user's secret-manager and host
 credential policy. Prefer supplying credentials to the process environment.
 
 A transcription key is needed only when native captions are insufficient,
-speech matters, and hosted ASR is appropriate under the routing rules. If none
-is available, offer setup through the user's approved credential workflow for
-Groq or OpenAI, or skip with `--transcriber none`.
+speech matters, and hosted ASR is appropriate under the routing rules. The
+CLI never selects a hosted transcriber itself. If no key is available, offer
+setup through the user's approved credential workflow for Groq or OpenAI, or
+continue without one.
 Do not repeatedly ask after the user declines for this video.
 
 - Groq: `GROQ_API_KEY`; default model `whisper-large-v3`, overridden by
@@ -432,7 +438,8 @@ Local downloads use `yt-dlp --ignore-config`. Groq sends fallback audio to
 `api.groq.com`; OpenAI sends it to `api.openai.com`; both refuse redirects.
 Gemini requests use `generativelanguage.googleapis.com`, with validated upload
 URLs and refused redirects. The local engine's name refers to evidence
-extraction: enabled hosted transcription still sends audio off the machine.
+extraction: an explicitly selected hosted transcriber still sends audio off
+the machine.
 `--transcriber local` and `--analyzer local` use only the configured loopback
 endpoint, refuse redirects, and ignore proxy environment variables. They do
 not install models, start a server, or choose a cloud fallback. The separate
