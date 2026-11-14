@@ -20,6 +20,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: E402
+import plugin_version  # noqa: E402
 import prune_runs  # noqa: E402
 from groq_transcribe import (  # noqa: E402
     KEY_NAMES,
@@ -578,6 +579,7 @@ def collect_status(
     )
     return {
         "ok": required_ok,
+        "plugin_version": plugin_version.VERSION,
         "engine": engine,
         "transcriber": transcriber,
         "analyzer": analyzer,
@@ -594,7 +596,7 @@ def collect_status(
 
 def human_report(status: dict[str, object]) -> str:
     checks = status.get("checks") or []
-    lines = ["Watch Video Doctor", ""]
+    lines = [f"Watch Video Doctor ({plugin_version.VERSION_LINE})", ""]
     if status.get("scope"):
         lines.extend([f"Checking: {status['scope']}", ""])
     for check in checks:
@@ -746,6 +748,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run Watch Video preflight checks, store a Whisper API key, or prune old runs."
     )
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument(
         "source", nargs="?",
         help="Video URL or local path; omit both source and --from-run to check the full local toolkit",

@@ -11,6 +11,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
+import plugin_version
 from local_config import get_setting, resolve_api_key
 
 
@@ -110,7 +111,7 @@ class LocalClient:
         if payload is not None:
             body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
             content_type = "application/json"
-        headers = {"User-Agent": "charms-watch-video/0.1", "Accept": "application/json"}
+        headers = {"User-Agent": plugin_version.USER_AGENT, "Accept": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
         if content_type:

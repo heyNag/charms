@@ -85,6 +85,9 @@ python3 skills/watch-video/scripts/doctor.py ./screen-recording.mov --engine loc
 ```
 
 Doctor defaults to the local engine; `--json` returns a structured report.
+Every script answers `--version` with the installed plugin version, doctor
+shows it in its first line, and each run saves it in `metadata.json` as
+`plugin_version`.
 Omitting both the source and `--from-run` checks the full local toolkit, even
 with `--engine gemini`. For cached local runs, pass the same `--from-run` to
 doctor to skip the downloader check. Doctor checks dependencies, not source

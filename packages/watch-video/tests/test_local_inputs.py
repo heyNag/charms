@@ -204,6 +204,7 @@ class LocalInputTests(unittest.TestCase):
         )
         self.assertEqual(timed["text"], srt.read_text())
         metadata = self.read_json(run / "metadata.json")
+        self.assertEqual(metadata["plugin_version"], watch.plugin_version.VERSION)
         self.assertEqual(metadata["supporting_transcripts"]["count"], 2)
         self.assertEqual(metadata["transcriber"], "none")
         self.audio.assert_not_called()
@@ -315,6 +316,7 @@ class LocalInputTests(unittest.TestCase):
 
         self.assertEqual(code, 0)
         self.assertEqual(batch["engine"], "local")
+        self.assertEqual(batch["plugin_version"], watch.plugin_version.VERSION)
         self.assertEqual([entry["source"] for entry in batch["videos"]], [str(first), str(second)])
         self.assertEqual(self.probe.call_count, 2)
         actual_texts = []

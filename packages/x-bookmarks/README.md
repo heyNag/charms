@@ -36,7 +36,8 @@ python3 skills/x-bookmarks/scripts/x_api_auth.py --status
 ```
 
 The Python helpers need Python 3.9 or newer. They check the version first and
-stop with one line on an older `python3`.
+stop with one line on an older `python3`. Both answer `--version` with the
+installed plugin version.
 
 The API fetch helper can instead use an existing OAuth user access token from
 `X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN`. Do not print either variable.

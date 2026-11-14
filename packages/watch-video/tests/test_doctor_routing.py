@@ -88,6 +88,14 @@ class DoctorRoutingTests(unittest.TestCase):
                     self.assertEqual((code, output, errors), (0, "", ""))
         self.subprocess_run.assert_not_called()
 
+    def test_reports_name_the_plugin_version(self):
+        version = doctor.plugin_version.VERSION
+        with mock.patch.object(doctor.shutil, "which", return_value=None):
+            _, output, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini", "--json")
+            self.assertEqual(json.loads(output)["plugin_version"], version)
+            _, output, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini")
+        self.assertEqual(output.splitlines()[0], f"Watch Video Doctor (watch-video {version})")
+
     def test_local_file_ignores_missing_downloader_but_requires_media_tools(self):
         installed = {"ffmpeg", "ffprobe"}
         with mock.patch.object(

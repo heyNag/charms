@@ -178,6 +178,8 @@ class WatchReliabilityTests(unittest.TestCase):
             run = next(root.iterdir())
             record = json.loads((run / "analysis.json").read_text())
             self.assertEqual(record["engine"], "gemini")
+            saved = json.loads((run / "metadata.json").read_text())
+            self.assertEqual(saved["plugin_version"], watch.plugin_version.VERSION)
             self.assertIn("Gemini's observations", (run / "report.md").read_text())
 
     def test_missing_gemini_key_fails_without_downloading(self):

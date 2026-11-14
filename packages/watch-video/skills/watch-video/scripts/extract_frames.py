@@ -28,6 +28,7 @@ from pathlib import Path
 
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
+import plugin_version
 import timed_process
 
 
@@ -1311,6 +1312,7 @@ def extract_at_timestamps(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Extract timestamped frames with ffmpeg.")
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument("source", help="Video path or ffmpeg-readable source")
     parser.add_argument("out_dir", help="Directory for extracted frames")
     parser.add_argument("--start", help="Start time as SS, MM:SS, or HH:MM:SS")

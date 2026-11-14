@@ -19,6 +19,7 @@ from pathlib import Path
 
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
+import plugin_version
 from local_api import LocalAPIError, LocalClient
 from local_config import create_config_template
 from local_preflight import preflight, print_preflight
@@ -197,6 +198,7 @@ def setup(*, configure=False, wait_seconds=0, model_dir=None, base_url=None,
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--preflight", action="store_true", help="Read-only hardware and installation guidance; works before oMLX is running")
     modes.add_argument("--init-config", action="store_true", help="Create a private local.env template with a blank key; never overwrite an existing file")

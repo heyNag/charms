@@ -24,6 +24,7 @@ import webbrowser
 
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
+import plugin_version
 
 AUTHORIZE_URL = "https://x.com/i/oauth2/authorize"
 TOKEN_URL = "https://api.x.com/2/oauth2/token"
@@ -448,6 +449,7 @@ def requested_scopes(include_write_scope: bool, extra_scopes: list[str]) -> list
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Set up local X API v2 OAuth for x-bookmarks.")
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument("--client-id", help="X OAuth 2.0 client ID.")
     parser.add_argument("--client-secret", help="Optional X OAuth 2.0 client secret for confidential clients.")
     parser.add_argument(

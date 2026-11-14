@@ -97,8 +97,8 @@ packages/<name>/tests/test_basic.py
 ```
 
 A plugin with Python scripts also carries its own
-`skills/<name>/scripts/python_floor.py`; copy one from an existing plugin and
-change `PLUGIN`.
+`skills/<name>/scripts/python_floor.py` and `plugin_version.py`; copy them
+from an existing plugin and change `PLUGIN` in each.
 
 Set the manifest version to `1.0.0` and keep its `$schema` fixed to the
 supported v1 identifier. The skill description must state its activation
@@ -124,6 +124,13 @@ python3 scripts/bump-plugin-version.py watch-video minor
 
 The second argument is `major`, `minor`, or `patch`. Add `--dry-run` to print
 the next version without changing `plugin.json`.
+
+`plugin.json` is the only place a version is written. The scripts read it
+through `skills/<name>/scripts/plugin_version.py`, which supplies what
+`--version` prints, the `User-Agent` on requests and, for watch-video, the
+doctor header and the `plugin_version` saved in a run's `metadata.json`. A
+copy of a skill without its plugin folder has no manifest and reports
+`unknown`.
 
 Commits on `main` do not reach marketplace installs until a release. A version
 may never be reused or go below a released one, and validation fails if a

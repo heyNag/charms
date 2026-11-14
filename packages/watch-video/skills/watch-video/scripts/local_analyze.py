@@ -16,6 +16,7 @@ from pathlib import Path
 
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
+import plugin_version
 from local_api import LocalClient
 from local_config import LocalConfigError, get_setting, resolve_api_key
 from local_observations import (
@@ -717,6 +718,7 @@ def analyze_local(run_dir: Path | str, *, model: str | None = None,
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument("run_dir", type=Path)
     parser.add_argument("--model")
     parser.add_argument("--base-url")

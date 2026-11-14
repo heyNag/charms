@@ -20,6 +20,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
+import plugin_version
 import timed_process
 
 
@@ -408,7 +409,7 @@ def _post_transcription(
                 # A custom User-Agent is load-bearing: Groq sits behind
                 # Cloudflare, and the default Python-urllib UA can trip WAF
                 # rules with a 403 before auth even runs.
-                "User-Agent": "charms-watch-video/0.1",
+                "User-Agent": plugin_version.USER_AGENT,
             },
         )
         try:
@@ -805,6 +806,7 @@ def segments_from_response(data: object, *, offset_seconds: float = 0.0) -> Tran
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Transcribe audio with Groq or OpenAI Whisper.")
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument("audio_file", help="Audio file to transcribe")
     parser.add_argument("--out", help="Path for the raw JSON response")
     parser.add_argument("--provider", choices=["groq", "openai"], default="groq")

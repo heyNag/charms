@@ -17,6 +17,7 @@ import urllib.request
 
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
+import plugin_version
 from x_api_auth import AuthError, get_valid_token, open_request
 
 BASE_URL = "https://api.x.com/2"
@@ -141,7 +142,7 @@ def api_get(path: str, token: str, params: dict[str, str] | None = None) -> tupl
         url,
         headers={
             "Authorization": f"Bearer {token}",
-            "User-Agent": "charms-x-bookmarks/1.0",
+            "User-Agent": plugin_version.USER_AGENT,
         },
     )
     try:
@@ -598,6 +599,7 @@ def since_last(
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fetch and search X bookmarks through X API v2.")
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument("-n", "--count", type=int, default=20, help="Number of items to fetch.")
     parser.add_argument("--all", action="store_true", help="Fetch all available pages.")
     parser.add_argument("--max-pages", type=int, help="Safety cap for paginated runs.")
