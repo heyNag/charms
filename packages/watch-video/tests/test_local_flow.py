@@ -21,6 +21,7 @@ import network_guard  # noqa: E402
 import unittest_backports  # noqa: E402, F401
 import watch  # noqa: E402
 from groq_transcribe import TranscriptionSegments  # noqa: E402
+from run_contents import unexpected_entries  # noqa: E402
 
 
 URL = "https://www.youtube.com/watch?v=local-fixture"
@@ -102,7 +103,9 @@ class LocalFlowTests(unittest.TestCase):
         with mock.patch.object(sys, "argv", ["watch.py", str(source), "--out-dir", str(output), *flags]), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             code = watch.main()
-        return code, next(output.iterdir())
+        run = next(output.iterdir())
+        self.assertEqual(unexpected_entries(run), [])
+        return code, run
 
     def read(self, run, name):
         return json.loads((run / name).read_text())

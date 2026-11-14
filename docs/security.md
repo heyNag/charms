@@ -18,7 +18,8 @@ Charms validation enforces:
 - no package symlinks in release artifacts;
 - an allowlisted deterministic archive;
 - marketplace entries pinned to an existing release tag and commit;
-- scans for tracked secrets and runtime artifacts.
+- scans for secrets and runtime artifacts in every file Git can see, with
+  `.gitignore` held to the same list of artifacts.
 
 ## Release integrity
 

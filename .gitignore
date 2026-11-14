@@ -1,18 +1,22 @@
-.DS_Store
+# scripts/validate_plugins.py refuses every file and folder named above the
+# last section, wherever Git can see it, and requires its line here. Add a name
+# to the validator's list and to this file together.
+
+# Credentials and local settings.
 .env
 .env.local
 local.env
+auth.json
+tokens.json
+
+# Agent and plugin state.
+.codex/
 .watch-video/
 .x-bookmarks/
-
-# Local Codex auth/session state must never be committed.
-.codex/
-auth.json
 rollout-*.jsonl
-tokens.json
 state.json
 
-# Local bookmark exports and indexes must be regenerated or stored outside repo.
+# Bookmark exports and indexes.
 bookmarks.json
 bookmarks.jsonl
 bookmarks.ndjson
@@ -21,48 +25,69 @@ search-index.json
 *.sqlite3
 *.db
 
-# Watch Video run artifacts when custom output dirs are placed in the repo.
-**/audio.mp3
-**/metadata.json
-**/transcript.json
-**/transcript.md
-**/groq_transcript.raw.json
-**/report.md
-**/frames/
-**/frame_*.jpg
-**/frame_*.jpeg
-**/frame_*.png
-**/frame_*.webp
+# What a watch-video run creates, for a run directory placed inside the
+# repository.
+analysis.json
+batch.json
+evidence.json
+groq_transcript.raw.json
+local_analysis.json
+local_analysis.md
+local_analysis.tmp
+local_transcript.raw.json
+metadata.json
+native_captions.json
+openai_transcript.raw.json
+report.md
+supporting_transcripts.json
+transcript.json
+transcript.md
+audio_chunks/
+frames/
+local_analysis/
+media/
+videos/
+cue_*.jpeg
+cue_*.jpg
+cue_*.png
+cue_*.webp
+frame_*.jpeg
+frame_*.jpg
+frame_*.png
+frame_*.webp
 
-# Local media scratch files.
-*.mp3
-*.wav
-*.m4a
+# Media.
 *.aac
-*.mp4
-*.mov
-*.mkv
-*.webm
 *.avi
 *.flv
+*.m4a
+*.mkv
+*.mov
+*.mp3
+*.mp4
+*.wav
+*.webm
 *.wmv
 
+# Caches, environments and package output.
 __pycache__/
-*.py[cod]
+.mypy_cache/
 .pytest_cache/
 .ruff_cache/
-.mypy_cache/
 .venv/
 node_modules/
 dist/
 .dist/
-generated/
+
+# Ignored as well, though the validator does not look for these. A release
+# archive is a build output that can be made again.
+.DS_Store
+*.py[cod]
+*.egg-info/
+*.zip
 build/
 coverage/
+generated/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-*.egg-info/
-
-# Local release archives are reproducible build outputs.
-*.zip

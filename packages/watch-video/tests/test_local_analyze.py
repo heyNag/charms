@@ -21,6 +21,7 @@ import local_api  # noqa: E402
 import network_guard  # noqa: E402
 import unittest_backports  # noqa: E402, F401
 import watch  # noqa: E402
+from run_contents import unexpected_entries  # noqa: E402
 
 
 def setUpModule():
@@ -359,6 +360,7 @@ class LocalAnalysisTests(unittest.TestCase):
             code = watch.main()
         self.assertEqual(code, 0)
         run = next(output.iterdir())
+        self.assertEqual(unexpected_entries(run), [])
         analysis = json.loads((run / "local_analysis.json").read_text())
         self.assertEqual(analysis["status"], "complete")
         self.assertFalse(analysis["coverage"]["original_audio_asr"])

@@ -25,6 +25,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(TESTS_DIR))
 
 import network_guard  # noqa: E402
+from run_contents import unexpected_entries  # noqa: E402
 from test_frame_engines import (  # noqa: E402
     build_cut_clip,
     build_static_clip,
@@ -177,6 +178,7 @@ class OfflinePipelineTests(unittest.TestCase):
     def _single_run_dir(self, out_dir: Path) -> Path:
         runs = [entry for entry in out_dir.iterdir() if entry.is_dir()]
         self.assertEqual(len(runs), 1)
+        self.assertEqual(unexpected_entries(runs[0]), [])
         return runs[0]
 
     def test_full_run_produces_frames_captions_and_report(self) -> None:

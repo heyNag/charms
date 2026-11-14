@@ -17,6 +17,7 @@ sys.path.insert(0, str(TESTS))
 import network_guard  # noqa: E402
 import watch  # noqa: E402
 from groq_transcribe import TranscriptionSegments  # noqa: E402
+from run_contents import unexpected_entries  # noqa: E402
 
 
 def setUpModule():
@@ -49,6 +50,7 @@ class WatchReliabilityTests(unittest.TestCase):
             stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
             code = watch.main()
         run = next((root / "runs").iterdir())
+        self.assertEqual(unexpected_entries(run), [])
         return code, json.loads((run / "transcript.json").read_text()), download, extract, transcribe, run
 
     def test_missing_focus_captions_download_audio_before_fallback(self):
@@ -143,6 +145,7 @@ class WatchReliabilityTests(unittest.TestCase):
             extract.assert_not_called()
             transcribe.assert_not_called()
             run = next((root / "runs").iterdir())
+            self.assertEqual(unexpected_entries(run), [])
             self.assertEqual(json.loads((run / "transcript.json").read_text())["segments"][0]["text"], "saved")
             self.assertIsNone(watch.reusable_transcript(prior, 90, 110))
 
@@ -176,6 +179,7 @@ class WatchReliabilityTests(unittest.TestCase):
             download.assert_not_called()
             self.assertEqual(analyze.call_args.args[1], "Find the slide")
             run = next(root.iterdir())
+            self.assertEqual(unexpected_entries(run), [])
             record = json.loads((run / "analysis.json").read_text())
             self.assertEqual(record["engine"], "gemini")
             saved = json.loads((run / "metadata.json").read_text())
@@ -203,6 +207,7 @@ class WatchReliabilityTests(unittest.TestCase):
                 self.assertEqual(analyze.call_args.kwargs["max_output_tokens"], tokens)
                 self.assertEqual(analyze.call_args.kwargs["upload_timeout"], upload)
                 run = next(Path(temporary).iterdir())
+                self.assertEqual(unexpected_entries(run), [])
                 self.assertEqual(json.loads((run / "analysis.json").read_text())["max_output_tokens"], tokens)
 
     def test_gemini_limits_must_be_positive(self):
@@ -226,6 +231,7 @@ class WatchReliabilityTests(unittest.TestCase):
             code, _ = self.gemini_run(Path(temporary), side_effect=error)
             self.assertEqual(code, 1)
             run = next(Path(temporary).iterdir())
+            self.assertEqual(unexpected_entries(run), [])
             analysis = json.loads((run / "analysis.json").read_text())
             self.assertIsNone(analysis["result"])
             self.assertEqual(analysis["error"]["category"], "incomplete")

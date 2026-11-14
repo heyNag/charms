@@ -62,6 +62,13 @@ Then run the complete check before committing:
 make check
 ```
 
+A file that a plugin writes while it runs must never be committed. The list of
+such files is in `scripts/validate_plugins.py`, and `.gitignore` carries a
+line for each entry; validation fails when a line is missing. When a
+watch-video run starts to create a new file or folder, name it in
+`RUN_FILES` or `RUN_FOLDERS` in `prune_runs.py`, in the validator's list, and
+in `.gitignore`. `make check` fails until all three have it.
+
 ## Branches and pull requests
 
 Skill-only installs take whatever `main` holds, so `main` has to stay fit to

@@ -10,6 +10,7 @@ validate only the marketplace manifest.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -68,6 +69,12 @@ DISALLOWED_PACKAGE_SURFACES = (".claude-plugin", "commands", "tool.json")
 MARKETPLACE_KEYS = {"name", "owner", "metadata", "plugins"}
 MARKETPLACE_ENTRY_KEYS = {"name", "description", "version", "source"}
 
+# What must stay out of commits and out of released packages: what the plugins
+# write while they run, credentials, caches and media. This is the one list.
+# The artifact scan refuses what it names, and the repository check requires
+# .gitignore to hold the line that ignore_rules() gives for each entry, so the
+# two cannot drift apart. A test holds the list against the watch-video
+# plugin's own record of what a run creates.
 FORBIDDEN_DIRECTORY_NAMES = {
     ".codex",
     ".dist",
@@ -78,23 +85,37 @@ FORBIDDEN_DIRECTORY_NAMES = {
     ".watch-video",
     ".x-bookmarks",
     "__pycache__",
+    "audio_chunks",
     "dist",
     "frames",
+    "local_analysis",
+    "media",
     "node_modules",
+    "videos",
 }
 FORBIDDEN_FILE_NAMES = {
     ".env",
     ".env.local",
     "local.env",
+    "analysis.json",
     "auth.json",
+    "batch.json",
     "bookmarks.json",
     "bookmarks.jsonl",
     "bookmarks.ndjson",
+    "evidence.json",
     "groq_transcript.raw.json",
+    "local_analysis.json",
+    "local_analysis.md",
+    "local_analysis.tmp",
+    "local_transcript.raw.json",
     "metadata.json",
+    "native_captions.json",
+    "openai_transcript.raw.json",
     "report.md",
     "search-index.json",
     "state.json",
+    "supporting_transcripts.json",
     "tokens.json",
     "transcript.json",
     "transcript.md",
@@ -115,14 +136,26 @@ FORBIDDEN_SUFFIXES = {
     ".webm",
     ".wmv",
 }
-FRAME_FILE_RE = re.compile(r"^frame_.*\.(?:jpe?g|png|webp)$", re.IGNORECASE)
-ROLLOUT_FILE_RE = re.compile(r"^rollout-.*\.jsonl$", re.IGNORECASE)
+# Shell patterns for a whole file name, in lower case. A name is lowered
+# before it is compared, so FRAME_0001.JPG is refused too.
+FORBIDDEN_FILE_PATTERNS = (
+    "cue_*.jpeg",
+    "cue_*.jpg",
+    "cue_*.png",
+    "cue_*.webp",
+    "frame_*.jpeg",
+    "frame_*.jpg",
+    "frame_*.png",
+    "frame_*.webp",
+    "rollout-*.jsonl",
+)
 SECRET_RE = re.compile(
     rb"gsk_[A-Za-z0-9_-]{12,}"
     rb"|sk-[A-Za-z0-9_-]{12,}"
     rb"|ghp_[A-Za-z0-9]{20,}"
     rb"|github_pat_[A-Za-z0-9_]{20,}"
     rb"|xox[baprs]-[A-Za-z0-9-]{10,}"
+    rb"|AIza[A-Za-z0-9_-]{35}"
     rb"|OPENAI_API_KEY\s*=\s*sk-[A-Za-z0-9_-]{12,}"
     rb"|GROQ_API_KEY\s*=\s*gsk_[A-Za-z0-9_-]{12,}"
 )
@@ -253,6 +286,49 @@ def _git_visible_files(scan_root: Path) -> list[Path] | None:
     return [scan_root / os.fsdecode(item) for item in result.stdout.split(b"\0") if item]
 
 
+def _is_forbidden_file_name(name: str) -> bool:
+    return (
+        name in FORBIDDEN_FILE_NAMES
+        or Path(name).suffix.lower() in FORBIDDEN_SUFFIXES
+        or any(fnmatch.fnmatchcase(name.lower(), pattern) for pattern in FORBIDDEN_FILE_PATTERNS)
+    )
+
+
+def ignore_rules() -> list[str]:
+    """The .gitignore line that keeps each forbidden artifact out of a commit."""
+
+    return sorted(
+        [f"{name}/" for name in FORBIDDEN_DIRECTORY_NAMES]
+        + list(FORBIDDEN_FILE_NAMES)
+        + [f"*{suffix}" for suffix in FORBIDDEN_SUFFIXES]
+        + list(FORBIDDEN_FILE_PATTERNS)
+    )
+
+
+def _validate_ignore_rules(root: Path) -> list[str]:
+    """Require .gitignore to ignore everything the artifact scan refuses.
+
+    The scan reports an artifact when a check runs, and a push may have
+    published it by then. The ignore rule keeps `git add` from picking the
+    file up in the first place.
+    """
+
+    path = root / ".gitignore"
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return [".gitignore: missing; Git must ignore every local artifact the validator forbids"]
+    except (OSError, UnicodeError) as exc:
+        return [f".gitignore: cannot read the ignore rules: {exc}"]
+    present = {line.rstrip() for line in text.splitlines()}
+    return [
+        f'.gitignore: missing the line "{rule}"; '
+        "Git must ignore every local artifact the validator forbids"
+        for rule in ignore_rules()
+        if rule not in present
+    ]
+
+
 def _scan_file_artifact(path: Path, report_root: Path, errors: list[str]) -> None:
     name = path.name
     forbidden_parent = None
@@ -268,12 +344,7 @@ def _scan_file_artifact(path: Path, report_root: Path, errors: list[str]) -> Non
             errors.append(message)
         return
 
-    if (
-        name in FORBIDDEN_FILE_NAMES
-        or path.suffix.lower() in FORBIDDEN_SUFFIXES
-        or FRAME_FILE_RE.match(name)
-        or ROLLOUT_FILE_RE.match(name)
-    ):
+    if _is_forbidden_file_name(name):
         errors.append(f"{_display(path, report_root)}: forbidden local artifact file")
         return
     if path.is_symlink() or not path.is_file():
@@ -716,6 +787,7 @@ def validate_repository(root: Path) -> tuple[list[Path], list[str]]:
                 f"{_display(path, root)}: root plugin or client surface is not part of the "
                 "Charms v1 repository shape"
             )
+    errors.extend(_validate_ignore_rules(root))
 
     packages_path = root / "packages"
     if not _lexists(packages_path):

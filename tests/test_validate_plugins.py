@@ -19,6 +19,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "validate_plugins.py"
 SCHEMA = ROOT / "schemas" / "agent-plugins" / "1.0.0" / "plugin.schema.json"
 SCHEMA_SHA256 = "0a4aad95ce337878ad38802ebf0daa3fde76abe3f65400c86bcbb1ec0b3ab883"
+# The watch-video plugin's own record of what a run creates.
+PRUNE_RUNS = ROOT / "packages/watch-video/skills/watch-video/scripts/prune_runs.py"
+IGNORE_REASON = "Git must ignore every local artifact the validator forbids"
 
 
 def load_module():
@@ -43,6 +46,8 @@ class ValidatePluginsTests(unittest.TestCase):
         (self.root / "packages").mkdir()
         self.plugin = self.add_plugin("demo-plugin")
         write_marketplace(self.root)
+        self.ignore_file = self.root / ".gitignore"
+        self.ignore_file.write_text("\n".join(self.module.ignore_rules()) + "\n", encoding="utf-8")
 
     def manifest(self, name: str) -> dict:
         return {
@@ -359,9 +364,105 @@ class ValidatePluginsTests(unittest.TestCase):
         self.assertTrue(any(".venv: forbidden local artifact directory" in error for error in errors))
         self.assertTrue(any("capture.mp4: forbidden local artifact file" in error for error in errors))
 
+    def test_what_a_watch_video_run_creates_is_reported(self) -> None:
+        run = self.plugin / "runs" / "20261114-101500-video-0a1b2c3d"
+        for folder in ("audio_chunks", "local_analysis/chunks", "media", "videos"):
+            (run / folder).mkdir(parents=True)
+        (run / "local_analysis" / "chunks" / "chunk-0001.json").write_text("{}\n", encoding="utf-8")
+        (run / "media" / "video.info.json").write_text("{}\n", encoding="utf-8")
+        files = ("analysis.json", "evidence.json", "native_captions.json", "CUE_0001_00-00-30.JPG")
+        for name in files:
+            (run / name).write_text("{}\n", encoding="utf-8")
+        (run / "notes.txt").write_text("not something a run creates\n", encoding="utf-8")
+
+        where = "packages/demo-plugin/runs/20261114-101500-video-0a1b2c3d"
+        self.assertEqual(
+            [error for error in self.plugin_errors() if "forbidden local artifact" in error],
+            sorted(
+                [f"{where}/{name}: forbidden local artifact file" for name in files]
+                + [
+                    f"{where}/{name}: forbidden local artifact directory"
+                    for name in ("audio_chunks", "local_analysis", "media", "videos")
+                ]
+            ),
+        )
+
+    def test_everything_a_watch_video_run_creates_is_forbidden(self) -> None:
+        spec = importlib.util.spec_from_file_location("watch_video_prune_runs", PRUNE_RUNS)
+        assert spec is not None and spec.loader is not None
+        prune_runs = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(prune_runs)
+        self.assertIn("metadata.json", prune_runs.RUN_FILES)
+        self.assertIn("frames", prune_runs.RUN_FOLDERS)
+
+        allowed_files = sorted(
+            name for name in prune_runs.RUN_FILES if not self.module._is_forbidden_file_name(name)
+        )
+        self.assertEqual(allowed_files, [], "add these run files to FORBIDDEN_FILE_NAMES")
+        allowed_folders = sorted(prune_runs.RUN_FOLDERS - self.module.FORBIDDEN_DIRECTORY_NAMES)
+        self.assertEqual(allowed_folders, [], "add these run folders to FORBIDDEN_DIRECTORY_NAMES")
+
+    def test_gitignore_must_hold_a_line_for_every_forbidden_artifact(self) -> None:
+        rules = self.module.ignore_rules()
+        for rule in (".env", "*.mp4", "cue_*.jpg", "evidence.json", "media/"):
+            self.assertIn(rule, rules)
+
+        # Only the whole line counts: not a comment, an exception or a longer path.
+        kept = [rule for rule in rules if rule not in {"cue_*.jpg", "media/"}]
+        others = ["# media/", "!media/", "docs/media/", "cue_*.jpg.bak", ""]
+        self.ignore_file.write_text("\n".join([*kept, *others]) + "\n", encoding="utf-8")
+        self.assertEqual(
+            self.repository_errors(),
+            [
+                f'.gitignore: missing the line "cue_*.jpg"; {IGNORE_REASON}',
+                f'.gitignore: missing the line "media/"; {IGNORE_REASON}',
+            ],
+        )
+
+        # Git drops the spaces that end a line.
+        self.ignore_file.write_text("".join(f"{rule}  \n" for rule in rules), encoding="utf-8")
+        self.assertEqual(self.repository_errors(), [])
+
+        self.ignore_file.unlink()
+        self.assertEqual(self.repository_errors(), [f".gitignore: missing; {IGNORE_REASON}"])
+        self.assertEqual(self.plugin_errors(), [])
+
+    def test_git_ignores_everything_the_rules_name(self) -> None:
+        init_repository(self.root)
+        folder = self.root / "work" / "nested"
+        lists = self.module
+        samples = [
+            *(folder / name / "inside.txt" for name in lists.FORBIDDEN_DIRECTORY_NAMES),
+            *(folder / name for name in lists.FORBIDDEN_FILE_NAMES),
+            *(folder / f"sample{suffix}" for suffix in lists.FORBIDDEN_SUFFIXES),
+            *(folder / pattern.replace("*", "0001") for pattern in lists.FORBIDDEN_FILE_PATTERNS),
+        ]
+        for sample in [*samples, folder / "kept.txt"]:
+            sample.parent.mkdir(parents=True, exist_ok=True)
+            sample.write_text("sample\n", encoding="utf-8")
+
+        self.assertEqual(len(samples), len(self.module.ignore_rules()))
+        self.assertEqual(
+            git(self.root, "ls-files", "--others", "--exclude-standard", "--", "work"),
+            "work/nested/kept.txt",
+        )
+        self.assertEqual(self.repository_errors(), [])
+
+    def test_an_artifact_added_by_force_is_still_reported(self) -> None:
+        init_repository(self.root)
+        info = self.plugin / "media" / "video.info.json"
+        info.parent.mkdir()
+        info.write_text("{}\n", encoding="utf-8")
+        self.assertEqual(self.repository_errors(), [])
+
+        git(self.root, "add", "--force", str(info))
+        self.assertEqual(
+            self.repository_errors(),
+            ["packages/demo-plugin/media: forbidden local artifact directory"],
+        )
+
     def test_repository_hygiene_honors_gitignore_but_focused_validation_is_strict(self) -> None:
         init_repository(self.root)
-        (self.root / ".gitignore").write_text(".ruff_cache/\n", encoding="utf-8")
         ignored_cache = self.plugin / ".ruff_cache"
         ignored_cache.mkdir()
         (ignored_cache / "cache.bin").write_bytes(b"cache")
@@ -372,13 +473,19 @@ class ValidatePluginsTests(unittest.TestCase):
         )
 
     def test_secret_scan_reports_only_the_path(self) -> None:
-        secret = "gsk_" + ("s" * 16)
         path = self.plugin / "secret.txt"
-        path.write_text(secret + "\n", encoding="utf-8")
-        errors = self.plugin_errors()
-        joined = "\n".join(errors)
-        self.assertIn("secret.txt: possible secret value found", joined)
-        self.assertNotIn(secret, joined)
+        # Built here, so that this file holds nothing the scan would report.
+        for secret in ("gsk_" + ("s" * 16), "AIza" + ("s" * 35)):
+            with self.subTest(kind=secret[:4]):
+                path.write_text(f"KEY={secret}\n", encoding="utf-8")
+                errors = self.plugin_errors()
+                joined = "\n".join(errors)
+                self.assertIn("secret.txt: possible secret value found", joined)
+                self.assertNotIn(secret, joined)
+
+        # A Google API key is AIza and 35 more characters. Anything shorter is not one.
+        path.write_text("KEY=" + "AIza" + ("s" * 34) + " and more\n", encoding="utf-8")
+        self.assertEqual(self.plugin_errors(), [])
 
     def release_demo(self) -> str:
         init_repository(self.root)
@@ -462,7 +569,8 @@ class ValidatePluginsTests(unittest.TestCase):
 
     def test_marketplace_directory_ignores_gitignored_files(self) -> None:
         init_repository(self.root)
-        (self.root / ".gitignore").write_text(".DS_Store\n", encoding="utf-8")
+        with self.ignore_file.open("a", encoding="utf-8") as rules:
+            rules.write(".DS_Store\n")
         (self.root / ".claude-plugin" / ".DS_Store").write_bytes(b"finder")
         self.assertEqual(self.repository_errors(), [])
 

@@ -21,6 +21,7 @@ import network_guard  # noqa: E402
 import unittest_backports  # noqa: E402, F401
 import watch  # noqa: E402
 from groq_transcribe import TranscriptionSegments  # noqa: E402
+from run_contents import unexpected_entries  # noqa: E402
 
 
 URL = "https://example.com/recording.mp4"
@@ -94,6 +95,7 @@ class LocalPrivacyTests(unittest.TestCase):
         ]), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(watch.main(), 0)
         run = next(out_dir.iterdir())
+        self.assertEqual(unexpected_entries(run), [])
         return (
             json.loads((run / "metadata.json").read_text()),
             json.loads((run / "transcript.json").read_text()),
