@@ -166,6 +166,10 @@ Use the native oMLX app with loopback port `8147` and one model directory,
 official Splash on M3 or newer; both use the same Qwen vision and Whisper speech
 models. Follow the [local Mac setup steps](skills/watch-video/references/local-models.md#set-up-another-mac)
 for installation, local configuration, model identities, and a short live test.
+That setup needs an Apple Silicon Mac. On Linux the local-model flags work
+with another loopback server that offers the same two endpoints; see the
+[Linux note](skills/watch-video/references/local-models.md#linux), which also
+says that this route is untested there.
 
 Once the runtime is configured and running, run these from the installed skill
 directory (`skills/watch-video` inside the plugin, or the standalone skill

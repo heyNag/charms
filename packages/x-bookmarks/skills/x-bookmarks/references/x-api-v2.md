@@ -50,6 +50,13 @@ interfaces or on IPv6 is not detected; the browser may reach it instead, and
 setup then times out. API and token requests refuse redirects so credentials
 never follow a response to another host.
 
+Setup prints the authorization URL and opens it in the default browser.
+`--no-browser` only prints it, for a machine where no browser can start, such
+as one reached over SSH. The browser that approves access is sent back to the
+callback URL, so it must reach the port on the machine where setup is running:
+open the URL on that machine, or forward the port first, which for the default
+callback is `ssh -L 8739:127.0.0.1:8739 HOST`, and open the URL on your own.
+
 The fetch helper also accepts an existing OAuth user access token from
 `X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN`. `x_api_auth.py --status` checks
 saved local OAuth files only and does not inspect either variable.

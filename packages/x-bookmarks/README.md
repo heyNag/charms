@@ -56,6 +56,12 @@ another setup run, or another program listening on 127.0.0.1, holds the
 callback port, setup exits with an error; stop it or pass `--redirect-uri` with
 a free loopback port registered in the X app.
 
+Two more options of `x_api_auth.py`: `--no-browser` prints the authorization
+URL without opening a browser, for a machine reached over SSH, and `--refresh`
+renews the saved login now, without printing it. The
+[X API v2 notes](skills/x-bookmarks/references/x-api-v2.md#auth) say how to
+approve access from another machine.
+
 Default local-only state lives outside this repo:
 
 ```text

@@ -183,9 +183,11 @@ If local auth is missing and the user wants the official API path:
    and saved in shell history.
 
 7. If the helper cannot open the browser, ask the user to open the printed URL
-   and approve access. Setup waits up to 5 minutes for the callback, then
-   exits with an error; rerun it if the user needs more time. A rerun fails
-   while an earlier run still holds the callback port, so stop that run first.
+   and approve access; `--no-browser` prints the URL without trying, and
+   `references/x-api-v2.md` says how to approve from another machine. Setup
+   waits up to 5 minutes for the callback, then exits with an error; rerun it
+   if the user needs more time. A rerun fails while an earlier run still holds
+   the callback port, so stop that run first.
    If X shows "Callback URL not approved", the app does not list the callback
    URL that setup printed: add it, or pass `--redirect-uri` with one it lists.
 8. Run `python3 scripts/x_api_auth.py --status`, then a small test fetch.

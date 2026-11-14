@@ -177,6 +177,39 @@ evidence. A successful setup check verifies configuration, not transcription or
 visual accuracy. Stop a task-owned server afterward with the app or
 `~/.omlx/bin/omlx stop`; leave a shared server alone.
 
+## Linux
+
+The setup above is for an Apple Silicon Mac: oMLX and Splash run only there.
+On Linux, `setup_local.py --preflight` reports `unsupported` and changes
+nothing, and `--check` and `--configure` have no oMLX to talk to. The rest of
+watch-video works on Linux as it does on a Mac: local extraction, captions,
+supplied transcripts, hosted transcription and Gemini.
+
+`--transcriber local` and `--analyzer local` are not tied to oMLX. They use
+any server on a loopback address that offers, under one base URL, the two
+OpenAI-compatible endpoints described in
+[Connect a local runtime](#connect-a-local-runtime):
+`/v1/audio/transcriptions` returning timestamped segments, and
+`/v1/chat/completions` accepting images. To use such a server on Linux:
+
+1. Install and start it yourself; watch-video does not install a runtime or
+   download models there.
+2. Run `python3 scripts/setup_local.py --init-config`, which works on Linux,
+   and set the address, the two model identifiers and the key in
+   `~/.config/watch-video/local.env`. Environment variables work too.
+3. Check the configuration, then try a short clip before a long recording:
+
+```sh
+python3 scripts/doctor.py ./sample.mp4 --engine local --transcriber local --analyzer local --check
+python3 scripts/watch.py ./sample.mp4 --engine local --transcriber local --analyzer local --duration 30
+```
+
+This route has not been tried on Linux: the project's checks run the local
+clients against a stand-in server, and the real runs were on oMLX. Read
+`local_analysis.json` for coverage and gaps before relying on a result.
+Without a local server, use `--transcriber none` or a supplied transcript;
+nothing falls back to a hosted provider.
+
 ## Connect a local runtime
 
 Start the user's configured OpenAI-compatible inference server, such as oMLX,
