@@ -70,7 +70,7 @@ class FakeXCase(unittest.TestCase):
         self.auth = sys.modules["x_api_auth"]
         self.assertTrue(str(self.auth.TOKEN_FILE).startswith(str(self.tmp)))
         self.state_file = self.tmp / "state" / "state.json"
-        self.assertEqual(self.api.DEFAULT_STATE_FILE, self.state_file)
+        self.assertEqual(self.api.default_state_file(), self.state_file)
 
         # Point both helpers at the fake before any test can make a request.
         self.x = FakeX().start()

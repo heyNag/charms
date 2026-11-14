@@ -5,12 +5,10 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
-import functools
 import http.client
 import json
-from pathlib import Path
 import sys
-from typing import Any, Callable, Optional
+from typing import Any
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -18,13 +16,15 @@ import urllib.request
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: F401
 import plugin_version
+import review_state
 from review_state import (  # noqa: F401 - the state functions stay reachable from this module
     FOLDER_ID,
-    MIN_KNOWN_RUN,
     STATE_ANCHORS,
     STATE_FIX,
     StateError,
+    Stop,
     default_state_file,
+    early_stop,
     known_run,
     load_state,
     review,
@@ -32,6 +32,7 @@ from review_state import (  # noqa: F401 - the state functions stay reachable fr
     since_last,
     state_anchor_ids,
     state_scope,
+    stop_problem,
     update_last_seen,
     utc_now,
 )
@@ -39,9 +40,6 @@ from x_api_auth import AuthError, get_valid_token, open_request, token_variable
 
 BASE_URL = "https://api.x.com/2"
 MAX_RESULTS = 100
-DEFAULT_STATE_FILE = default_state_file()
-# Given the IDs fetched so far, newest first, says whether to stop paging.
-Stop = Optional[Callable[[list], bool]]
 
 TWEET_FIELDS = ",".join(
     [
@@ -521,27 +519,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Fetch bookmarks from the bookmark folder with this numeric ID, as --folders lists it.",
     )
     parser.add_argument("--query", help="Local text query over fetched bookmark data.")
-    parser.add_argument(
-        "--since-last",
-        action="store_true",
-        help="Return items bookmarked after the saved review cutoff.",
-    )
-    parser.add_argument(
-        "--update-state",
-        action="store_true",
-        help="Save the newest fetched bookmarks as the cutoff after a fetch that reached the end of the list.",
-    )
-    parser.add_argument(
-        "--stop-after-known",
-        type=int,
-        metavar="N",
-        help=(
-            "With --all --since-last, stop fetching once N already reviewed bookmarks appear in a row "
-            f"({MIN_KNOWN_RUN} to {STATE_ANCHORS}). Saves requests, but misses new bookmarks that sit "
-            "below at least N reviewed posts bookmarked again in their old order."
-        ),
-    )
-    parser.add_argument("--state-file", type=Path, default=DEFAULT_STATE_FILE)
+    review_state.add_options(parser)
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON.")
     return parser.parse_args(argv)
 
@@ -566,18 +544,12 @@ def main(argv: list[str]) -> int:
         )
         print("fix: run --all --since-last --update-state without --query", file=sys.stderr)
         return 2
-    if args.stop_after_known is not None:
-        if not (args.all and args.since_last) or args.folders:
-            print("error: --stop-after-known works only with --all --since-last", file=sys.stderr)
-            return 2
-        if not MIN_KNOWN_RUN <= args.stop_after_known <= STATE_ANCHORS:
-            print(
-                f"error: --stop-after-known must be between {MIN_KNOWN_RUN} and {STATE_ANCHORS}: "
-                f"a shorter row is too easy to mistake for the cutoff, and only {STATE_ANCHORS} "
-                "reviewed bookmarks are saved",
-                file=sys.stderr,
-            )
-            return 2
+    problem = stop_problem(
+        args.stop_after_known, whole_list=args.all and not args.folders, since_last=args.since_last
+    )
+    if problem:
+        print(f"error: {problem}", file=sys.stderr)
+        return 2
 
     state_file = args.state_file.expanduser()
     state: dict[str, Any] = {}
@@ -596,13 +568,7 @@ def main(argv: list[str]) -> int:
         user_id = str(user["id"])
         headers: dict[str, str] = {}
         state_saved = True
-        stop: Stop = None
-        if args.stop_after_known is not None:
-            stop = functools.partial(
-                known_run,
-                anchors=state_anchor_ids(state, state_scope(args.folder_id)),
-                needed=args.stop_after_known,
-            )
+        stop = early_stop(state, state_scope(args.folder_id), args.stop_after_known)
 
         if args.folders:
             folders, headers = fetch_folders(session, user_id, args.count, args.all, args.max_pages)

@@ -80,7 +80,8 @@ class FloorTests(unittest.TestCase):
 class CommandTests(unittest.TestCase):
     def test_every_command_is_covered(self) -> None:
         self.assertEqual(
-            [path.name for path in commands()], ["fetch_bookmarks_api.py", "x_api_auth.py"]
+            [path.name for path in commands()],
+            ["fetch_bookmarks_api.py", "fetch_bookmarks_bird.py", "x_api_auth.py"],
         )
 
     def test_commands_stop_on_an_old_python_before_loading_the_skill(self) -> None:

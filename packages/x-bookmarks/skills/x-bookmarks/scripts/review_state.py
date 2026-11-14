@@ -11,12 +11,14 @@ Bird continues through the X API and the other way round.
 
 from __future__ import annotations
 
+import argparse
 from datetime import datetime, timezone
+import functools
 import json
 import os
 from pathlib import Path
 import re
-from typing import Any, NamedTuple
+from typing import Any, Callable, NamedTuple, Optional
 
 import private_files
 
@@ -28,6 +30,8 @@ STATE_ANCHORS = 50
 FOLDER_ID = re.compile(r"[0-9]{1,19}")
 # The shortest row of reviewed bookmarks an early stop may rely on; see known_run.
 MIN_KNOWN_RUN = 5
+# Given the IDs fetched so far, newest first, says whether a fetch may stop.
+Stop = Optional[Callable[[list], bool]]
 
 
 def default_state_file() -> Path:
@@ -207,6 +211,63 @@ def known_run(ids: list[str], anchors: list[str], needed: int) -> bool:
         if run >= needed:
             return True
     return False
+
+
+def add_options(parser: argparse.ArgumentParser) -> None:
+    """Add the review options, which both fetch helpers spell and explain alike."""
+    parser.add_argument(
+        "--since-last",
+        action="store_true",
+        help="Return items bookmarked after the saved review cutoff.",
+    )
+    parser.add_argument(
+        "--update-state",
+        action="store_true",
+        help="Save the newest fetched bookmarks as the cutoff after a fetch that reached the end of the list.",
+    )
+    parser.add_argument(
+        "--stop-after-known",
+        type=int,
+        metavar="N",
+        help=(
+            "With --all --since-last, stop fetching once N already reviewed bookmarks appear in a row "
+            f"({MIN_KNOWN_RUN} to {STATE_ANCHORS}). Saves requests, but misses new bookmarks that sit "
+            "below at least N reviewed posts bookmarked again in their old order."
+        ),
+    )
+    parser.add_argument(
+        "--state-file",
+        type=Path,
+        default=default_state_file(),
+        help="File that holds the review cutoff (default: %(default)s).",
+    )
+
+
+def stop_problem(needed: int | None, *, whole_list: bool, since_last: bool) -> str | None:
+    """Say why --stop-after-known cannot be used as given, or return None when it can."""
+    if needed is None:
+        return None
+    if not (whole_list and since_last):
+        return "--stop-after-known works only with --all --since-last"
+    if not MIN_KNOWN_RUN <= needed <= STATE_ANCHORS:
+        return (
+            f"--stop-after-known must be between {MIN_KNOWN_RUN} and {STATE_ANCHORS}: "
+            f"a shorter row is too easy to mistake for the cutoff, and only {STATE_ANCHORS} "
+            "reviewed bookmarks are saved"
+        )
+    return None
+
+
+def early_stop(state: dict[str, Any], scope: str, needed: int | None) -> Stop:
+    """Return the check a fetch runs on the IDs read so far, or None when it cannot stop early.
+
+    It cannot when --stop-after-known was not given, and when fewer than
+    `needed` reviewed bookmarks are saved, since no row of them is that long.
+    """
+    anchors = state_anchor_ids(state, scope)
+    if needed is None or len(anchors) < needed:
+        return None
+    return functools.partial(known_run, anchors=anchors, needed=needed)
 
 
 def since_last(

@@ -82,23 +82,31 @@ scripts/fetch_bookmarks_bird.sh --all
 python3 scripts/fetch_bookmarks_api.py --all --query "agents mcp" --pretty
 ```
 
-For the API backend, fetch new results since the last recorded review:
+Fetch what is new since the last recorded review. Both backends take the same
+review flags and share one saved cutoff, so a review can change backend:
 
 ```sh
+# Bird
+python3 scripts/fetch_bookmarks_bird.py --all --since-last --update-state --pretty
+
+# X API v2
 python3 scripts/fetch_bookmarks_api.py --all --since-last --update-state --pretty
 ```
 
-Bird can fetch a recent window with
-`scripts/fetch_bookmarks_bird.sh --count 100`, but it does not maintain a
-persisted review cutoff.
+`fetch_bookmarks_bird.py` runs `bird bookmarks`, checks what Bird printed, and
+prints `data` and `meta` like the API helper. Each post is Bird's own object
+with `url`, `created_at`, and `source` added. `fetch_bookmarks_bird.sh` prints
+Bird's JSON unchanged and keeps no review state.
 
 List bookmark folders or fetch a folder. `FOLDER_ID` is the numeric ID that
-`--folders` lists; the API helper refuses anything else before a request:
+`--folders` lists; with Bird alone, it is the number at the end of the
+folder's address, `https://x.com/i/bookmarks/NUMBER`. Both Python helpers
+refuse anything else before a request:
 
 ```sh
 python3 scripts/fetch_bookmarks_api.py --folders --pretty
 python3 scripts/fetch_bookmarks_api.py --folder-id FOLDER_ID --count 50 --pretty
-bird bookmarks --folder-id FOLDER_ID -n 50 --json
+python3 scripts/fetch_bookmarks_bird.py --folder-id FOLDER_ID --count 50 --pretty
 ```
 
 Open X login when Bird needs a browser session:
@@ -117,7 +125,8 @@ scripts/open_x_login.sh
    finish logging in and retry `bird check --plain`.
 4. If browser cookie extraction still fails, ask which browser/profile to use
    and pass Bird's `--cookie-source`, `--chrome-profile`,
-   `--chrome-profile-dir`, or `--firefox-profile` flags.
+   `--chrome-profile-dir`, or `--firefox-profile` flags. Both Bird helpers
+   take them. `fetch_bookmarks_bird.py` refuses `--auth-token` and `--ct0`.
 5. Use X API v2 when Bird is unavailable/broken or the user wants the official
    API path.
 
@@ -195,29 +204,35 @@ Unless the user asks for a narrower format, return:
 5. Backend used and any auth/rate-limit caveats
 
 When asked to search, run a local query over fetched bookmark text, author
-metadata, links, and expanded quoted posts. For API-backed requests for "new",
-"since last time", or recurring review, use
-`--all --since-last --update-state` without `--query` (the helper refuses that
-combination). Review state is saved only after a fetch that reached the end of
+metadata, links, and expanded quoted posts. For requests for "new", "since
+last time", or a recurring review, run the configured backend's helper,
+`fetch_bookmarks_bird.py` or `fetch_bookmarks_api.py`, with
+`--all --since-last --update-state`. The API helper refuses `--query` in that
+combination. Review state is saved only after a fetch that reached the end of
 the list (`--all` without `--max-pages`). A partial fetch cannot confirm the
 cutoff, so it returns every fetched bookmark as `unfiltered`, leaves
 `meta.state_updated` false, and stderr says how to rerun. If
 `meta.cutoff_mode` is `created_at_fallback` or `unfiltered`, tell the user the
 "new" list may skip or repeat bookmarks.
 
-Each API review reads the whole list, which costs a request per 100
-bookmarks. Add `--stop-after-known 10` only when the user asks to spend fewer
-API requests and accepts the trade-off. The fetch then stops at ten already
-reviewed bookmarks in a row and reports `meta.cutoff_mode` `early_stop`. It
-misses new bookmarks only when they lie below at least ten reviewed posts
-that were bookmarked again in their old order.
-Bird can fetch a recent window but does not persist the last reviewed bookmark.
+Each review reads the whole list: one request per 100 bookmarks through the
+API, one per 20 through Bird. Add `--stop-after-known 10` only when the user
+asks for a cheaper or quicker review and accepts the trade-off. The fetch then
+stops at ten already reviewed bookmarks in a row and reports
+`meta.cutoff_mode` `early_stop`. It misses new bookmarks only when they lie
+below at least ten reviewed posts that were bookmarked again in their old
+order. With Bird, an early stop runs Bird again for each further stretch of
+the list, starting with the newest 100 bookmarks.
 
 ## Failure Handling
 
 - Missing Bird: recommend installing Bird and offer the X API fallback.
 - Bird cookie failure: ask the user to log in to `x.com` in a supported browser
   and allow any browser cookie or Keychain prompt.
+- Bird output that `fetch_bookmarks_bird.py` cannot read: it says what it
+  found, prints no bookmarks, and leaves review state alone. It reads the
+  output of Bird 0.8.0. Report the installed `bird --version`, and use
+  `scripts/fetch_bookmarks_bird.sh` for a plain fetch meanwhile.
 - Missing X API auth: explain that API access requires a personal Developer app
   and OAuth setup.
 - X API `401`: the fetch helper refreshes the saved login once and repeats
@@ -230,8 +245,8 @@ Bird can fetch a recent window but does not persist the last reviewed bookmark.
   one.
 - Missing scopes: ask the user to update scopes and rerun OAuth setup.
 - Damaged review state: `--since-last` and `--update-state` stop before any
-  request and name the file. Ask before moving it aside, because the next
-  review then lists every bookmark as new.
+  request or Bird run and name the file. Ask before moving it aside, because
+  the next review then lists every bookmark as new.
 - Review state that cannot be saved: the bookmarks are still printed,
   `meta.state_updated` is false, and the exit status is 1. Tell the user the
   cutoff did not move.

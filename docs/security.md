@@ -178,7 +178,9 @@ other accounts and prints the `chmod` command for them.
 Browser cookies and OAuth tokens stay in user-local state. The skill requests
 read-only scopes by default and adds write scope only for an explicit bookmark
 mutation. The client secret of a confidential OAuth client is read from
-standard input only; `x_api_auth.py` refuses it as a command argument.
+standard input only; `x_api_auth.py` refuses it as a command argument. Bird
+accepts X session cookies as command arguments; `fetch_bookmarks_bird.py`
+refuses them and leaves the session to Bird's own browser lookup.
 
 ## Reporting
 
