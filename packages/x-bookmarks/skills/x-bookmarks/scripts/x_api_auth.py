@@ -445,11 +445,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Set up local X API v2 OAuth for x-bookmarks.")
     parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument("--client-id", help="X OAuth 2.0 client ID.")
-    parser.add_argument("--client-secret", help="Optional X OAuth 2.0 client secret for confidential clients.")
+    # Not offered in the help. It is still parsed so that main() can refuse it
+    # with a pointer; left unknown, argparse would print the secret back.
+    parser.add_argument("--client-secret", help=argparse.SUPPRESS)
     parser.add_argument(
         "--client-secret-stdin",
         action="store_true",
-        help="Read the X OAuth 2.0 client secret from stdin without printing it.",
+        help="Read the X OAuth 2.0 client secret for a confidential client from stdin without printing it.",
     )
     parser.add_argument("--redirect-uri", help=f"OAuth callback URL. Defaults to {DEFAULT_REDIRECT_URI}.")
     parser.add_argument(
@@ -471,6 +473,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    if args.client_secret is not None:
+        # The value is not repeated here: it may be a live secret.
+        print(
+            "error: --client-secret is not accepted, because a secret in a command line is "
+            "visible in the process list and saved in shell history",
+            file=sys.stderr,
+        )
+        print(
+            "fix: pass the secret on standard input with --client-secret-stdin, and regenerate "
+            "it in the X Developer Console if this command line may have been recorded",
+            file=sys.stderr,
+        )
+        return 2
     try:
         if args.status:
             return status()
@@ -478,8 +493,6 @@ def main(argv: list[str]) -> int:
             refresh_tokens(load_config(), load_tokens())
             print("auth: refreshed")
             return 0
-        if args.client_secret and args.client_secret_stdin:
-            raise AuthError("use either --client-secret or --client-secret-stdin, not both")
 
         existing_config: dict[str, Any] = {}
         if CONFIG_FILE.exists():
@@ -491,7 +504,7 @@ def main(argv: list[str]) -> int:
 
         scopes = requested_scopes(args.include_write_scope, args.scope)
 
-        client_secret = args.client_secret or existing_config.get("client_secret")
+        client_secret = existing_config.get("client_secret")
         if args.client_secret_stdin:
             client_secret = sys.stdin.readline().strip()
             if not client_secret:

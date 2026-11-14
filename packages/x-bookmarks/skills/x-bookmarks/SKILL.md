@@ -164,7 +164,9 @@ If local auth is missing and the user wants the official API path:
    ```
 
    The helper stores the confidential-client secret in its private local
-   configuration so it can refresh tokens.
+   configuration so it can refresh tokens. It refuses a secret passed as
+   `--client-secret`, because command arguments are visible to other processes
+   and saved in shell history.
 
 7. If the helper cannot open the browser, ask the user to open the printed URL
    and approve access. Setup waits up to 5 minutes for the callback, then

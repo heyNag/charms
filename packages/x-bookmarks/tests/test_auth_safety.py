@@ -14,6 +14,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import re
 import socket
 import subprocess
 import sys
@@ -242,6 +243,83 @@ class ScopeSetupTest(HermeticCase):
             self.auth.status()
 
         self.assertIn("warning: scopes beyond the read-only defaults: bookmark.write", stdout.getvalue())
+
+
+class ClientSecretTest(HermeticCase):
+    SECRET = "test-client-secret"
+
+    def run_setup(self, *argv: str, stdin: str = "") -> tuple[int, mock.Mock, str]:
+        flow = mock.Mock(return_value={"access_token": "test-access"})
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with (
+            mock.patch.object(self.auth, "run_auth_flow", flow),
+            mock.patch.object(self.auth.sys, "stdin", io.StringIO(stdin)),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            code = self.auth.main(["--client-id", "test-client", "--no-browser", *argv])
+        return code, flow, stdout.getvalue() + stderr.getvalue()
+
+    def saved_config(self) -> dict:
+        return json.loads(self.auth.CONFIG_FILE.read_text())
+
+    def test_a_secret_on_the_command_line_is_refused_and_not_repeated(self) -> None:
+        for argv in (
+            ("--client-secret", self.SECRET),
+            (f"--client-secret={self.SECRET}",),
+            ("--client-secret", self.SECRET, "--client-secret-stdin"),
+            ("--status", "--client-secret", self.SECRET),
+            ("--refresh", "--client-secret", self.SECRET),
+        ):
+            with self.subTest(argv=argv):
+                code, flow, output = self.run_setup(*argv, stdin=f"{self.SECRET}\n")
+
+                self.assertEqual(code, 2)
+                flow.assert_not_called()
+                self.assertIn("error: --client-secret is not accepted", output)
+                self.assertIn("fix: pass the secret on standard input with --client-secret-stdin", output)
+                self.assertNotIn(self.SECRET, output)
+                self.assertFalse(self.auth.CONFIG_FILE.exists())
+
+    def test_help_offers_only_the_standard_input_route(self) -> None:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout), self.assertRaises(SystemExit) as raised:
+            self.auth.parse_args(["--help"])
+
+        self.assertEqual(raised.exception.code, 0)
+        self.assertIn("--client-secret-stdin", stdout.getvalue())
+        self.assertIsNone(re.search(r"--client-secret(?!-stdin)", stdout.getvalue()))
+
+    def test_a_secret_from_standard_input_reaches_the_flow_and_the_private_config(self) -> None:
+        code, flow, output = self.run_setup("--client-secret-stdin", stdin=f"{self.SECRET}\n")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(flow.call_args.kwargs["client_secret"], self.SECRET)
+        self.assertEqual(self.saved_config()["client_secret"], self.SECRET)
+        self.assertNotIn(self.SECRET, output)
+
+        # A later setup reuses the saved secret without being given it again.
+        code, flow, output = self.run_setup()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(flow.call_args.kwargs["client_secret"], self.SECRET)
+        self.assertEqual(self.saved_config()["client_secret"], self.SECRET)
+        self.assertNotIn(self.SECRET, output)
+
+    def test_an_empty_secret_on_standard_input_is_an_error(self) -> None:
+        code, flow, output = self.run_setup("--client-secret-stdin", stdin="\n")
+
+        self.assertEqual(code, 1)
+        flow.assert_not_called()
+        self.assertIn("error: client secret from stdin was empty", output)
+        self.assertFalse(self.auth.CONFIG_FILE.exists())
+
+    def test_a_public_client_is_set_up_without_a_secret(self) -> None:
+        code, flow, _output = self.run_setup()
+
+        self.assertEqual(code, 0)
+        self.assertIsNone(flow.call_args.kwargs["client_secret"])
+        self.assertNotIn("client_secret", self.saved_config())
 
 
 class CallbackServerTest(HermeticCase):

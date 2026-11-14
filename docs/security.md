@@ -177,7 +177,8 @@ other accounts and prints the `chmod` command for them.
 
 Browser cookies and OAuth tokens stay in user-local state. The skill requests
 read-only scopes by default and adds write scope only for an explicit bookmark
-mutation.
+mutation. The client secret of a confidential OAuth client is read from
+standard input only; `x_api_auth.py` refuses it as a command argument.
 
 ## Reporting
 
