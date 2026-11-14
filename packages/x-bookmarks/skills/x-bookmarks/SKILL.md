@@ -211,3 +211,9 @@ Bird can fetch a recent window but does not persist the last reviewed bookmark.
 - X API `429`: report the rate-limit reset time from the helper, if it gives
   one.
 - Missing scopes: ask the user to update scopes and rerun OAuth setup.
+- Damaged review state: `--since-last` and `--update-state` stop before any
+  request and name the file. Ask before moving it aside, because the next
+  review then lists every bookmark as new.
+- Review state that cannot be saved: the bookmarks are still printed,
+  `meta.state_updated` is false, and the exit status is 1. Tell the user the
+  cutoff did not move.

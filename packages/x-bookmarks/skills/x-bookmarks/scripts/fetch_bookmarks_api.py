@@ -465,13 +465,54 @@ def filter_query(items: list[dict[str, Any]], query: str | None) -> list[dict[st
     return [item for item in items if all(term in searchable_text(item) for term in terms)]
 
 
-def load_state(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {}
-    with path.open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
+class StateError(RuntimeError):
+    """The review state file cannot be read or does not have the saved shape."""
+
+
+def _is_id(value: Any) -> bool:
+    return isinstance(value, str) or (isinstance(value, int) and not isinstance(value, bool))
+
+
+def state_problem(data: Any) -> str | None:
+    """Say what is wrong with loaded review state, or return None when it is usable."""
     if not isinstance(data, dict):
+        return "the top level is not a JSON object"
+    scopes = data.get("scopes", {})
+    if not isinstance(scopes, dict):
+        return '"scopes" is not a JSON object'
+    for scope, entry in scopes.items():
+        if not isinstance(entry, dict):
+            return f'scope "{scope}" is not a JSON object'
+        if "last_seen_id" in entry and not _is_id(entry["last_seen_id"]):
+            return f'"last_seen_id" of scope "{scope}" is not a bookmark ID'
+        anchors = entry.get("anchor_ids", [])
+        if not isinstance(anchors, list) or not all(_is_id(item) for item in anchors):
+            return f'"anchor_ids" of scope "{scope}" is not a list of bookmark IDs'
+        if not isinstance(entry.get("last_seen_created_at", ""), str):
+            return f'"last_seen_created_at" of scope "{scope}" is not a string'
+    return None
+
+
+def load_state(path: Path) -> dict[str, Any]:
+    """Read the review state, or return {} when none has been saved yet.
+
+    A file that cannot be read, is not JSON, or does not have the saved shape
+    raises StateError. Reading it as empty would list every bookmark as new,
+    and --update-state would then replace what is left of the file.
+    """
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except FileNotFoundError:
         return {}
+    except OSError as exc:
+        raise StateError(f"cannot read the review state file {path}: {exc.strerror or exc}") from exc
+    except (ValueError, RecursionError) as exc:
+        # json.JSONDecodeError and UnicodeDecodeError are both ValueErrors.
+        raise StateError(f"the review state file {path} is not valid JSON: {exc}") from exc
+    problem = state_problem(data)
+    if problem:
+        raise StateError(f"the review state file {path} is damaged: {problem}")
     return data
 
 
@@ -630,11 +671,27 @@ def main(argv: list[str]) -> int:
         print("fix: run --all --since-last --update-state without --query", file=sys.stderr)
         return 2
 
+    state_file = args.state_file.expanduser()
+    state: dict[str, Any] = {}
+    if not args.folders and (args.since_last or args.update_state):
+        # Before the first request: a damaged file must not cost API calls.
+        try:
+            state = load_state(state_file)
+        except StateError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            print(
+                "fix: restore the file from a backup, or move it aside and rerun; "
+                "the next --since-last run then lists every bookmark as new",
+                file=sys.stderr,
+            )
+            return 1
+
     try:
         token = get_valid_token()
         user = get_me(token)
         user_id = str(user["id"])
         headers: dict[str, str] = {}
+        state_error: str | None = None
 
         if args.folders:
             folders, headers = fetch_folders(token, user_id, args.count, args.all, args.max_pages)
@@ -671,7 +728,6 @@ def main(argv: list[str]) -> int:
                     args.max_pages,
                 )
 
-            state = load_state(args.state_file)
             scope = state_scope(args.folder_id)
             fetched_items = list(items)
             newest_created_at = (
@@ -697,16 +753,20 @@ def main(argv: list[str]) -> int:
             items = filter_query(items, args.query)
             state_updated = False
             if args.update_state and fetched_items and cutoff_reached:
-                save_state(
-                    args.state_file,
-                    update_last_seen(
-                        state,
-                        scope,
-                        [str(item["id"]) for item in fetched_items],
-                        newest_created_at,
-                    ),
-                )
-                state_updated = True
+                try:
+                    save_state(
+                        state_file,
+                        update_last_seen(
+                            state,
+                            scope,
+                            [str(item["id"]) for item in fetched_items],
+                            newest_created_at,
+                        ),
+                    )
+                    state_updated = True
+                except OSError as exc:
+                    # The bookmarks are fetched and paid for, so still print them.
+                    state_error = f"cannot save the review state file {state_file}: {exc.strerror or exc}"
             if (args.since_last or args.update_state) and not cutoff_reached:
                 print(
                     "warning: the fetch stopped before the end of the list, so the last review "
@@ -728,7 +788,7 @@ def main(argv: list[str]) -> int:
                     "cutoff_reached": cutoff_reached,
                     "state_updated": state_updated,
                     "state_scope": scope,
-                    "state_file": str(args.state_file.expanduser()),
+                    "state_file": str(state_file),
                     "fetched_at": utc_now(),
                     "authenticated_user": user,
                     "rate_limit": headers,
@@ -736,6 +796,14 @@ def main(argv: list[str]) -> int:
             }
 
         print(json.dumps(output, indent=2 if args.pretty else None, sort_keys=bool(args.pretty)))
+        if state_error:
+            print(f"error: {state_error}", file=sys.stderr)
+            print(
+                "fix: make that folder writable or pass --state-file, then rerun; the review "
+                "cutoff did not move, so these bookmarks are listed as new again",
+                file=sys.stderr,
+            )
+            return 1
         return 0
     except AuthError as exc:
         print(f"error: {exc}", file=sys.stderr)

@@ -52,8 +52,11 @@ class ReviewStateTest(unittest.TestCase):
         self.api = load_module("fetch_bookmarks_api_review_state", SCRIPTS / "fetch_bookmarks_api.py")
         self.state_file = self.tmp / "state" / "state.json"
         self.bookmarks = bookmarks(1000, 250)
+        self.requests: list[str] = []
+        self.token = mock.Mock(return_value="test-token")
 
     def fake_api_get(self, path: str, _token: str, params: dict[str, str] | None = None):
+        self.requests.append(path)
         params = params or {}
         if path == "/users/me":
             return {"data": {"id": "u1", "username": "me", "name": "Me"}}, {}
@@ -72,7 +75,7 @@ class ReviewStateTest(unittest.TestCase):
     def run_main(self, *argv: str) -> tuple[int, dict | None, str]:
         stdout, stderr = io.StringIO(), io.StringIO()
         with (
-            mock.patch.object(self.api, "get_valid_token", return_value="test-token"),
+            mock.patch.object(self.api, "get_valid_token", self.token),
             mock.patch.object(self.api, "api_get", self.fake_api_get),
             contextlib.redirect_stdout(stdout),
             contextlib.redirect_stderr(stderr),
@@ -80,6 +83,10 @@ class ReviewStateTest(unittest.TestCase):
             code = self.api.main([*argv, "--state-file", str(self.state_file)])
         output = json.loads(stdout.getvalue()) if stdout.getvalue() else None
         return code, output, stderr.getvalue()
+
+    def write_state(self, content: bytes) -> None:
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        self.state_file.write_bytes(content)
 
     def test_update_state_keeps_cutoff_when_default_count_stops_early(self) -> None:
         # 30 bookmarks arrived since the review; the default --count 20 cannot reach it.
@@ -290,6 +297,96 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual(output["meta"]["cutoff_mode"], "created_at_fallback")
         self.assertIn("warning: no saved review anchor is still bookmarked", stderr)
+
+    def test_a_damaged_state_file_stops_the_run_before_any_request(self) -> None:
+        damaged = {
+            "cut short": b'{"scopes": {"all": {"last_seen_id": "97',
+            "empty": b"",
+            "not UTF-8": b'{"scopes": "\xff\xfe"}',
+            "a list": b'["970"]',
+            "scopes is a list": b'{"scopes": ["all"]}',
+            "a scope is text": b'{"scopes": {"all": "970"}}',
+            "anchors are text": b'{"scopes": {"all": {"anchor_ids": "970"}}}',
+            "an anchor is an object": b'{"scopes": {"all": {"anchor_ids": [{"id": "970"}]}}}',
+            "the newest ID is a list": b'{"scopes": {"all": {"last_seen_id": ["970"]}}}',
+            "the time is a number": b'{"scopes": {"all": {"last_seen_id": "970", "last_seen_created_at": 5}}}',
+            "another scope is damaged": b'{"scopes": {"all": {"last_seen_id": "970"}, "folder:7": []}}',
+        }
+        for label, content in damaged.items():
+            for flags in (("--since-last",), ("--update-state",), ("--all", "--since-last", "--update-state")):
+                with self.subTest(label, flags=flags):
+                    self.write_state(content)
+
+                    code, output, stderr = self.run_main(*flags)
+
+                    self.assertEqual(code, 1)
+                    self.assertIsNone(output)
+                    self.assertIn(f"error: the review state file {self.state_file} is ", stderr)
+                    self.assertIn("fix: restore the file from a backup, or move it aside", stderr)
+                    self.assertEqual(self.requests, [])
+                    self.token.assert_not_called()
+                    self.assertEqual(self.state_file.read_bytes(), content)
+
+    def test_a_state_path_that_cannot_be_read_stops_the_run_before_any_request(self) -> None:
+        self.state_file.mkdir(parents=True)
+
+        code, output, stderr = self.run_main("--all", "--since-last", "--update-state")
+
+        self.assertEqual(code, 1)
+        self.assertIsNone(output)
+        self.assertIn(f"error: cannot read the review state file {self.state_file}: ", stderr)
+        self.assertEqual(self.requests, [])
+        self.token.assert_not_called()
+
+    def test_a_fetch_that_does_not_use_review_state_never_opens_the_file(self) -> None:
+        self.write_state(b"{not json")
+
+        code, output, stderr = self.run_main("--count", "5")
+        self.assertEqual((code, len(output["data"]), stderr), (0, 5, ""))
+
+        code, output, stderr = self.run_main("--folders", "--since-last")
+        self.assertEqual((code, output["meta"]["kind"], stderr), (0, "bookmark-folders", ""))
+
+    def test_state_saved_with_numeric_ids_is_still_read(self) -> None:
+        self.write_state(b'{"scopes": {"all": {"last_seen_id": 970, "anchor_ids": [970, 969]}}}')
+
+        code, output, _stderr = self.run_main("--all", "--since-last")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(returned_ids(output), [str(1000 - i) for i in range(30)])
+        self.assertEqual(output["meta"]["cutoff_mode"], "anchor")
+
+    def test_a_failed_save_still_prints_the_bookmarks_and_reports_the_error(self) -> None:
+        self.save_state(last_seen_id="970")
+        saved = self.state_file.read_bytes()
+
+        with mock.patch.object(self.api, "save_state", side_effect=PermissionError(13, "Permission denied")):
+            code, output, stderr = self.run_main("--all", "--since-last", "--update-state")
+
+        self.assertEqual(code, 1)
+        self.assertEqual(returned_ids(output), [str(1000 - i) for i in range(30)])
+        self.assertFalse(output["meta"]["state_updated"])
+        self.assertIn(f"error: cannot save the review state file {self.state_file}: Permission denied", stderr)
+        self.assertIn("fix: make that folder writable or pass --state-file", stderr)
+        self.assertEqual(self.state_file.read_bytes(), saved)
+
+    def test_a_tilde_in_the_state_path_is_expanded_once_for_reading_and_saving(self) -> None:
+        home = self.tmp / "home"
+        home.mkdir()
+        stdout = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, {"HOME": str(home)}),
+            mock.patch.object(self.api, "get_valid_token", self.token),
+            mock.patch.object(self.api, "api_get", self.fake_api_get),
+            contextlib.redirect_stdout(stdout),
+        ):
+            code = self.api.main(["--all", "--update-state", "--state-file", "~/reviews/state.json"])
+
+        expected = home / "reviews" / "state.json"
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(stdout.getvalue())["meta"]["state_file"], str(expected))
+        self.assertEqual(json.loads(expected.read_text())["scopes"]["all"]["last_seen_id"], "1000")
+        self.assertFalse((Path.cwd() / "~").exists())
 
     def test_update_last_seen_keeps_newest_anchors_then_older_ones(self) -> None:
         state = self.api.update_last_seen({}, "all", ["old-2", "old-1"])

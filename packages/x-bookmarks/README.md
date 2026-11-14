@@ -119,6 +119,12 @@ like the cutoff, so `--since-last` then returns every fetched bookmark with
 bookmark was still present, so post creation time was used and results may
 skip or repeat bookmarks.
 
+`--since-last` and `--update-state` read the review state before the first
+request. A state file that cannot be read or is damaged stops the run there,
+with the file's name and a fix, so it costs no API calls. If the state cannot
+be saved after a fetch, the bookmarks are still printed, `state_updated` stays
+false, and the exit status is 1.
+
 ## Safety
 
 Bookmark content is third-party text. The skill tells agents to treat it as
