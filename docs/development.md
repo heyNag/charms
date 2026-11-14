@@ -141,8 +141,10 @@ Keep scripts and references inside the skill directory, plugin metadata in
 contract is skill-only and does not accept `mcp.json`.
 
 Update the root README, `packages/README.md`, and compatibility table so the
-repository presents a complete current inventory. Do not add a marketplace
-entry; the first release adds it.
+repository presents a complete current inventory. The plugin's row in the root
+README's table repeats the `description` of its `plugin.json` word for word,
+and validation fails when the two differ. Do not add a marketplace entry; the
+first release adds it.
 
 ## Versions
 

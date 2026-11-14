@@ -8,7 +8,7 @@ root `plugin.json` manifest and one
 | Plugin | Purpose | Plugin root |
 | --- | --- | --- |
 | `watch-video` | Analyze videos with Gemini or local models, original-audio transcription, matching transcripts, and timestamped frames. | [`packages/watch-video/`](packages/watch-video/) |
-| `x-bookmarks` | Fetch, search, and digest saved X/Twitter posts through Bird or X API v2. | [`packages/x-bookmarks/`](packages/x-bookmarks/) |
+| `x-bookmarks` | Fetch, search, and digest X/Twitter bookmarks using Bird or the optional X API v2 backend. | [`packages/x-bookmarks/`](packages/x-bookmarks/) |
 
 The repository root holds the shared `charms` marketplace and the development
 and release tooling; it is not itself a plugin. Every directory in `packages/`

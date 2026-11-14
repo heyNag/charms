@@ -81,6 +81,8 @@ class ValidatePluginsTests(unittest.TestCase):
             f"# {name}\n",
             encoding="utf-8",
         )
+        with (self.root / "README.md").open("a", encoding="utf-8") as readme:
+            readme.write(f"| `{name}` | Portable {name} plugin. | `packages/{name}/` |\n")
         return plugin
 
     def write_manifest(self, plugin: pathlib.Path, data: object) -> None:
@@ -460,6 +462,58 @@ class ValidatePluginsTests(unittest.TestCase):
             self.repository_errors(),
             ["packages/demo-plugin/media: forbidden local artifact directory"],
         )
+
+    def test_readme_must_describe_each_plugin_in_its_manifest_words(self) -> None:
+        readme = self.root / "README.md"
+        row = "| `demo-plugin` | Portable demo-plugin plugin. | `packages/demo-plugin/` |"
+        wanted = (
+            "README.md: describe demo-plugin in its manifest's words; "
+            "its table row must start: | `demo-plugin` | Portable demo-plugin plugin. |"
+        )
+        for text in (
+            "# Demo\n",
+            row.replace("Portable", "A portable") + "\n",
+            row.replace("`demo-plugin`", "demo-plugin", 1) + "\n",
+            row.replace("`demo-plugin`", "`other-plugin`", 1) + "\n",
+            "Text before the row. " + row + "\n",
+        ):
+            with self.subTest(text=text):
+                readme.write_text(text, encoding="utf-8")
+                self.assertEqual(self.repository_errors(), [wanted])
+
+        # Cells may be padded, as in a table whose columns are lined up.
+        padded = "|  `demo-plugin`   |   Portable demo-plugin plugin.    |\n"
+        readme.write_text("| Plugin | Purpose |\n| --- | --- |\n" + padded, encoding="utf-8")
+        self.assertEqual(self.repository_errors(), [])
+
+        self.add_plugin("second-plugin")
+        readme.write_text(padded, encoding="utf-8")
+        self.assertEqual(self.repository_errors(), [wanted.replace("demo-plugin", "second-plugin")])
+
+    def test_readme_row_may_escape_a_pipe_in_the_description(self) -> None:
+        manifest = self.manifest("demo-plugin")
+        manifest["description"] = "Fetch | search bookmarks."
+        self.write_manifest(self.plugin, manifest)
+        readme = self.root / "README.md"
+
+        readme.write_text("| `demo-plugin` | Fetch | search bookmarks. |\n", encoding="utf-8")
+        self.assertEqual(
+            self.repository_errors(),
+            [
+                "README.md: describe demo-plugin in its manifest's words; "
+                "its table row must start: | `demo-plugin` | Fetch \\| search bookmarks. |"
+            ],
+        )
+
+        readme.write_text("| `demo-plugin` | Fetch \\| search bookmarks. |\n", encoding="utf-8")
+        self.assertEqual(self.repository_errors(), [])
+
+    def test_readme_is_required_only_for_the_repository(self) -> None:
+        (self.root / "README.md").unlink()
+        self.assertEqual(
+            self.repository_errors(), ["README.md: missing; its table describes each plugin"]
+        )
+        self.assertEqual(self.plugin_errors(), [])
 
     def test_repository_hygiene_honors_gitignore_but_focused_validation_is_strict(self) -> None:
         init_repository(self.root)

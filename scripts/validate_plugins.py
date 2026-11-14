@@ -68,6 +68,10 @@ DISALLOWED_ROOT_SURFACES = (
 DISALLOWED_PACKAGE_SURFACES = (".claude-plugin", "commands", "tool.json")
 MARKETPLACE_KEYS = {"name", "owner", "metadata", "plugins"}
 MARKETPLACE_ENTRY_KEYS = {"name", "description", "version", "source"}
+# A row of the root README's plugin table: | `name` | description | ...
+README_PLUGIN_ROW_RE = re.compile(
+    r"^\|\s*`(?P<name>[^`]+)`\s*\|\s*(?P<description>(?:\\\||[^|])*?)\s*\|"
+)
 
 # What must stay out of commits and out of released packages: what the plugins
 # write while they run, credentials, caches and media. This is the one list.
@@ -746,6 +750,45 @@ def _validate_marketplace(root: Path, plugin_roots: list[Path]) -> list[str]:
     return errors
 
 
+def _validate_readme(root: Path, plugin_roots: list[Path]) -> list[str]:
+    """Require the root README to describe each plugin in its manifest's words.
+
+    The marketplace entry repeats the description of the released manifest and
+    is checked against it. The README's table is the third place the sentence
+    is written.
+    """
+
+    try:
+        text = (root / "README.md").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return ["README.md: missing; its table describes each plugin"]
+    except (OSError, UnicodeError) as exc:
+        return [f"README.md: cannot read the plugin table: {exc}"]
+    rows: dict[str, str] = {}
+    for line in text.splitlines():
+        match = README_PLUGIN_ROW_RE.match(line)
+        if match:
+            rows.setdefault(match["name"], match["description"].replace("\\|", "|"))
+
+    errors: list[str] = []
+    for plugin_root in plugin_roots:
+        try:
+            manifest = json.loads((plugin_root / "plugin.json").read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue  # The plugin root check reports the broken manifest.
+        description = manifest.get("description") if isinstance(manifest, dict) else None
+        if not _non_empty_string(description):
+            continue  # The plugin root check reports the missing description.
+        name = plugin_root.name
+        if rows.get(name) != description:
+            cell = description.replace("|", "\\|")
+            errors.append(
+                f"README.md: describe {name} in its manifest's words; "
+                f"its table row must start: | `{name}` | {cell} |"
+            )
+    return errors
+
+
 def validate_marketplace(root: Path) -> list[str]:
     """Validate only the marketplace manifest, with Git and the standard library alone.
 
@@ -832,6 +875,7 @@ def validate_repository(root: Path) -> tuple[list[Path], list[str]]:
         )
 
     errors.extend(_validate_marketplace(root, plugin_roots))
+    errors.extend(_validate_readme(root, plugin_roots))
 
     expected_manifests = {plugin_root / "plugin.json" for plugin_root in plugin_roots}
     for current, directories, files in _walk_without_following_symlinks(root):
