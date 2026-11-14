@@ -25,8 +25,9 @@ Charms validation enforces:
 Every Charms GitHub release is immutable: once published, its assets cannot
 change and its tag name cannot be reused, even after the release is deleted.
 The release workflow fails, and leaves the marketplace unchanged, unless the
-release is immutable and its attestation verifies. A tag ruleset also blocks
-updates and deletions of `<name>--v<version>` tags; see
+release is immutable and its attestation verifies. With an optional read-only
+token it also refuses to publish while immutability is turned off. A tag
+ruleset also blocks updates and deletions of `<name>--v<version>` tags; see
 [Repository settings](releasing.md#repository-settings).
 
 Marketplace entries pin the release tag and the full release commit SHA, and

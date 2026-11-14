@@ -52,6 +52,22 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
+      # A release published while immutability is off is not immutable, and its
+      # tag is used up. Only a token with the Administration permission can read
+      # the setting, and this workflow's own token cannot hold it, so the check
+      # needs the optional RELEASE_SETTINGS_TOKEN secret; see docs/releasing.md.
+      # It runs before any dependency is installed, so only this repository's
+      # script handles the token.
+      - name: Require release immutability before anything is published
+        env:
+          SETTINGS_TOKEN: ${{ secrets.RELEASE_SETTINGS_TOKEN }}
+        run: |
+          if [ -z "${SETTINGS_TOKEN}" ]; then
+            echo "::notice title=Release immutability not checked before publishing::The RELEASE_SETTINGS_TOKEN secret is not set, so this run cannot read the setting. The verify job checks the release once it is published."
+            exit 0
+          fi
+          python3 scripts/check-release-immutability.py "${GITHUB_REPOSITORY}"
+
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
