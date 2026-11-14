@@ -14,12 +14,14 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
 
 TESTS_DIR = Path(__file__).resolve().parent
 SCRIPTS = TESTS_DIR.parents[0] / "skills" / "watch-video" / "scripts"
+sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(TESTS_DIR))
 
 import network_guard  # noqa: E402
@@ -43,17 +45,39 @@ def tearDownModule() -> None:
 # setUpClass prepends a shebang for the running interpreter.
 FAKE_YTDLP = """import os
 import shutil
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 args = sys.argv[1:]
-if "--ignore-config" not in args[: args.index("--")]:
+options = args[: args.index("--")]
+if "--ignore-config" not in options:
     sys.exit("fake yt-dlp: watch.py must pass --ignore-config")
+probing = "--skip-download" in args
+if not probing and "--match-filters" not in options:
+    sys.exit("fake yt-dlp: every download must pass --match-filters")
 out_dir = Path(args[args.index("-o") + 1]).parent
 out_dir.mkdir(parents=True, exist_ok=True)
 fixtures = Path(os.environ["FAKE_YTDLP_FIXTURES"])
-if "--skip-download" in args:
-    shutil.copy(fixtures / "video.info.json", out_dir / "video.info.json")
+log = os.environ.get("FAKE_YTDLP_LOG")
+if log:
+    call = "probe" if probing else "download " + options[options.index("--match-filters") + 1]
+    with open(log, "a", encoding="utf-8") as out:
+        out.write(call + "\\n")
+if os.environ.get("FAKE_YTDLP_HANG") == ("probe" if probing else "download"):
+    # Like the real tool mid-download: its helper (ffmpeg) is running too.
+    helper = (
+        "import sys, time\\n"
+        "with open(sys.argv[1], 'a') as out:\\n"
+        "    while True:\\n"
+        "        out.write('x'); out.flush(); time.sleep(0.02)\\n"
+    )
+    subprocess.Popen([sys.executable, "-c", helper, os.environ["FAKE_YTDLP_BEAT"]])
+    time.sleep(600)
+if probing:
+    info = os.environ.get("FAKE_YTDLP_INFO", "video.info.json")
+    shutil.copy(fixtures / info, out_dir / "video.info.json")
     shutil.copy(fixtures / "captions.vtt", out_dir / "video.en.vtt")
 else:
     shutil.copy(fixtures / "media.mp4", out_dir / "video.mp4")
@@ -83,18 +107,20 @@ class OfflinePipelineTests(unittest.TestCase):
         cls.static_clip = fixtures / "static-long.mp4"
         build_static_clip(cls.static_clip, duration=40.0, rate=2)
         (fixtures / "captions.vtt").write_text(FIXTURE_VTT, encoding="utf-8")
-        (fixtures / "video.info.json").write_text(
-            json.dumps(
-                {
-                    "id": "fixture",
-                    "title": "Fixture Video",
-                    "uploader": "Tester",
-                    "duration": 4.0,
-                    "webpage_url": "https://example.com/v",
-                }
-            ),
-            encoding="utf-8",
-        )
+        info = {
+            "id": "fixture",
+            "title": "Fixture Video",
+            "uploader": "Tester",
+            "duration": 4.0,
+            "webpage_url": "https://example.com/v",
+        }
+        variants = {
+            "video.info.json": {},
+            "live.info.json": {"duration": None, "is_live": True, "live_status": "is_live"},
+            "long.info.json": {"duration": 5 * 3600.0},
+        }
+        for name, changes in variants.items():
+            (fixtures / name).write_text(json.dumps({**info, **changes}), encoding="utf-8")
 
         shim_dir = base / "bin"
         shim_dir.mkdir()
@@ -125,7 +151,7 @@ class OfflinePipelineTests(unittest.TestCase):
         cls._tmp.cleanup()
 
     def run_watch(
-        self, *extra: str, source: str = "https://example.com/v"
+        self, *extra: str, source: str = "https://example.com/v", env: dict[str, str] | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], Path]:
         out_dir = Path(tempfile.mkdtemp(dir=self.base))
         cmd = [
@@ -139,7 +165,8 @@ class OfflinePipelineTests(unittest.TestCase):
             *extra,
         ]
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, env=self.env, timeout=180, check=False
+            cmd, capture_output=True, text=True, env={**self.env, **(env or {})}, timeout=180,
+            check=False,
         )
         return proc, out_dir
 
@@ -349,6 +376,98 @@ class OfflinePipelineTests(unittest.TestCase):
             ],
         )
         self.assertIn("- Uniform budget: mode fps, fps 2, target 96, max 96\n", report)
+
+    def _shim_calls(self, log: Path) -> list[str]:
+        return log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+
+    def _assert_helper_stopped(self, beat: Path) -> None:
+        size = beat.stat().st_size
+        self.assertGreater(size, 0, "the helper never ran")
+        time.sleep(0.3)
+        self.assertEqual(beat.stat().st_size, size, "the helper outlived the stopped download")
+
+    def test_downloads_tell_yt_dlp_to_skip_live_streams_and_over_long_sources(self) -> None:
+        scratch = Path(tempfile.mkdtemp(dir=self.base))
+        whole, section = scratch / "whole.log", scratch / "section.log"
+
+        proc, _ = self.run_watch("--max-frames", "4", env={"FAKE_YTDLP_LOG": str(whole)})
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(self._shim_calls(whole), ["probe", "download !is_live & duration<=?14400"])
+
+        proc, _ = self.run_watch(
+            "--start", "1", "--end", "3", "--max-frames", "4", env={"FAKE_YTDLP_LOG": str(section)},
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(self._shim_calls(section), ["probe", "download !is_live"])
+
+    def test_a_download_that_hangs_is_stopped_and_the_captions_are_still_reported(self) -> None:
+        scratch = Path(tempfile.mkdtemp(dir=self.base))
+        beat = scratch / "beat"
+        started = time.monotonic()
+        proc, out_dir = self.run_watch(
+            "--process-timeout", "2",
+            env={"FAKE_YTDLP_HANG": "download", "FAKE_YTDLP_BEAT": str(beat)},
+        )
+
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        # Far less than the helper's ten-minute sleep.
+        self.assertLess(time.monotonic() - started, 60)
+        self._assert_helper_stopped(beat)
+        run_dir = self._single_run_dir(out_dir)
+        metadata = json.loads((run_dir / "metadata.json").read_text(encoding="utf-8"))
+        self.assertTrue(any(
+            error.startswith(
+                "Media unavailable; retained native captions: The media download was stopped: "
+                "yt-dlp did not finish within 2 seconds and was stopped."
+            )
+            for error in metadata["errors"]
+        ), metadata["errors"])
+        self.assertIsNone(metadata["video_path"])
+        self.assertIn(
+            "hello from fixtures", (run_dir / "transcript.md").read_text(encoding="utf-8")
+        )
+
+    def test_a_probe_that_hangs_ends_the_run_with_a_clear_message(self) -> None:
+        scratch = Path(tempfile.mkdtemp(dir=self.base))
+        beat = scratch / "beat"
+        proc, _ = self.run_watch(
+            "--process-timeout", "2",
+            env={"FAKE_YTDLP_HANG": "probe", "FAKE_YTDLP_BEAT": str(beat)},
+        )
+
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertIn(
+            "yt-dlp could not read the source: yt-dlp did not finish within 2 seconds and was stopped",
+            proc.stderr,
+        )
+        self.assertNotIn("Traceback", proc.stderr)
+        self._assert_helper_stopped(beat)
+
+    def test_a_live_stream_is_refused_without_a_download(self) -> None:
+        log = Path(tempfile.mkdtemp(dir=self.base)) / "calls.log"
+        proc, _ = self.run_watch(env={"FAKE_YTDLP_INFO": "live.info.json", "FAKE_YTDLP_LOG": str(log)})
+
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertIn("live stream that is still running", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+        self.assertEqual(self._shim_calls(log), ["probe"])
+
+    def test_an_over_long_source_needs_a_range_or_a_raised_limit(self) -> None:
+        scratch = Path(tempfile.mkdtemp(dir=self.base))
+        refused, raised = scratch / "refused.log", scratch / "raised.log"
+
+        proc, _ = self.run_watch(env={"FAKE_YTDLP_INFO": "long.info.json", "FAKE_YTDLP_LOG": str(refused)})
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertIn("This source is 5:00:00 long, over the 4:00:00 download limit", proc.stderr)
+        self.assertIn("--max-download-duration 5:00:00", proc.stderr)
+        self.assertEqual(self._shim_calls(refused), ["probe"])
+
+        proc, _ = self.run_watch(
+            "--max-download-duration", "5:00:00", "--max-frames", "4",
+            env={"FAKE_YTDLP_INFO": "long.info.json", "FAKE_YTDLP_LOG": str(raised)},
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(self._shim_calls(raised), ["probe", "download !is_live & duration<=?18000"])
 
 
 if __name__ == "__main__":

@@ -87,7 +87,9 @@ present. For sources with uncertain privacy, use `--transcriber local` when
 configured; select Groq or OpenAI only when hosted ASR is already authorized.
 
 The local engine downloads through `yt-dlp --ignore-config` and
-extracts evidence locally. Audio is sent to Groq or OpenAI only when that
+extracts evidence locally. Every yt-dlp, FFmpeg, and ffprobe call has a time
+limit; a tool that passes it is stopped together with the helpers it started,
+such as the FFmpeg that yt-dlp runs. Audio is sent to Groq or OpenAI only when that
 provider is selected with `--transcriber` and captions are insufficient. When
 speech is missing and nothing was selected, the report names the available
 flags instead of uploading. Audio chunks and multipart sizes are checked before sending;

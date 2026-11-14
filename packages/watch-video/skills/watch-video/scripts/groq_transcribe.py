@@ -10,7 +10,6 @@ import math
 import mimetypes
 import os
 import shutil
-import subprocess
 import sys
 import time
 import uuid
@@ -18,6 +17,8 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+import timed_process
 
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -258,9 +259,12 @@ def extract_audio_clip(
         ]
     )
 
-    result = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-    )
+    try:
+        result = timed_process.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
+    except timed_process.CommandTimeout as exc:
+        raise RuntimeError(f"ffmpeg audio extraction failed: {exc}") from exc
     if result.returncode != 0:
         detail = result.stderr.strip() or "unknown ffmpeg error"
         raise RuntimeError(f"ffmpeg audio extraction failed: {detail}")
@@ -504,22 +508,25 @@ def audio_duration_seconds(audio_path: Path) -> float:
     """Return the duration of an audio file in seconds via ffprobe."""
     if shutil.which("ffprobe") is None:
         raise RuntimeError("ffprobe is not installed. fix: brew install ffmpeg")
-    result = subprocess.run(
-        [
-            "ffprobe",
-            "-v",
-            "quiet",
-            "-print_format",
-            "json",
-            "-show_format",
-            str(audio_path),
-        ],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
+    try:
+        result = timed_process.run(
+            [
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
+                "-show_format",
+                str(audio_path),
+            ],
+            timeout=timed_process.probe_timeout(),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except timed_process.CommandTimeout as exc:
+        raise RuntimeError(f"ffprobe failed on audio clip: {exc}") from exc
     if result.returncode != 0:
         raise RuntimeError(f"ffprobe failed on audio clip: {result.stderr.strip()}")
     try:
@@ -603,9 +610,12 @@ def split_audio(
             "copy",
             str(out_path),
         ]
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-        )
+        try:
+            result = timed_process.run(
+                cmd, capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
+        except timed_process.CommandTimeout as exc:
+            raise RuntimeError(f"ffmpeg failed to split audio chunk {index + 1}: {exc}") from exc
         if result.returncode != 0 or not out_path.exists() or out_path.stat().st_size == 0:
             raise RuntimeError(
                 f"ffmpeg failed to split audio chunk {index + 1}: {result.stderr.strip()}"

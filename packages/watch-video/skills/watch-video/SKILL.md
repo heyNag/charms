@@ -299,6 +299,13 @@ visual frames.
   sampling at up to 2 fps. Explicit rates stop at the cap; read coverage warnings
   when the later part of the range is uncovered.
 - `--sub-langs` selects captions; for example `"es,es.*"` for Spanish.
+- `--max-download-duration TIME` is the longest span a URL run downloads
+  (default 4:00:00). A longer source is refused before any download: select a
+  range, use `--detail transcript`, or raise it when the user wants the whole
+  recording.
+- `--process-timeout SECONDS` limits each yt-dlp or FFmpeg step (default 1800).
+  A step that passes it is stopped and reported. Narrow the range first; raise
+  the limit only for a step that is known to be slow.
 - `--question` records the task with local evidence for the host agent.
 - Spell every flag in full. Abbreviations such as `--det` are rejected.
 
@@ -421,6 +428,10 @@ that limits the answer.
   doctor prints commands and never executes `sudo`.
 - Subtitle errors are isolated from media downloads. Usable captions can
   survive a failed media download; explain missing visual/audio evidence.
+- Every yt-dlp and FFmpeg step is time-limited, so a stalled download ends
+  with a message instead of holding the run open. A stopped download is never
+  used, and captions survive it. A stream that is still live, or only
+  scheduled, is refused: run again once it has ended.
 - Hosted transcription uses bounded retries. Keep available captions, frames,
   and successful chunks when fallback fails; report partial coverage.
 - For private, login-required, or region-locked videos, explain the access

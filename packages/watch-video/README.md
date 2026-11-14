@@ -199,6 +199,18 @@ up VTT/SRT sidecars. Audio extraction runs when transcription is needed.
 Explicit `--transcriber local` requests original-audio ASR even when captions
 are sufficient; a matching complete local ASR result can still be reused.
 
+URL runs always end. Each yt-dlp or FFmpeg step stops after 30 minutes
+(`--process-timeout SECONDS`, or `WATCH_VIDEO_PROCESS_TIMEOUT`), and metadata
+reads after 3 minutes. A step that passes its limit is ended together with any
+helper it started, such as the FFmpeg that yt-dlp runs, and the report says
+which step it was. A stopped download is never used, and usable captions are
+kept. A stream that is still live, or only scheduled, is refused because it
+has no finished recording. A download longer than 4 hours is refused before it
+starts: select a range, use `--detail transcript`, or raise
+`--max-download-duration TIME` (`WATCH_VIDEO_MAX_DOWNLOAD_DURATION`). A range
+with both ends is measured by its own length, since only that section is
+downloaded.
+
 A folder input recursively processes all supported video files, including
 nested meeting folders, through the local engine. It skips symbolic-link files
 and directories and does not batch audio-only files. Processing is sequential;

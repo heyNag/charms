@@ -54,6 +54,7 @@ from groq_transcribe import (  # noqa: E402
     transcribe_with_chunking,
 )
 import gemini  # noqa: E402
+import timed_process  # noqa: E402
 import local_transcribe  # noqa: E402
 import local_analyze  # noqa: E402
 from local_api import LocalClient  # noqa: E402
@@ -72,6 +73,10 @@ DEFAULT_DETAIL = "balanced"
 RUNS_DIR_ENV = "WATCH_VIDEO_RUNS_DIR"
 # Run folders hold private recordings; only the current user may open them.
 PRIVATE_DIR_MODE = 0o700
+# The longest span a URL run downloads unless the user raises the limit. It
+# stops an accidental ten-hour download; --max-download-duration overrides it.
+MAX_DOWNLOAD_ENV = "WATCH_VIDEO_MAX_DOWNLOAD_DURATION"
+DEFAULT_MAX_DOWNLOAD_SECONDS = 4 * 3600.0
 # English-preferred by default. Requesting every language ("all") fans out to
 # 100+ auto-translated tracks and gets the whole download rate-limited by the
 # source site; use --sub-langs for non-English videos instead.
@@ -157,10 +162,63 @@ def require_tool(name: str, fix: str) -> None:
         raise SystemExit(f"{name} is not installed. fix: {fix}")
 
 
-def run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-    # Explicit UTF-8 keeps yt-dlp/ffmpeg output deterministic across locales.
-    return subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+def run_command(cmd: list[str], *, timeout: float | None = None) -> subprocess.CompletedProcess[str]:
+    """Run yt-dlp or ffprobe under a time limit (the per-step limit by default).
+
+    Raises timed_process.CommandTimeout after stopping the tool and any helper
+    it started, such as the ffmpeg that yt-dlp runs.
+    """
+    return timed_process.run_tree(cmd, timeout=timeout)
+
+
+def default_max_download_seconds() -> float:
+    """Session default for --max-download-duration; override with the env var."""
+    raw = (os.environ.get(MAX_DOWNLOAD_ENV) or "").strip()
+    if not raw:
+        return DEFAULT_MAX_DOWNLOAD_SECONDS
+    try:
+        seconds = parse_time(raw)
+    except ValueError as exc:
+        raise ValueError(f"{MAX_DOWNLOAD_ENV}: {exc}") from exc
+    if not seconds:
+        raise ValueError(f"{MAX_DOWNLOAD_ENV} must be greater than zero")
+    return seconds
+
+
+def live_source_problem(info: dict[str, object]) -> str | None:
+    """Explain why a running or scheduled stream is refused; None if it is not one.
+
+    A live stream has no end, so its download would never finish. yt-dlp
+    reports the state in the probe's metadata, before any media is fetched.
+    """
+    status = info.get("live_status")
+    if info.get("is_live") is True or status == "is_live":
+        return (
+            "This source is a live stream that is still running, so there is no finished "
+            "recording to download. Run watch-video again after the stream has ended."
+        )
+    if status == "is_upcoming":
+        return (
+            "This source is a scheduled stream that has not started. "
+            "Run watch-video again after it has aired."
+        )
+    return None
+
+
+def download_limit_problem(
+    planned_seconds: float | None, limit_seconds: float, *, focused: bool,
+) -> str | None:
+    """Explain why a download longer than the limit is refused; None if allowed."""
+    if planned_seconds is None or planned_seconds <= limit_seconds:
+        return None
+    what = "The selected range" if focused else "This source"
+    # Rounded up, so the suggested value is never a second short.
+    planned = format_time(math.ceil(planned_seconds))
+    return (
+        f"{what} is {planned} long, over the {format_time(limit_seconds)} download limit. "
+        "Select a shorter range with --start and --end, use --detail transcript when captions "
+        "are enough, or raise the limit with --max-download-duration "
+        f"(for example --max-download-duration {planned})."
     )
 
 
@@ -317,6 +375,8 @@ def compact_info(info_path: Path, fallback_url: str | None = None) -> dict[str, 
         "extractor",
         "upload_date",
         "availability",
+        "live_status",
+        "is_live",
     ]
     return {key: raw.get(key) for key in keys if raw.get(key) is not None}
 
@@ -381,7 +441,12 @@ def probe_url(
         "--",
         url,
     ]
-    result = run_command(cmd)
+    try:
+        result = run_command(cmd, timeout=timed_process.probe_timeout())
+    except timed_process.CommandTimeout as exc:
+        raise SystemExit(
+            f"yt-dlp could not read the source: {exc}. Check the URL and the network, then try again."
+        ) from exc
 
     info_path = media_dir / "video.info.json"
     raw_info = load_raw_info(info_path)
@@ -402,16 +467,25 @@ def download_media(
     *,
     audio_only: bool = False,
     download_section: str | None = None,
+    max_duration: float | None = None,
 ) -> tuple[Path, str | None]:
     """Download media only (captions come from probe_url).
 
     A subtitle failure can no longer kill the run: this call never requests
     subtitles, passes --ignore-errors, and treats "media file present" as
     success even when yt-dlp exits non-zero.
+
+    yt-dlp itself skips a stream that is still live, and a whole source longer
+    than max_duration. The local engine checks both from the probe first; this
+    filter also covers callers that download without probing.
     """
     require_tool("yt-dlp", "brew install yt-dlp")
     media_dir.mkdir(parents=True, exist_ok=True)
     output_template = str(media_dir / "video.%(ext)s")
+    # "<=?" keeps sources whose duration yt-dlp cannot tell. A section
+    # download is bounded by its range, so the source length does not matter.
+    limited = max_duration is not None and download_section is None
+    match_filter = f"!is_live & duration<=?{math.ceil(max_duration)}" if limited else "!is_live"
     cmd = [
         "yt-dlp",
         "--ignore-config",
@@ -419,6 +493,8 @@ def download_media(
         "4",
         "--no-playlist",
         "--ignore-errors",
+        "--match-filters",
+        match_filter,
         "-f",
         "ba/bestaudio/b" if audio_only else "bv*[height<=720]+ba/b[height<=720]/b",
     ]
@@ -428,10 +504,26 @@ def download_media(
         cmd.extend(["--download-sections", download_section])
     cmd.extend(["-o", output_template, "--", url])
 
-    result = run_command(cmd)
+    try:
+        result = run_command(cmd)
+    except timed_process.CommandTimeout as exc:
+        # The final file name appears only after a completed download, but a
+        # stopped one is never trusted: its media may be cut short.
+        raise SystemExit(
+            f"The media download was stopped: {exc}. Select a shorter range with --start and "
+            "--end, or raise the limit with --process-timeout."
+        ) from exc
     media = pick_media(media_dir, include_audio=audio_only)
     if media is None:
         detail = (result.stderr or result.stdout).strip()
+        if "does not pass filter" in f"{result.stdout}\n{result.stderr}":
+            reason = "it is a live stream that is still running"
+            if limited:
+                reason += (
+                    f", or it is longer than the {format_time(max_duration)} download limit "
+                    "(raise it with --max-download-duration)"
+                )
+            raise SystemExit(f"yt-dlp skipped this source: {reason}.")
         raise SystemExit(f"yt-dlp did not produce a media file. detail: {detail[-1200:]}")
 
     warning = None
@@ -527,7 +619,10 @@ def ffprobe_metadata(video_path: Path) -> dict[str, object]:
         "-show_streams",
         str(video_path),
     ]
-    result = run_command(cmd)
+    try:
+        result = run_command(cmd, timeout=timed_process.probe_timeout())
+    except timed_process.CommandTimeout as exc:
+        return {"ffprobe_error": str(exc)}
     if result.returncode != 0:
         return {"ffprobe_error": result.stderr.strip()}
     try:
@@ -1049,7 +1144,9 @@ def run_gemini(args, run_dir, start, end) -> int:
             raise gemini.GeminiError("configuration", "GEMINI_API_KEY is required in the environment")
         source = args.source
         if is_url(source) and not gemini.is_youtube_url(source):
-            source, warning = download_media(source, media_dir)
+            source, warning = download_media(
+                source, media_dir, max_duration=args.max_download_duration,
+            )
         result = gemini.analyze_video(
             source, args.question, model=args.gemini_model, start=start, end=end,
             timeout=args.gemini_timeout,
@@ -1316,6 +1413,25 @@ def main() -> int:
         default="jpeg",
         help="Frame image format; use png for UI text (default: jpeg)",
     )
+    parser.add_argument(
+        "--process-timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Time limit for each yt-dlp or FFmpeg step (default: 1800, or "
+            "$WATCH_VIDEO_PROCESS_TIMEOUT). A step that passes it is stopped and reported."
+        ),
+    )
+    parser.add_argument(
+        "--max-download-duration",
+        default=None,
+        metavar="TIME",
+        help=(
+            "Longest span a URL run may download, as SS, MM:SS, or HH:MM:SS (default: 4:00:00, "
+            "or $WATCH_VIDEO_MAX_DOWNLOAD_DURATION). A longer source needs a range or a raised limit."
+        ),
+    )
     parser.add_argument("--cleanup", action="store_true", help="Remove media/audio artifacts after report")
     parser.add_argument(
         "--cleanup-frames",
@@ -1355,6 +1471,17 @@ def main() -> int:
         cue_timestamps = parse_timestamps(args.timestamps)
         if not math.isfinite(args.gemini_timeout) or args.gemini_timeout <= 0:
             raise ValueError("--gemini-timeout must be finite and positive")
+        timed_process.configure(
+            None if args.process_timeout is None
+            else timed_process.parse_timeout(args.process_timeout, "--process-timeout")
+        )
+        timed_process.step_timeout()  # rejects a malformed environment value now
+        if args.max_download_duration is None:
+            args.max_download_duration = default_max_download_seconds()
+        else:
+            args.max_download_duration = parse_time(args.max_download_duration)
+            if not args.max_download_duration:
+                raise ValueError("--max-download-duration must be greater than zero")
         if not math.isfinite(args.local_timeout) or not 0 < args.local_timeout <= 3600:
             raise ValueError("--local-timeout must be between 0 and 3600 seconds")
         if args.engine == "local" and args.transcriber in KEY_NAMES and not has_api_key(args.transcriber):
@@ -1425,6 +1552,9 @@ def run_source(args, run_dir, requested_start, requested_end, requested_duration
     elif is_url(args.source):
         print("[watch-video] probing metadata and captions with yt-dlp", file=sys.stderr)
         caption_info, source_info = probe_url(args.source, media_dir, args.sub_langs)
+        live_problem = live_source_problem(source_info)
+        if live_problem:
+            raise SystemExit(live_problem)
     else:
         print("[watch-video] using local source", file=sys.stderr)
         video_path, caption_info, source_info = resolve_local(args.source)
@@ -1459,11 +1589,20 @@ def run_source(args, run_dir, requested_start, requested_end, requested_duration
         need_media = frames_requested or cues_requested or need_transcription_media
         audio_only = need_media and not (frames_requested or cues_requested)
         if need_media:
+            # Refuse an over-long download before it starts. A section is
+            # measured by its own length, a whole source by its duration.
+            limit_problem = download_limit_problem(
+                decision_end - decision_start if download_section is not None else info_duration,
+                args.max_download_duration, focused=download_section is not None,
+            )
+            if limit_problem:
+                raise SystemExit(limit_problem)
             label = "audio" if audio_only else "video"
             print(f"[watch-video] downloading {label} with yt-dlp", file=sys.stderr)
             try:
                 video_path, media_warning = download_media(
                     args.source, media_dir, audio_only=audio_only, download_section=download_section,
+                    max_duration=args.max_download_duration,
                 )
             except SystemExit as exc:
                 if not filter_segments(all_caption_segments, decision_start, decision_end):

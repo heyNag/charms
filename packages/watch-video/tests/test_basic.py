@@ -719,7 +719,7 @@ Next idea starts here
         with tempfile.TemporaryDirectory() as tmp:
             media = Path(tmp) / "media"
 
-            def fake_run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+            def fake_run(cmd: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
                 calls.append(cmd)
                 if "--skip-download" not in cmd:
                     (media / "video.mp4").write_bytes(b"stub")

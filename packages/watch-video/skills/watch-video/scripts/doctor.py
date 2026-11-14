@@ -35,6 +35,9 @@ ADVISORY_CHECKS = {
     "run-privacy", "WATCH_VIDEO_LOCAL_API_KEY", "local-models",
 }
 RUN_ARTIFACTS_WARN_BYTES = 500 * 1024 * 1024
+# Limits for doctor's own helper commands, in seconds.
+COMMAND_TIMEOUT = 10
+INSTALL_TIMEOUT = 1800
 LOCAL_BINARIES = ("yt-dlp", "ffmpeg", "ffprobe")
 
 
@@ -376,8 +379,9 @@ def is_gitignored(repo_root: Path, path: Path) -> bool | None:
             encoding="utf-8",
             errors="replace",
             check=False,
+            timeout=COMMAND_TIMEOUT,
         )
-    except (OSError, ValueError):
+    except (OSError, ValueError, subprocess.SubprocessError):
         return None
     return result.returncode == 0
 
@@ -510,7 +514,17 @@ def install_missing(
     if current_platform() == "macOS" and shutil.which("brew"):
         packages = _brew_packages(missing)
         print(f"[doctor] running: brew install {' '.join(packages)}", file=sys.stderr)
-        result = subprocess.run(["brew", "install", *packages], check=False)
+        try:
+            result = subprocess.run(
+                ["brew", "install", *packages], check=False, timeout=INSTALL_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired:
+            print(
+                f"error: brew install did not finish within {INSTALL_TIMEOUT // 60} minutes "
+                "and was stopped; run it yourself to see what it is waiting for",
+                file=sys.stderr,
+            )
+            return 2
         still_missing = [name for name in missing if shutil.which(name) is None]
         if result.returncode != 0 or still_missing:
             print(
