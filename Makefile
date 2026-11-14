@@ -1,5 +1,5 @@
 .PHONY: dev-deps test test-tooling test-plugins syntax lint shellcheck links validate whitespace \
-	check coverage ci doctor groq-test omlx-test
+	check coverage ci doctor groq-test omlx-test agent-evals
 
 AUDIO ?=
 PYTHON ?= python3
@@ -93,3 +93,10 @@ groq-test:
 omlx-test:
 	WATCH_VIDEO_LIVE_OMLX=1 PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m unittest discover \
 		-s packages/watch-video/tests -p 'test_live_omlx.py' -v
+
+# Give an agent the watch-video skill and the prompts in its evals/ folder, and
+# check the command it answers with against the consent rule. Every run is an
+# agent session on your own Claude account, so this is not part of `make check`.
+# The cases run no script and are given no shell.
+agent-evals:
+	claude plugin eval packages/watch-video --ablation none --no-publish

@@ -31,10 +31,14 @@ fails when the total is below the floor in `pyproject.toml`.
 Validation uses a vendored copy of the immutable Agent Plugins v1 manifest
 schema and the official Agent Skills reference validator.
 
-Two checks need something real and are not part of `make check`:
+Three checks need something real and are not part of `make check`:
 `make groq-test AUDIO=path/to/audio.mp3` sends one audio file to Groq with
-your `GROQ_API_KEY`, and `make omlx-test` asks a running oMLX server the
-read-only questions of the local setup helper.
+your `GROQ_API_KEY`, `make omlx-test` asks a running oMLX server the
+read-only questions of the local setup helper, and `make agent-evals` runs
+agent sessions on your Claude account to see which command an agent chooses
+after reading the watch-video skill. See
+[Check what an agent does with the skill](releasing.md#check-what-an-agent-does-with-the-skill).
+`make check` still tests that the eval cases are well formed.
 
 `make check` also validates `.claude-plugin/marketplace.json` against the
 release tags, so it needs them locally. Fetch them if your clone lacks them:
@@ -53,6 +57,7 @@ packages/<name>/
 ├── README.md
 ├── LICENSE
 ├── skills/<name>/
+├── evals/          optional: agent eval cases
 └── tests/
 ```
 

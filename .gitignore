@@ -87,6 +87,7 @@ dist/
 *.zip
 .coverage
 .coverage.*
+packages/*/evals/results/
 build/
 coverage/
 generated/

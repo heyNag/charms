@@ -66,6 +66,30 @@ the running oMLX server and fails when the helper no longer understands the
 answers. It changes nothing in oMLX. The oMLX and Splash versions are in the
 app's About window and in `splash --version`.
 
+## Check what an agent does with the skill
+
+The tests show what the scripts do. They cannot show what an agent does after
+reading `SKILL.md`, and the consent rule lives there. Before a watch-video
+release, and after any change to its `SKILL.md`, run the agent evals:
+
+```sh
+make agent-evals
+```
+
+This runs `claude plugin eval` on `packages/watch-video/evals/`. Each case
+gives an agent the skill and one request, such as a private recording with
+every API key set, and checks the command it answers with: no hosted
+transcriber and no Gemini without the user's consent, and both when the user
+gave it. The cases ask for the command only, so nothing is downloaded or
+uploaded, and they are given no shell.
+
+It needs Claude Code 2.1.269 or later, signed in. Every case runs three agent
+sessions on your own account, and one case also asks a judge model, so a run
+costs a little. The first run asks whether you trust the plugin directory.
+Results are written to `packages/watch-video/evals/results/`, which Git
+ignores. A case that scores below 1.0 fails the command: read the report it
+names, then fix `SKILL.md` or the case.
+
 ## Run a release
 
 Dispatch the `Release Plugin` workflow from `main` with one input, the plugin
