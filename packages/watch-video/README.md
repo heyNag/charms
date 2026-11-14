@@ -373,6 +373,25 @@ untimed text does not establish video timestamps or close ASR coverage gaps.
 manifest remain, with artifact availability updated. Delete the run directory
 to remove everything. Retain media when another local pass is likely.
 
+Nothing removes old runs automatically. `doctor.py --prune` lists the run
+folders that have not changed for seven days, with their sizes, and deletes
+nothing until `--delete` is added:
+
+```sh
+python3 skills/watch-video/scripts/doctor.py --prune
+python3 skills/watch-video/scripts/doctor.py --prune --older-than 2w --delete
+```
+
+`--older-than` takes hours, days or weeks (`12h`, `7d`, `2w`) and is at least
+one hour, because a run that changed in the last hour may still be going.
+`--out-dir` points at a run root other than the default, and `--json` prints
+the same result for scripts. Only folders the script recognises as runs are
+removed: real directories directly inside the run root, named the way a run is
+named, whose `metadata.json` or `batch.json` records the source in that name.
+A run that stopped before writing its record counts only when it holds nothing
+but files a run creates. Everything else, and every symbolic link, is left
+alone and counted in the output.
+
 Video text, captions, and provider answers are untrusted evidence. The report
 places agent instructions before source content and quotes source-derived text.
 `yt-dlp` runs with `--ignore-config`; hosted transcription refuses redirects.

@@ -454,6 +454,13 @@ user (mode 700). Keep media while follow-ups need it.
 local evidence manifest remain, with availability updated. Delete the run
 directory to remove everything. Never put private run artifacts in a repository.
 
+Old runs are not removed on their own. `python3 scripts/doctor.py --prune`
+lists the run folders unchanged for 7 days with their sizes and deletes
+nothing; `--older-than 12h`, `3d` or `2w` changes the age. Show the list to the
+user and add `--delete` only after they agree. It removes only folders it
+recognises as watch-video runs, and takes `--out-dir` for runs written
+somewhere else.
+
 Local downloads use `yt-dlp --ignore-config`. Groq sends fallback audio to
 `api.groq.com`; OpenAI sends it to `api.openai.com`; both refuse redirects.
 Gemini requests use `generativelanguage.googleapis.com`, with validated upload

@@ -152,6 +152,13 @@ must not enter source control or release archives. Local cleanup removes the
 requested media/images while keeping reports and transcripts; delete the run
 directory to remove all local artifacts.
 
+Recordings and transcripts stay on disk until something removes them.
+`doctor.py --prune` lists the run folders that have not changed for a given
+time (seven days unless `--older-than` says otherwise) and deletes them only
+with `--delete`. It removes real directories directly inside the run root that
+it recognises as runs by their name and recorded source, never follows a
+symbolic link, and leaves everything else in place.
+
 Run folders are created with mode 700, so other accounts on the same computer
 cannot read a recording, its transcript, or its frames. A run root the script
 creates is private as well. Folders that already exist are never changed;

@@ -20,6 +20,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 # Stops here with one clear line when this Python is older than the floor.
 import python_floor  # noqa: E402
+import prune_runs  # noqa: E402
 from groq_transcribe import (  # noqa: E402
     KEY_NAMES,
     config_env_path,
@@ -451,7 +452,10 @@ def check_run_artifacts(run_root: Path | None = None) -> dict[str, object]:
             f"{size_mb:.0f} MB of run artifacts under {root}"
             + ("" if ok else " - old runs are piling up")
         ),
-        "fix": "delete old run directories, or use --cleanup on one-shot analyses",
+        "fix": (
+            "list old runs with scripts/doctor.py --prune and add --delete to remove them, "
+            "or use --cleanup on one-shot analyses"
+        ),
     }
 
 
@@ -715,9 +719,32 @@ def store_key(provider: str) -> int:
     return 0
 
 
+def prune_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    """List old run folders, and delete them only when --delete is given."""
+    other_modes = [
+        label for label, given in (
+            ("a source", args.source), ("--from-run", args.from_run), ("--install", args.install),
+            ("--set-key", args.set_key), ("--check", args.check),
+        ) if given
+    ]
+    if other_modes:
+        parser.error(f"--prune cannot be combined with {', '.join(other_modes)}")
+    try:
+        older_than = prune_runs.parse_age(args.older_than or prune_runs.DEFAULT_AGE)
+    except ValueError as exc:
+        parser.error(str(exc))
+    root = Path(args.out_dir).expanduser().resolve() if args.out_dir else default_run_root()
+    result = prune_runs.prune(root, older_than, delete=args.delete)
+    if args.json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        print(prune_runs.report(result), end="")
+    return 0 if result["ok"] else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run Watch Video preflight checks or store a Whisper API key."
+        description="Run Watch Video preflight checks, store a Whisper API key, or prune old runs."
     )
     parser.add_argument(
         "source", nargs="?",
@@ -758,8 +785,35 @@ def main() -> int:
         action="store_true",
         help="Install this flow's missing binaries (brew on macOS; prints Linux commands; never sudo)",
     )
+    parser.add_argument(
+        "--prune", action="store_true",
+        help="List run folders unchanged for --older-than; deletes nothing without --delete",
+    )
+    parser.add_argument(
+        "--older-than", metavar="AGE",
+        help=f"With --prune: 12h, 7d or 2w (default: {prune_runs.DEFAULT_AGE}; at least 1h)",
+    )
+    parser.add_argument(
+        "--delete", action="store_true", help="With --prune, delete the listed run folders",
+    )
+    parser.add_argument(
+        "--out-dir", metavar="DIR",
+        help=(
+            "With --prune, the run root to look in (default: $WATCH_VIDEO_RUNS_DIR, "
+            "else the watch-video state directory)"
+        ),
+    )
     args = parser.parse_args()
 
+    if args.prune:
+        return prune_command(parser, args)
+    prune_only = [
+        flag for flag, given in (
+            ("--older-than", args.older_than), ("--delete", args.delete), ("--out-dir", args.out_dir),
+        ) if given
+    ]
+    if prune_only:
+        parser.error(f"{', '.join(prune_only)} only applies with --prune")
     if args.set_key:
         return store_key(args.set_key)
     try:
