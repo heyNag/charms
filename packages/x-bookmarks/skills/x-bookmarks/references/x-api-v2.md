@@ -96,6 +96,14 @@ reports the reset time, when X sends a usable one, instead of waiting silently.
 - `--update-state` saves the cutoff only when the fetch reached the end of the
   list (`--all` without `--max-pages`; `meta.cutoff_reached`), and refuses
   `--query`.
+- `--stop-after-known N` (5 to 50, with `--all --since-last`) trades that
+  certainty for fewer requests. It stops at the first N saved bookmarks in a
+  row, in saved order with gaps allowed, treats the fetch as complete, and
+  reports `meta.cutoff_mode: "early_stop"` and `meta.stopped_early: true`.
+  At least N reviewed posts bookmarked again in their old order, with nothing
+  between them, look the same; new bookmarks below them are then missed and,
+  with `--update-state`, marked as reviewed. Without a row that long the
+  fetch reads to the end as usual.
 - Local "new since last review" state defaults to
   `~/.local/state/x-bookmarks/state.json`; `X_BOOKMARKS_STATE_FILE` overrides
   that default, and `--state-file PATH` overrides it for one invocation. Keep

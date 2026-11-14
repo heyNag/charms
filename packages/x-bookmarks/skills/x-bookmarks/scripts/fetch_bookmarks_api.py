@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import functools
 import http.client
 import json
 from pathlib import Path
 import sys
-from typing import Any
+from typing import Any, Callable, Optional
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -19,10 +20,12 @@ import python_floor  # noqa: F401
 import plugin_version
 from review_state import (  # noqa: F401 - the state functions stay reachable from this module
     FOLDER_ID,
+    MIN_KNOWN_RUN,
     STATE_ANCHORS,
     STATE_FIX,
     StateError,
     default_state_file,
+    known_run,
     load_state,
     review,
     save_state,
@@ -37,6 +40,8 @@ from x_api_auth import AuthError, get_valid_token, open_request, token_variable
 BASE_URL = "https://api.x.com/2"
 MAX_RESULTS = 100
 DEFAULT_STATE_FILE = default_state_file()
+# Given the IDs fetched so far, newest first, says whether to stop paging.
+Stop = Optional[Callable[[list], bool]]
 
 TWEET_FIELDS = ",".join(
     [
@@ -235,12 +240,14 @@ def fetch_bookmark_pages(
     count: int,
     fetch_all: bool,
     max_pages: int | None,
-) -> tuple[list[dict[str, Any]], dict[str, str], bool]:
-    """Return bookmarks, rate headers, and whether pagination reached the end."""
+    stop: Stop = None,
+) -> tuple[list[dict[str, Any]], dict[str, str], bool, bool]:
+    """Return bookmarks, rate headers, whether pagination reached the end, and whether stop ended it."""
     bookmarks: list[dict[str, Any]] = []
     next_token: str | None = None
     last_headers: dict[str, str] = {}
     pages = 0
+    stopped = False
 
     while True:
         remaining = None if fetch_all else count - len(bookmarks)
@@ -257,10 +264,13 @@ def fetch_bookmark_pages(
         next_token = meta.get("next_token") if isinstance(meta, dict) else None
         if not next_token:
             break
+        if stop is not None and stop([item["id"] for item in bookmarks]):
+            stopped = True
+            break
         if max_pages is not None and pages >= max_pages:
             break
 
-    return bookmarks, last_headers, not next_token
+    return bookmarks, last_headers, not next_token, stopped
 
 
 def fetch_folders(
@@ -305,12 +315,14 @@ def fetch_folder_post_ids(
     count: int,
     fetch_all: bool,
     max_pages: int | None,
-) -> tuple[list[str], dict[str, str], bool]:
-    """Return folder post IDs, rate headers, and whether pagination reached the end."""
+    stop: Stop = None,
+) -> tuple[list[str], dict[str, str], bool, bool]:
+    """Return folder post IDs, rate headers, whether pagination reached the end, and whether stop ended it."""
     ids: list[str] = []
     next_token: str | None = None
     last_headers: dict[str, str] = {}
     pages = 0
+    stopped = False
 
     while True:
         remaining = None if fetch_all else count - len(ids)
@@ -331,10 +343,13 @@ def fetch_folder_post_ids(
         next_token = meta.get("next_token") if isinstance(meta, dict) else None
         if not next_token:
             break
+        if stop is not None and stop(ids):
+            stopped = True
+            break
         if max_pages is not None and pages >= max_pages:
             break
 
-    return ids, last_headers, not next_token
+    return ids, last_headers, not next_token, stopped
 
 
 def hydrate_posts(session: Session, post_ids: list[str]) -> tuple[list[dict[str, Any]], dict[str, str]]:
@@ -516,6 +531,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Save the newest fetched bookmarks as the cutoff after a fetch that reached the end of the list.",
     )
+    parser.add_argument(
+        "--stop-after-known",
+        type=int,
+        metavar="N",
+        help=(
+            "With --all --since-last, stop fetching once N already reviewed bookmarks appear in a row "
+            f"({MIN_KNOWN_RUN} to {STATE_ANCHORS}). Saves requests, but misses new bookmarks that sit "
+            "below at least N reviewed posts bookmarked again in their old order."
+        ),
+    )
     parser.add_argument("--state-file", type=Path, default=DEFAULT_STATE_FILE)
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON.")
     return parser.parse_args(argv)
@@ -541,6 +566,18 @@ def main(argv: list[str]) -> int:
         )
         print("fix: run --all --since-last --update-state without --query", file=sys.stderr)
         return 2
+    if args.stop_after_known is not None:
+        if not (args.all and args.since_last) or args.folders:
+            print("error: --stop-after-known works only with --all --since-last", file=sys.stderr)
+            return 2
+        if not MIN_KNOWN_RUN <= args.stop_after_known <= STATE_ANCHORS:
+            print(
+                f"error: --stop-after-known must be between {MIN_KNOWN_RUN} and {STATE_ANCHORS}: "
+                f"a shorter row is too easy to mistake for the cutoff, and only {STATE_ANCHORS} "
+                "reviewed bookmarks are saved",
+                file=sys.stderr,
+            )
+            return 2
 
     state_file = args.state_file.expanduser()
     state: dict[str, Any] = {}
@@ -559,6 +596,13 @@ def main(argv: list[str]) -> int:
         user_id = str(user["id"])
         headers: dict[str, str] = {}
         state_saved = True
+        stop: Stop = None
+        if args.stop_after_known is not None:
+            stop = functools.partial(
+                known_run,
+                anchors=state_anchor_ids(state, state_scope(args.folder_id)),
+                needed=args.stop_after_known,
+            )
 
         if args.folders:
             folders, headers = fetch_folders(session, user_id, args.count, args.all, args.max_pages)
@@ -574,25 +618,27 @@ def main(argv: list[str]) -> int:
             }
         else:
             if args.folder_id:
-                post_ids, headers, reached_end = fetch_folder_post_ids(
+                post_ids, headers, reached_end, stopped_early = fetch_folder_post_ids(
                     session,
                     user_id,
                     args.folder_id,
                     args.count,
                     args.all,
                     args.max_pages,
+                    stop,
                 )
                 items, hydrate_headers = hydrate_posts(session, post_ids)
                 headers = hydrate_headers or headers
                 for item in items:
                     item["folder_id"] = args.folder_id
             else:
-                items, headers, reached_end = fetch_bookmark_pages(
+                items, headers, reached_end, stopped_early = fetch_bookmark_pages(
                     session,
                     user_id,
                     args.count,
                     args.all,
                     args.max_pages,
+                    stop,
                 )
 
             reviewed = review(
@@ -603,6 +649,7 @@ def main(argv: list[str]) -> int:
                 reached_end=reached_end,
                 apply_cutoff=args.since_last,
                 save_cutoff=args.update_state,
+                stopped_early=stopped_early,
             )
             for line in reviewed.messages:
                 print(line, file=sys.stderr)

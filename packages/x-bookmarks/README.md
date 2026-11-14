@@ -119,10 +119,19 @@ cutoff, but only when the fetch reached the end of the list (`--all` without
 moves to the top and is listed as new. In a partial fetch such posts look just
 like the cutoff, so `--since-last` then returns every fetched bookmark with
 `cutoff_mode` `unfiltered` and saves nothing. The JSON `meta` reports
-`cutoff_reached` (true only when the fetch reached the end of the list),
-`state_updated`, and `cutoff_mode`; `created_at_fallback` means no saved
+`cutoff_reached` (true when the fetch reached the end of the list, or when an
+early stop asked for below found the cutoff), `state_updated`, and
+`cutoff_mode`; `created_at_fallback` means no saved
 bookmark was still present, so post creation time was used and results may
 skip or repeat bookmarks.
+
+A full review costs one request per 100 bookmarks. `--stop-after-known N`
+(5 to 50), with `--all --since-last`, stops the fetch at the first N already
+reviewed bookmarks in a row and reports `cutoff_mode` `early_stop`. This is
+opt-in because it is a bet: when at least N reviewed posts were bookmarked
+again in their old order, they pass for the cutoff, and new bookmarks below
+them are missed. Reviewed posts bookmarked again in any other order do not
+stop the fetch.
 
 `--since-last` and `--update-state` read the review state before the first
 request. A state file that cannot be read or is damaged stops the run there,

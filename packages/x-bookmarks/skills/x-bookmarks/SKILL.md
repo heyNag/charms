@@ -204,6 +204,13 @@ cutoff, so it returns every fetched bookmark as `unfiltered`, leaves
 `meta.state_updated` false, and stderr says how to rerun. If
 `meta.cutoff_mode` is `created_at_fallback` or `unfiltered`, tell the user the
 "new" list may skip or repeat bookmarks.
+
+Each API review reads the whole list, which costs a request per 100
+bookmarks. Add `--stop-after-known 10` only when the user asks to spend fewer
+API requests and accepts the trade-off. The fetch then stops at ten already
+reviewed bookmarks in a row and reports `meta.cutoff_mode` `early_stop`. It
+misses new bookmarks only when they lie below at least ten reviewed posts
+that were bookmarked again in their old order.
 Bird can fetch a recent window but does not persist the last reviewed bookmark.
 
 ## Failure Handling

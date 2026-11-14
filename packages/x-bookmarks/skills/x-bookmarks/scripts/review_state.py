@@ -26,6 +26,8 @@ STATE_ANCHORS = 50
 # X documents a bookmark folder ID as 1 to 19 digits. The ID goes into the
 # request path, where a value such as "../x" would leave the folders endpoint.
 FOLDER_ID = re.compile(r"[0-9]{1,19}")
+# The shortest row of reviewed bookmarks an early stop may rely on; see known_run.
+MIN_KNOWN_RUN = 5
 
 
 def default_state_file() -> Path:
@@ -182,6 +184,31 @@ def cutoff_index(items: list[dict[str, Any]], anchors: list[str]) -> int | None:
     return start
 
 
+def known_run(ids: list[str], anchors: list[str], needed: int) -> bool:
+    """Tell whether ids, newest first, hold `needed` saved anchors in a row, in saved order.
+
+    That is how the reviewed part of the list begins, so a fetch may stop there
+    instead of reading every older page. It is a bet, not proof: reviewed posts
+    bookmarked again also sit near the top. For them to pass as the cutoff, at
+    least `needed` of them must have been bookmarked again in their old order
+    with nothing else in between, and new bookmarks below them are then missed.
+    Any other order breaks the row, and the fetch reads on to the end.
+    """
+    rank = {anchor: position for position, anchor in enumerate(anchors)}
+    run = 0
+    previous = -1
+    for item_id in ids:
+        position = rank.get(item_id)
+        if position is None:
+            run, previous = 0, -1
+            continue
+        run = run + 1 if position > previous else 1
+        previous = position
+        if run >= needed:
+            return True
+    return False
+
+
 def since_last(
     items: list[dict[str, Any]],
     state: dict[str, Any],
@@ -241,6 +268,7 @@ def review(
     reached_end: bool,
     apply_cutoff: bool,
     save_cutoff: bool,
+    stopped_early: bool = False,
 ) -> Reviewed:
     """Apply --since-last and --update-state to a fetched list, newest first.
 
@@ -248,13 +276,20 @@ def review(
     newer than the old cutoff: in a partial window, reviewed posts bookmarked
     again look just like the cutoff. Saving after a partial fetch could mark
     bookmarks nobody saw as reviewed, so nothing is saved then.
+
+    stopped_early says the caller asked for an early stop and known_run found
+    the cutoff before the end. The user accepted that bet, so the fetch counts
+    as complete and is reported with the cutoff mode "early_stop".
     """
     fetched = list(items)
     shown = fetched
     messages: list[str] = []
     cutoff_mode = None
+    reached_end = reached_end or stopped_early
     if apply_cutoff:
         shown, cutoff_mode = since_last(fetched, state, scope, reached_end)
+        if stopped_early and cutoff_mode == "anchor":
+            cutoff_mode = "early_stop"
         if cutoff_mode == "created_at_fallback":
             messages.append(
                 "warning: no saved review anchor is still bookmarked; filtered by post "
@@ -290,6 +325,7 @@ def review(
         "since_last": apply_cutoff,
         "cutoff_mode": cutoff_mode,
         "cutoff_reached": reached_end,
+        "stopped_early": stopped_early,
         "state_updated": state_updated,
         "state_scope": scope,
         "state_file": str(state_file),

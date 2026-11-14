@@ -618,6 +618,21 @@ class FolderTest(FakeXCase):
         self.assertEqual(output["meta"]["cutoff_mode"], "no_state")
         self.assertEqual(len(output["data"]), 252)
 
+    def test_an_early_stop_saves_folder_pages_and_lookups(self) -> None:
+        review = ("--folder-id", "7001", "--all", "--since-last", "--update-state")
+        self.fetch(*review)
+        self.assertEqual((len(self.queries("/folders/7001")), self.lookups()), (3, [100, 100, 50]))
+        self.x.folder_posts["7001"] = ["903", "902", "901", *self.x.folder_posts["7001"]]
+        self.x.requests.clear()
+
+        code, output, stderr = self.fetch(*review, "--stop-after-known", "5")
+
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertEqual(ids(output), ["903", "902", "901"])
+        self.assertEqual(output["meta"]["cutoff_mode"], "early_stop")
+        self.assertTrue(output["meta"]["state_updated"])
+        self.assertEqual((len(self.queries("/folders/7001")), self.lookups()), (1, [100]))
+
     def test_a_folder_id_that_is_not_digits_is_refused_before_any_request(self) -> None:
         refused = (
             "../../me",

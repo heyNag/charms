@@ -390,6 +390,151 @@ class ReviewStateTest(unittest.TestCase):
         self.assertEqual(json.loads(expected.read_text())["scopes"]["all"]["last_seen_id"], "1000")
         self.assertFalse((Path.cwd() / "~").exists())
 
+    def bookmark_pages(self) -> int:
+        return sum(1 for path in self.requests if path.endswith("/bookmarks"))
+
+    def review_then_add(self, new: int) -> list[str]:
+        """Review 250 bookmarks in full, then bookmark `new` more; return the new IDs."""
+        _code, output, _stderr = self.run_main("--all", "--since-last", "--update-state")
+        self.assertTrue(output["meta"]["state_updated"])
+        self.bookmarks = bookmarks(1000 + new, 250 + new)
+        self.requests.clear()
+        return [str(1000 + new - index) for index in range(new)]
+
+    def test_an_early_stop_ends_the_fetch_on_the_page_that_shows_the_cutoff(self) -> None:
+        new = self.review_then_add(30)
+
+        code, output, stderr = self.run_main(
+            "--all", "--since-last", "--update-state", "--stop-after-known", "10"
+        )
+
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertEqual(returned_ids(output), new)
+        # One page of 100 held the 30 new bookmarks and the row of reviewed ones.
+        self.assertEqual(self.bookmark_pages(), 1)
+        meta = output["meta"]
+        self.assertEqual((meta["cutoff_mode"], meta["stopped_early"]), ("early_stop", True))
+        self.assertEqual((meta["cutoff_reached"], meta["state_updated"], meta["fetched_count"]), (True, True, 100))
+        entry = self.saved_entry()
+        self.assertEqual(entry["anchor_ids"], [str(1030 - index) for index in range(50)])
+
+        # Nothing new since: the row is at the very top of the first page.
+        self.requests.clear()
+        _code, output, _stderr = self.run_main(
+            "--all", "--since-last", "--update-state", "--stop-after-known", "10"
+        )
+        self.assertEqual(returned_ids(output), [])
+        self.assertEqual((self.bookmark_pages(), output["meta"]["cutoff_mode"]), (1, "early_stop"))
+
+    def test_an_early_stop_reads_on_until_the_row_is_long_enough(self) -> None:
+        for count, pages in ((95, 2), (150, 2), (200, 3)):
+            with self.subTest(new=count):
+                self.state_file.unlink(missing_ok=True)
+                self.bookmarks = bookmarks(1000, 250)
+                new = self.review_then_add(count)
+
+                _code, output, _stderr = self.run_main("--all", "--since-last", "--stop-after-known", "10")
+
+                # With 95 new bookmarks only five reviewed ones end the first page.
+                self.assertEqual(returned_ids(output), new)
+                self.assertEqual(self.bookmark_pages(), pages)
+                self.assertEqual(output["meta"]["cutoff_mode"], "early_stop")
+
+    def test_an_early_stop_needs_a_saved_review_and_enough_of_it_left(self) -> None:
+        # No review saved yet: there is nothing to recognise, so the whole list is read.
+        _code, output, _stderr = self.run_main("--all", "--since-last", "--stop-after-known", "5")
+        self.assertEqual((self.bookmark_pages(), output["meta"]["cutoff_mode"]), (3, "no_state"))
+        self.assertFalse(output["meta"]["stopped_early"])
+
+        # Four reviewed bookmarks are left where five in a row are asked for.
+        self.requests.clear()
+        self.state_file.unlink(missing_ok=True)
+        self.save_state(last_seen_id="1000", anchor_ids=["1000", "999", "998", "997"])
+        self.bookmarks = [*posts(["n2", "n1"]), *self.bookmarks]
+
+        _code, output, stderr = self.run_main("--all", "--since-last", "--stop-after-known", "5")
+
+        self.assertEqual(returned_ids(output), ["n2", "n1"])
+        self.assertEqual((self.bookmark_pages(), output["meta"]["cutoff_mode"]), (3, "anchor"))
+        self.assertEqual((output["meta"]["stopped_early"], stderr), (False, ""))
+
+    def test_reviewed_posts_bookmarked_again_out_of_their_old_order_are_not_the_cutoff(self) -> None:
+        self.review_everything()
+        new = [f"n{index}" for index in range(1, 121)]
+        again = ["r10", "r20", "r30", "r40", "r45", "r50"]
+        self.bookmark(*new, *again)
+        self.requests.clear()
+
+        _code, output, _stderr = self.run_main("--all", "--since-last", "--stop-after-known", "5")
+
+        # Six reviewed posts head the list, but newest review last. That is not
+        # a row in the saved order, so the fetch reads on to the real cutoff,
+        # which starts on page two of five.
+        self.assertEqual(returned_ids(output), [*reversed(again), *reversed(new)])
+        self.assertEqual((self.bookmark_pages(), output["meta"]["cutoff_mode"]), (2, "early_stop"))
+
+    def test_an_early_stop_is_fooled_by_a_row_bookmarked_again_in_its_old_order(self) -> None:
+        # The documented price of the option, kept here so the documents stay true.
+        self.review_everything()
+        new = [f"n{index}" for index in range(1, 121)]
+        self.bookmark(*new)
+        self.bookmark("r5", "r4", "r3", "r2", "r1")
+        self.requests.clear()
+
+        _code, output, _stderr = self.run_main("--all", "--since-last", "--stop-after-known", "5")
+
+        # r1..r5 head the list in saved order, and 120 new bookmarks fill the rest of page one.
+        self.assertEqual((self.bookmark_pages(), output["meta"]["cutoff_mode"]), (1, "early_stop"))
+        self.assertEqual(returned_ids(output), [])
+
+        # Without the option the same list is read in full and nothing is missed.
+        _code, output, _stderr = self.run_main("--all", "--since-last")
+        self.assertEqual(returned_ids(output), ["r1", "r2", "r3", "r4", "r5", *reversed(new)])
+
+    def test_a_page_limit_before_the_row_is_found_is_a_partial_fetch(self) -> None:
+        self.review_then_add(150)
+
+        _code, output, stderr = self.run_main(
+            "--all", "--max-pages", "1", "--since-last", "--update-state", "--stop-after-known", "10"
+        )
+
+        self.assertEqual(len(output["data"]), 100)
+        meta = output["meta"]
+        self.assertEqual((meta["cutoff_mode"], meta["cutoff_reached"], meta["stopped_early"]), ("unfiltered", False, False))
+        self.assertFalse(meta["state_updated"])
+        self.assertIn("warning: the fetch stopped before the end of the list", stderr)
+
+    def test_an_early_stop_is_refused_where_it_cannot_work(self) -> None:
+        for argv, message in (
+            (("--since-last", "--stop-after-known", "10"), "works only with --all --since-last"),
+            (("--all", "--stop-after-known", "10"), "works only with --all --since-last"),
+            (("--all", "--since-last", "--folders", "--stop-after-known", "10"), "works only with --all --since-last"),
+            (("--all", "--since-last", "--stop-after-known", "4"), "must be between 5 and 50"),
+            (("--all", "--since-last", "--stop-after-known", "51"), "must be between 5 and 50"),
+        ):
+            with self.subTest(argv=argv):
+                code, output, stderr = self.run_main(*argv)
+
+                self.assertEqual(code, 2)
+                self.assertIsNone(output)
+                self.assertIn(f"error: --stop-after-known {message}", stderr)
+        self.assertEqual(self.requests, [])
+        self.token.assert_not_called()
+
+    def test_known_run_counts_only_saved_ids_in_saved_order(self) -> None:
+        anchors = [f"r{index}" for index in range(1, 11)]
+        known_run = self.api.known_run
+
+        self.assertTrue(known_run(["n1", "r1", "r2", "r3"], anchors, 3))
+        # Gaps are fine: reviewed bookmarks may have been removed since.
+        self.assertTrue(known_run(["r2", "r5", "r9"], anchors, 3))
+        self.assertFalse(known_run(["r1", "r2", "n1", "r3"], anchors, 3))
+        self.assertFalse(known_run(["r3", "r2", "r1"], anchors, 2))
+        # A row may start again after a step back.
+        self.assertTrue(known_run(["r5", "r1", "r2", "r3"], anchors, 3))
+        self.assertFalse(known_run([], anchors, 1))
+        self.assertFalse(known_run(["r1"], [], 1))
+
     def test_update_last_seen_keeps_newest_anchors_then_older_ones(self) -> None:
         state = self.api.update_last_seen({}, "all", ["old-2", "old-1"])
         fetched = [str(index) for index in range(60, 0, -1)]
