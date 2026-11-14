@@ -13,9 +13,15 @@ The plugins themselves support Python 3.9, so code under `packages/` stays
 within Python 3.9's syntax and standard library. See
 [Python versions](#python-versions).
 
-The development dependencies are pinned in `requirements-dev.txt`. Validation
-uses a vendored copy of the immutable Agent Plugins v1 manifest schema and the
-official Agent Skills reference validator.
+`requirements-dev.txt` pins the three development tools and every package they
+pull in. CI installs them with `make dev-deps`, which installs those lines and
+nothing else, then runs `pip check`: a tool that starts to need a package the
+file does not list fails the run, so add the package to the file. Dependabot
+opens at most one pull request a month for these pins and one for the actions
+pinned in the workflows; see `.github/dependabot.yml`.
+
+Validation uses a vendored copy of the immutable Agent Plugins v1 manifest
+schema and the official Agent Skills reference validator.
 
 `make check` also validates `.claude-plugin/marketplace.json` against the
 release tags, so it needs them locally. Fetch them if your clone lacks them:

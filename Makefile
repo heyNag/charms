@@ -1,7 +1,14 @@
-.PHONY: test test-tooling test-plugins syntax lint validate whitespace check ci doctor groq-test
+.PHONY: dev-deps test test-tooling test-plugins syntax lint validate whitespace check ci doctor groq-test
 
 AUDIO ?=
 PYTHON ?= python3
+
+# Install exactly what requirements-dev.txt pins, into the current environment.
+# pip check then fails if a pinned package needs one that the file does not
+# list. Use a fresh virtual environment: pip check looks at every package in it.
+dev-deps:
+	$(PYTHON) -m pip install --no-deps --requirement requirements-dev.txt
+	$(PYTHON) -m pip check
 
 test: test-tooling test-plugins
 

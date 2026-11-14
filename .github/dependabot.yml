@@ -1,0 +1,21 @@
+# The workflows pin actions by commit, and requirements-dev.txt pins the
+# development tools, so neither moves on its own. Dependabot proposes the
+# updates: at most one pull request a month for each, which CI checks like any
+# other pull request.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      development-tools:
+        patterns: ["*"]
