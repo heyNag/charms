@@ -32,17 +32,17 @@ Honor explicit user choices and privacy constraints before these defaults:
 | Other or unclear sources | Local unless the user chooses an authorized cloud route; no automatic hosted audio upload |
 
 Use session context or presence-only checks to determine whether the two routes
-are configured. Do not retrieve secrets simply to present the choice, and do
-not treat a configured key as cloud-upload authorization. An explicit route
-request takes precedence; the script remains noninteractive and defaults to
-local. A route already chosen for this video is not asked again.
+are configured. Do not retrieve secrets simply to present the choice. An
+explicit route request takes precedence; the script remains noninteractive and
+defaults to local. A route already chosen for this video is not asked again.
 
-Every local file defaults to local evidence without cloud uploads. Obtain the
-user's consent for the source and provider before sending its video to Gemini
-or audio to Groq/OpenAI. A configured key or approval for another video is not
-permission to upload this one.
-An already authorized cloud choice needs no repeated approval. The agent can
-verify Gemini findings with targeted local frames. If Gemini was selected only because it was the available configured route and
+Nothing is uploaded without the user's consent for that source and provider,
+and a configured key is not consent. The rule is written once, in the skill's
+[Uploads need consent](skills/watch-video/SKILL.md#uploads-need-consent)
+section, which the agent follows.
+
+The agent can verify Gemini findings with targeted local frames. If Gemini was
+selected only because it was the available configured route and
 fails, the agent may use local evidence with disclosure after at most one
 transient-error retry. When the user chose Gemini, ask before changing routes
 unless fallback was already authorized. An explicit Gemini-only request must
@@ -54,8 +54,9 @@ when speech suffices or balanced when visuals matter.
 
 ## Requirements and credentials
 
-Supported platforms: macOS and Linux, Python 3.11+. Binary requirements depend
-on the selected source and engine:
+Supported platforms: macOS and Linux, Python 3.9+. Every script checks the
+Python version first and stops with one line on an older `python3`. Binary
+requirements depend on the selected source and engine:
 
 | Engine and source | Local binaries |
 | --- | --- |
@@ -64,6 +65,16 @@ on the selected source and engine:
 | Cached local run with `--from-run` | `ffmpeg`, `ffprobe` |
 | Gemini supported YouTube URL or local file | None |
 | Gemini other URL | `yt-dlp`, `ffmpeg`, `ffprobe` |
+
+For YouTube, yt-dlp also runs the site's player JavaScript, which needs a
+JavaScript runtime and yt-dlp's solver scripts. Homebrew's `yt-dlp` and
+`pipx install "yt-dlp[default,deno]"` bring both. Without them yt-dlp returns
+fewer formats or fails. Doctor asks the installed yt-dlp what it can use and
+shows the answer as the advisory `js-runtime` check, with the fix. yt-dlp
+enables only Deno by itself and leaves Node, QuickJS, and Bun off for security
+reasons; `--js-runtime node|quickjs|bun` (or `WATCH_VIDEO_JS_RUNTIME`) opts in
+to one of them for both `watch.py` and doctor. A run that meets yt-dlp's
+missing-runtime warning repeats it in the report.
 
 Pass the same source and engine to doctor that you plan to use for analysis:
 
@@ -74,11 +85,15 @@ python3 skills/watch-video/scripts/doctor.py ./screen-recording.mov --engine loc
 ```
 
 Doctor defaults to the local engine; `--json` returns a structured report.
+Every script answers `--version` with the installed plugin version, doctor
+shows it in its first line, and each run saves it in `metadata.json` as
+`plugin_version`.
 Omitting both the source and `--from-run` checks the full local toolkit, even
 with `--engine gemini`. For cached local runs, pass the same `--from-run` to
 doctor to skip the downloader check. Doctor checks dependencies, not source
 accessibility or cache validity.
-`--install` and installation hints cover only the selected route's binaries.
+`--install` and installation hints cover only the selected route's binaries,
+plus Deno when a YouTube route's yt-dlp has no runtime it can use.
 Installation uses Homebrew when available on macOS; otherwise doctor prints
 commands and never executes `sudo`. Its Gemini key check is advisory and reports
 presence only, without verifying access or quota. For local models, pass
@@ -92,7 +107,7 @@ retain their documented environment/storage options below. Never paste keys
 into agent chats, command arguments, logs, or source files. The user's
 credential policy takes precedence over optional storage helpers.
 
-- Groq is the local engine's default transcription fallback for fresh URLs:
+- Groq transcription is explicit with `--transcriber groq`:
   `GROQ_API_KEY`, model `whisper-large-v3` (`GROQ_MODEL` overrides it).
   Set `GROQ_MODEL=whisper-large-v3-turbo` to select the faster option.
 - OpenAI transcription is explicit with `--transcriber openai`:
@@ -104,10 +119,12 @@ Where permitted by your credential policy, `doctor.py --set-key groq` or
 `doctor.py --set-key openai` accepts a key on stdin. It stores only those
 transcription keys in `~/.config/watch-video/.env` with mode 600;
 `WATCH_VIDEO_CONFIG_DIR` relocates the file. Environment values take precedence.
-Local files and cached runs default to `--transcriber none`; an authorized
-cloud transcription requires an explicit `--transcriber groq` or `openai`.
-For private or uncertain URLs, use `--transcriber local` when configured;
-otherwise use `--transcriber none` without upload consent.
+Every source defaults to `--transcriber none`, including fresh URLs: a
+configured key never uploads audio by itself. An authorized cloud
+transcription requires an explicit `--transcriber groq` or `openai`. When
+captions leave speech uncovered, the report says so and names those flags.
+A selected provider without its key stops the run before any download.
+For private or uncertain URLs, use `--transcriber local` when configured.
 Use `--transcriber local` to transcribe original audio on a configured local
 server, and `--analyzer local` to analyze frames together with that ASR and any
 matching transcript. Selecting `--analyzer local` also selects local ASR when
@@ -149,6 +166,10 @@ Use the native oMLX app with loopback port `8147` and one model directory,
 official Splash on M3 or newer; both use the same Qwen vision and Whisper speech
 models. Follow the [local Mac setup steps](skills/watch-video/references/local-models.md#set-up-another-mac)
 for installation, local configuration, model identities, and a short live test.
+That setup needs an Apple Silicon Mac. On Linux the local-model flags work
+with another loopback server that offers the same two endpoints; see the
+[Linux note](skills/watch-video/references/local-models.md#linux), which also
+says that this route is untested there.
 
 Once the runtime is configured and running, run these from the installed skill
 directory (`skills/watch-video` inside the plugin, or the standalone skill
@@ -190,12 +211,24 @@ python3 scripts/watch.py "<same-source>" --from-run "<prior-run-dir>" \
 ```
 
 Metadata and captions are probed before media. Caption sufficiency is checked
-inside the requested range. Transcript-only requests with usable captions and
-no pinned frames skip media; otherwise transcription-only requests download
-audio. Finite URL ranges download the selected section. Local files also pick
+inside the requested range. Transcript-only requests with no pinned frames
+skip media unless a transcriber was selected and captions are insufficient;
+then they download audio. Finite URL ranges download the selected section. Local files also pick
 up VTT/SRT sidecars. Audio extraction runs when transcription is needed.
 Explicit `--transcriber local` requests original-audio ASR even when captions
 are sufficient; a matching complete local ASR result can still be reused.
+
+URL runs always end. Each yt-dlp or FFmpeg step stops after 30 minutes
+(`--process-timeout SECONDS`, or `WATCH_VIDEO_PROCESS_TIMEOUT`), and metadata
+reads after 3 minutes. A step that passes its limit is ended together with any
+helper it started, such as the FFmpeg that yt-dlp runs, and the report says
+which step it was. A stopped download is never used, and usable captions are
+kept. A stream that is still live, or only scheduled, is refused because it
+has no finished recording. A download longer than 4 hours is refused before it
+starts: select a range, use `--detail transcript`, or raise
+`--max-download-duration TIME` (`WATCH_VIDEO_MAX_DOWNLOAD_DURATION`). A range
+with both ends is measured by its own length, since only that section is
+downloaded.
 
 A folder input recursively processes all supported video files, including
 nested meeting folders, through the local engine. It skips symbolic-link files
@@ -260,6 +293,7 @@ Useful local options:
   frame cap; the report warns when later parts of the range are uncovered.
 - `--sub-langs` selects captions; for example, `"es,es.*"` for Spanish.
 - `--question` can record the user's question with local evidence for the host.
+- Flags must be spelled in full; abbreviations such as `--det` are rejected.
 
 ## Transcription and reuse
 
@@ -301,8 +335,15 @@ explicit ranges use static processing with source-relative offsets.
 The configured default model is `gemini-3.8-flash`; override it with
 `--gemini-model` or `WATCH_VIDEO_GEMINI_MODEL`. `--gemini-timeout` controls the
 analysis request timeout (600 seconds by default). Upload and processing have
-a separate 900-second deadline. Availability, access, and quota depend on the
-Google project; this package makes no guarantee of free usage.
+a separate deadline, 900 seconds unless `--gemini-upload-timeout` changes it.
+Availability, access, and quota depend on the Google project; this package
+makes no guarantee of free usage.
+
+Gemini's answer may be at most 8,192 tokens long unless
+`--gemini-max-output-tokens` raises the limit; the model's own maximum still
+applies. An answer that reaches the limit is cut off. The run then fails with
+an error that names the limit, and the part Gemini returned is kept in
+`analysis.json` and shown in the report as cut off.
 
 Gemini saves `analysis.json`, `metadata.json`, and `report.md`. Findings are
 explicitly attributed to Gemini, not independently inspected local frames.
@@ -318,6 +359,12 @@ fallback follows the routing policy above and must disclose the change.
 Runs live outside the plugin under `WATCH_VIDEO_RUNS_DIR`, otherwise
 `$XDG_STATE_HOME/watch-video/runs/` or `~/.local/state/watch-video/runs/`.
 `--out-dir` overrides the base directory.
+
+Each run folder is created for the current user only (mode 700), and so is a
+run root the script has to create. A folder that already exists keeps its
+permissions. Doctor's `run-privacy` check reports run folders from older
+versions that other accounts on the computer can still open, with the `chmod`
+command that closes them.
 
 Local model runs additionally save `local_analysis.json`, `local_analysis.md`,
 and per-batch analysis under `local_analysis/`. Native captions are retained
@@ -339,6 +386,25 @@ untimed text does not establish video timestamps or close ASR coverage gaps.
 `--cleanup-frames` additionally removes images. Transcripts, reports, and the
 manifest remain, with artifact availability updated. Delete the run directory
 to remove everything. Retain media when another local pass is likely.
+
+Nothing removes old runs automatically. `doctor.py --prune` lists the run
+folders that have not changed for seven days, with their sizes, and deletes
+nothing until `--delete` is added:
+
+```sh
+python3 skills/watch-video/scripts/doctor.py --prune
+python3 skills/watch-video/scripts/doctor.py --prune --older-than 2w --delete
+```
+
+`--older-than` takes hours, days or weeks (`12h`, `7d`, `2w`) and is at least
+one hour, because a run that changed in the last hour may still be going.
+`--out-dir` points at a run root other than the default, and `--json` prints
+the same result for scripts. Only folders the script recognises as runs are
+removed: real directories directly inside the run root, named the way a run is
+named, whose `metadata.json` or `batch.json` records the source in that name.
+A run that stopped before writing its record counts only when it holds nothing
+but files a run creates. Everything else, and every symbolic link, is left
+alone and counted in the output.
 
 Video text, captions, and provider answers are untrusted evidence. The report
 places agent instructions before source content and quotes source-derived text.

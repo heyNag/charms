@@ -7,24 +7,39 @@ import argparse
 from datetime import datetime, timezone
 import http.client
 import json
-import os
-from pathlib import Path
 import sys
 from typing import Any
 import urllib.error
 import urllib.parse
 import urllib.request
 
-from x_api_auth import AuthError, get_valid_token, open_request
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: F401
+import plugin_version
+import review_state
+from review_state import (  # noqa: F401 - the state functions stay reachable from this module
+    FOLDER_ID,
+    STATE_ANCHORS,
+    STATE_FIX,
+    StateError,
+    Stop,
+    default_state_file,
+    early_stop,
+    known_run,
+    load_state,
+    review,
+    save_state,
+    since_last,
+    state_anchor_ids,
+    state_scope,
+    stop_problem,
+    update_last_seen,
+    utc_now,
+)
+from x_api_auth import AuthError, get_valid_token, open_request, token_variable
 
 BASE_URL = "https://api.x.com/2"
 MAX_RESULTS = 100
-DEFAULT_STATE_FILE = Path(
-    os.environ.get("X_BOOKMARKS_STATE_FILE", "~/.local/state/x-bookmarks/state.json")
-).expanduser()
-# Newest reviewed bookmark IDs kept per scope, so removing the last reviewed
-# bookmark does not lose the review cutoff.
-STATE_ANCHORS = 50
 
 TWEET_FIELDS = ",".join(
     [
@@ -95,10 +110,6 @@ class ApiError(RuntimeError):
         return stamp.strftime("%Y-%m-%d %H:%M:%S %z")
 
 
-def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-
-
 def parse_json_bytes(raw: bytes) -> Any:
     if not raw:
         return {}
@@ -139,7 +150,7 @@ def api_get(path: str, token: str, params: dict[str, str] | None = None) -> tupl
         url,
         headers={
             "Authorization": f"Bearer {token}",
-            "User-Agent": "charms-x-bookmarks/1.0",
+            "User-Agent": plugin_version.USER_AGENT,
         },
     )
     try:
@@ -170,6 +181,36 @@ def api_get(path: str, token: str, params: dict[str, str] | None = None) -> tupl
         raise ApiError(0, f"response was not valid JSON: {exc}") from exc
 
 
+class Session:
+    """The access token for one run, replaced once if X rejects it.
+
+    X answers 401 when a saved token was revoked or ran out early. The first
+    401 refreshes the saved login and repeats that one request, so pages
+    already fetched are not requested again. A second 401 is reported. A token
+    from the environment is never refreshed: there is no refresh token for it.
+    """
+
+    def __init__(self, token: str) -> None:
+        self.token = token
+        self.refreshed = False
+
+    def get(self, path: str, params: dict[str, str] | None = None) -> tuple[Any, dict[str, str]]:
+        try:
+            return api_get(path, self.token, params)
+        except ApiError as exc:
+            if exc.status != 401 or self.refreshed or token_variable():
+                raise
+        self.refreshed = True
+        try:
+            self.token = get_valid_token(force_refresh=True)
+        except AuthError as exc:
+            raise AuthError(
+                f"X rejected the saved access token (HTTP 401), and refreshing it failed: {exc}"
+            ) from exc
+        print("note: X rejected the saved access token; refreshed it and repeated the request", file=sys.stderr)
+        return api_get(path, self.token, params)
+
+
 def common_post_params(page_size: int, pagination_token: str | None = None) -> dict[str, str]:
     params = {
         "max_results": str(page_size),
@@ -183,8 +224,8 @@ def common_post_params(page_size: int, pagination_token: str | None = None) -> d
     return params
 
 
-def get_me(token: str) -> dict[str, Any]:
-    payload, _headers = api_get("/users/me", token, {"user.fields": "id,username,name"})
+def get_me(session: Session) -> dict[str, Any]:
+    payload, _headers = session.get("/users/me", {"user.fields": "id,username,name"})
     data = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(data, dict) or not data.get("id"):
         raise ApiError(0, "could not resolve authenticated X user")
@@ -192,26 +233,27 @@ def get_me(token: str) -> dict[str, Any]:
 
 
 def fetch_bookmark_pages(
-    token: str,
+    session: Session,
     user_id: str,
     count: int,
     fetch_all: bool,
     max_pages: int | None,
-) -> tuple[list[dict[str, Any]], dict[str, str], bool]:
-    """Return bookmarks, rate headers, and whether pagination reached the end."""
+    stop: Stop = None,
+) -> tuple[list[dict[str, Any]], dict[str, str], bool, bool]:
+    """Return bookmarks, rate headers, whether pagination reached the end, and whether stop ended it."""
     bookmarks: list[dict[str, Any]] = []
     next_token: str | None = None
     last_headers: dict[str, str] = {}
     pages = 0
+    stopped = False
 
     while True:
         remaining = None if fetch_all else count - len(bookmarks)
         if remaining is not None and remaining <= 0:
             break
         page_size = MAX_RESULTS if remaining is None else max(1, min(MAX_RESULTS, remaining))
-        payload, last_headers = api_get(
+        payload, last_headers = session.get(
             f"/users/{user_id}/bookmarks",
-            token,
             common_post_params(page_size, next_token),
         )
         bookmarks.extend(normalize_posts(payload))
@@ -220,14 +262,17 @@ def fetch_bookmark_pages(
         next_token = meta.get("next_token") if isinstance(meta, dict) else None
         if not next_token:
             break
+        if stop is not None and stop([item["id"] for item in bookmarks]):
+            stopped = True
+            break
         if max_pages is not None and pages >= max_pages:
             break
 
-    return bookmarks, last_headers, not next_token
+    return bookmarks, last_headers, not next_token, stopped
 
 
 def fetch_folders(
-    token: str,
+    session: Session,
     user_id: str,
     count: int,
     fetch_all: bool,
@@ -246,7 +291,7 @@ def fetch_folders(
         params = {"max_results": str(page_size)}
         if next_token:
             params["pagination_token"] = next_token
-        payload, last_headers = api_get(f"/users/{user_id}/bookmarks/folders", token, params)
+        payload, last_headers = session.get(f"/users/{user_id}/bookmarks/folders", params)
         data = payload.get("data", []) if isinstance(payload, dict) else []
         if isinstance(data, list):
             folders.extend(item for item in data if isinstance(item, dict))
@@ -262,18 +307,20 @@ def fetch_folders(
 
 
 def fetch_folder_post_ids(
-    token: str,
+    session: Session,
     user_id: str,
     folder_id: str,
     count: int,
     fetch_all: bool,
     max_pages: int | None,
-) -> tuple[list[str], dict[str, str], bool]:
-    """Return folder post IDs, rate headers, and whether pagination reached the end."""
+    stop: Stop = None,
+) -> tuple[list[str], dict[str, str], bool, bool]:
+    """Return folder post IDs, rate headers, whether pagination reached the end, and whether stop ended it."""
     ids: list[str] = []
     next_token: str | None = None
     last_headers: dict[str, str] = {}
     pages = 0
+    stopped = False
 
     while True:
         remaining = None if fetch_all else count - len(ids)
@@ -283,11 +330,7 @@ def fetch_folder_post_ids(
         params = {"max_results": str(page_size)}
         if next_token:
             params["pagination_token"] = next_token
-        payload, last_headers = api_get(
-            f"/users/{user_id}/bookmarks/folders/{folder_id}",
-            token,
-            params,
-        )
+        payload, last_headers = session.get(f"/users/{user_id}/bookmarks/folders/{folder_id}", params)
         data = payload.get("data", []) if isinstance(payload, dict) else []
         if isinstance(data, list):
             for item in data:
@@ -298,22 +341,24 @@ def fetch_folder_post_ids(
         next_token = meta.get("next_token") if isinstance(meta, dict) else None
         if not next_token:
             break
+        if stop is not None and stop(ids):
+            stopped = True
+            break
         if max_pages is not None and pages >= max_pages:
             break
 
-    return ids, last_headers, not next_token
+    return ids, last_headers, not next_token, stopped
 
 
-def hydrate_posts(token: str, post_ids: list[str]) -> tuple[list[dict[str, Any]], dict[str, str]]:
+def hydrate_posts(session: Session, post_ids: list[str]) -> tuple[list[dict[str, Any]], dict[str, str]]:
     if not post_ids:
         return [], {}
     by_id: dict[str, dict[str, Any]] = {}
     last_headers: dict[str, str] = {}
     for start in range(0, len(post_ids), MAX_RESULTS):
         batch = post_ids[start : start + MAX_RESULTS]
-        payload, last_headers = api_get(
+        payload, last_headers = session.get(
             "/tweets",
-            token,
             {
                 "ids": ",".join(batch),
                 "tweet.fields": TWEET_FIELDS,
@@ -462,157 +507,19 @@ def filter_query(items: list[dict[str, Any]], query: str | None) -> list[dict[st
     return [item for item in items if all(term in searchable_text(item) for term in terms)]
 
 
-def load_state(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {}
-    with path.open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
-    if not isinstance(data, dict):
-        return {}
-    return data
-
-
-def save_state(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    os.chmod(path.parent, 0o700)
-    tmp = path.with_name(path.name + ".tmp")
-    with tmp.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, indent=2, sort_keys=True)
-        handle.write("\n")
-    os.chmod(tmp, 0o600)
-    tmp.replace(path)
-    os.chmod(path, 0o600)
-
-
-def state_scope(folder_id: str | None) -> str:
-    return f"folder:{folder_id}" if folder_id else "all"
-
-
-def state_entry(state: dict[str, Any], scope: str) -> dict[str, Any]:
-    scopes = state.get("scopes")
-    if isinstance(scopes, dict):
-        entry = scopes.get(scope)
-        if isinstance(entry, dict):
-            return entry
-    return {}
-
-
-def state_anchor_ids(state: dict[str, Any], scope: str) -> list[str]:
-    """Return the saved reviewed bookmark IDs for scope, newest first.
-
-    State written before anchors existed holds only last_seen_id, which reads
-    as a single anchor.
-    """
-    entry = state_entry(state, scope)
-    saved = entry.get("anchor_ids")
-    anchors = [str(item) for item in saved if item] if isinstance(saved, list) else []
-    last_seen_id = entry.get("last_seen_id")
-    if last_seen_id and str(last_seen_id) not in anchors:
-        anchors.insert(0, str(last_seen_id))
-    return anchors
-
-
-def state_last_seen_created_at(state: dict[str, Any], scope: str) -> str | None:
-    value = state_entry(state, scope).get("last_seen_created_at")
-    return str(value) if value else None
-
-
-def update_last_seen(
-    state: dict[str, Any],
-    scope: str,
-    fetched_ids: list[str],
-    newest_created_at: str | None = None,
-) -> dict[str, Any]:
-    """Record the newest fetched IDs, then older saved anchors, as the cutoff."""
-    updated = dict(state)
-    scopes = updated.get("scopes")
-    scopes = dict(scopes) if isinstance(scopes, dict) else {}
-    anchors = list(dict.fromkeys([*fetched_ids, *state_anchor_ids(state, scope)]))
-    anchors = anchors[:STATE_ANCHORS]
-    entry: dict[str, Any] = {
-        "last_seen_id": anchors[0],
-        "anchor_ids": anchors,
-        "updated_at": utc_now(),
-    }
-    if newest_created_at:
-        entry["last_seen_created_at"] = newest_created_at
-    scopes[scope] = entry
-    updated["scopes"] = scopes
-    return updated
-
-
-def cutoff_index(items: list[dict[str, Any]], anchors: list[str]) -> int | None:
-    """Return where the reviewed bookmarks start in a full fetch, or None.
-
-    Reviewed bookmarks sit below every newer one, in saved anchor order with
-    gaps where some were removed. A reviewed post bookmarked again moves to the
-    top, so the cutoff is the run of adjacent anchors that ends at the last
-    fetched anchor, not the newest anchor found.
-    """
-    rank = {anchor: position for position, anchor in enumerate(anchors)}
-    ids = [str(item.get("id")) for item in items]
-    hits = [index for index, item_id in enumerate(ids) if item_id in rank]
-    if not hits:
-        return None
-    start = hits[-1]
-    while start > 0 and rank.get(ids[start - 1], len(anchors)) < rank[ids[start]]:
-        start -= 1
-    return start
-
-
-def since_last(
-    items: list[dict[str, Any]],
-    state: dict[str, Any],
-    scope: str,
-    reached_end: bool = True,
-) -> tuple[list[dict[str, Any]], str]:
-    """Return items bookmarked after the saved cutoff and how it was applied.
-
-    Modes: "no_state" (nothing saved), "anchor" (stopped where the saved IDs
-    still bookmarked begin), "created_at_fallback" (every saved ID is gone, so
-    post creation time was compared; this can skip or repeat bookmarks), or
-    "unfiltered" (the fetch stopped before the end of the list, or no cutoff
-    could be applied; every item is returned).
-    """
-    anchors = state_anchor_ids(state, scope)
-    if not anchors:
-        return items, "no_state"
-    if not reached_end:
-        # Reviewed posts bookmarked again sit above unfetched new bookmarks and
-        # look just like the cutoff, so only a full fetch can confirm it.
-        return items, "unfiltered"
-    index = cutoff_index(items, anchors)
-    if index is not None:
-        return items[:index], "anchor"
-    created_cutoff = state_last_seen_created_at(state, scope)
-    if not created_cutoff:
-        return items, "unfiltered"
-    # Bookmarks are ordered by bookmark time but X exposes only post creation
-    # time, so this is a last resort the caller must flag.
-    # ISO-8601 UTC strings from the API compare correctly as text.
-    newer = [item for item in items if str(item.get("created_at") or "") > created_cutoff]
-    return newer, "created_at_fallback"
-
-
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fetch and search X bookmarks through X API v2.")
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument("-n", "--count", type=int, default=20, help="Number of items to fetch.")
     parser.add_argument("--all", action="store_true", help="Fetch all available pages.")
     parser.add_argument("--max-pages", type=int, help="Safety cap for paginated runs.")
     parser.add_argument("--folders", action="store_true", help="List bookmark folders instead of posts.")
-    parser.add_argument("--folder-id", help="Fetch bookmarks from a bookmark folder.")
+    parser.add_argument(
+        "--folder-id",
+        help="Fetch bookmarks from the bookmark folder with this numeric ID, as --folders lists it.",
+    )
     parser.add_argument("--query", help="Local text query over fetched bookmark data.")
-    parser.add_argument(
-        "--since-last",
-        action="store_true",
-        help="Return items bookmarked after the saved review cutoff.",
-    )
-    parser.add_argument(
-        "--update-state",
-        action="store_true",
-        help="Save the newest fetched bookmarks as the cutoff after a fetch that reached the end of the list.",
-    )
-    parser.add_argument("--state-file", type=Path, default=DEFAULT_STATE_FILE)
+    review_state.add_options(parser)
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON.")
     return parser.parse_args(argv)
 
@@ -622,8 +529,12 @@ def main(argv: list[str]) -> int:
     if args.count < 1:
         print("error: --count must be at least 1", file=sys.stderr)
         return 2
-    if args.folders and args.folder_id:
+    if args.folders and args.folder_id is not None:
         print("error: use either --folders or --folder-id, not both", file=sys.stderr)
+        return 2
+    if args.folder_id is not None and not FOLDER_ID.fullmatch(args.folder_id):
+        print("error: --folder-id must be a folder's numeric ID of 1 to 19 digits", file=sys.stderr)
+        print("fix: list the folders with --folders, then pass one of their IDs", file=sys.stderr)
         return 2
     if args.update_state and args.query:
         print(
@@ -633,15 +544,34 @@ def main(argv: list[str]) -> int:
         )
         print("fix: run --all --since-last --update-state without --query", file=sys.stderr)
         return 2
+    problem = stop_problem(
+        args.stop_after_known, whole_list=args.all and not args.folders, since_last=args.since_last
+    )
+    if problem:
+        print(f"error: {problem}", file=sys.stderr)
+        return 2
+
+    state_file = args.state_file.expanduser()
+    state: dict[str, Any] = {}
+    if not args.folders and (args.since_last or args.update_state):
+        # Before the first request: a damaged file must not cost API calls.
+        try:
+            state = load_state(state_file)
+        except StateError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            print(STATE_FIX, file=sys.stderr)
+            return 1
 
     try:
-        token = get_valid_token()
-        user = get_me(token)
+        session = Session(get_valid_token())
+        user = get_me(session)
         user_id = str(user["id"])
         headers: dict[str, str] = {}
+        state_saved = True
+        stop = early_stop(state, state_scope(args.folder_id), args.stop_after_known)
 
         if args.folders:
-            folders, headers = fetch_folders(token, user_id, args.count, args.all, args.max_pages)
+            folders, headers = fetch_folders(session, user_id, args.count, args.all, args.max_pages)
             output: dict[str, Any] = {
                 "data": folders,
                 "meta": {
@@ -654,85 +584,52 @@ def main(argv: list[str]) -> int:
             }
         else:
             if args.folder_id:
-                post_ids, headers, reached_end = fetch_folder_post_ids(
-                    token,
+                post_ids, headers, reached_end, stopped_early = fetch_folder_post_ids(
+                    session,
                     user_id,
                     args.folder_id,
                     args.count,
                     args.all,
                     args.max_pages,
+                    stop,
                 )
-                items, hydrate_headers = hydrate_posts(token, post_ids)
+                items, hydrate_headers = hydrate_posts(session, post_ids)
                 headers = hydrate_headers or headers
                 for item in items:
                     item["folder_id"] = args.folder_id
             else:
-                items, headers, reached_end = fetch_bookmark_pages(
-                    token,
+                items, headers, reached_end, stopped_early = fetch_bookmark_pages(
+                    session,
                     user_id,
                     args.count,
                     args.all,
                     args.max_pages,
+                    stop,
                 )
 
-            state = load_state(args.state_file)
-            scope = state_scope(args.folder_id)
-            fetched_items = list(items)
-            newest_created_at = (
-                str(fetched_items[0].get("created_at"))
-                if fetched_items and fetched_items[0].get("created_at")
-                else None
+            reviewed = review(
+                items,
+                state,
+                state_scope(args.folder_id),
+                state_file,
+                reached_end=reached_end,
+                apply_cutoff=args.since_last,
+                save_cutoff=args.update_state,
+                stopped_early=stopped_early,
             )
-            pre_filter_count = len(fetched_items)
-            # Only a fetch that ran to the end of the list surely holds every
-            # bookmark newer than the old cutoff: in a partial window, reviewed
-            # posts bookmarked again look just like the cutoff. Saving after a
-            # partial fetch could mark bookmarks nobody saw as reviewed.
-            cutoff_reached = reached_end
-            cutoff_mode = None
-            if args.since_last:
-                items, cutoff_mode = since_last(items, state, scope, reached_end)
-                if cutoff_mode == "created_at_fallback":
-                    print(
-                        "warning: no saved review anchor is still bookmarked; filtered by post "
-                        "creation time, which can skip or repeat bookmarks",
-                        file=sys.stderr,
-                    )
-            items = filter_query(items, args.query)
-            state_updated = False
-            if args.update_state and fetched_items and cutoff_reached:
-                save_state(
-                    args.state_file,
-                    update_last_seen(
-                        state,
-                        scope,
-                        [str(item["id"]) for item in fetched_items],
-                        newest_created_at,
-                    ),
-                )
-                state_updated = True
-            if (args.since_last or args.update_state) and not cutoff_reached:
-                print(
-                    "warning: the fetch stopped before the end of the list, so the last review "
-                    "cutoff cannot be confirmed and some new bookmarks may not have been fetched"
-                    + ("; review state was not updated" if args.update_state else ""),
-                    file=sys.stderr,
-                )
-                print("fix: rerun with --all and without --max-pages", file=sys.stderr)
+            for line in reviewed.messages:
+                print(line, file=sys.stderr)
+            state_saved = not reviewed.failed
+            shown = filter_query(reviewed.items, args.query)
 
             output = {
-                "data": items,
+                "data": shown,
                 "meta": {
                     "kind": "bookmarks",
-                    "count": len(items),
-                    "fetched_count": pre_filter_count,
+                    "count": len(shown),
+                    "fetched_count": len(items),
                     "query": args.query,
-                    "since_last": args.since_last,
-                    "cutoff_mode": cutoff_mode,
-                    "cutoff_reached": cutoff_reached,
-                    "state_updated": state_updated,
-                    "state_scope": scope,
-                    "state_file": str(args.state_file.expanduser()),
+                    **reviewed.meta,
                     "fetched_at": utc_now(),
                     "authenticated_user": user,
                     "rate_limit": headers,
@@ -740,7 +637,9 @@ def main(argv: list[str]) -> int:
             }
 
         print(json.dumps(output, indent=2 if args.pretty else None, sort_keys=bool(args.pretty)))
-        return 0
+        # A state file that could not be saved is an error, reported above;
+        # the bookmarks were still printed because the requests were made.
+        return 0 if state_saved else 1
     except AuthError as exc:
         print(f"error: {exc}", file=sys.stderr)
         print("fix: run python3 scripts/x_api_auth.py --client-id YOUR_X_CLIENT_ID", file=sys.stderr)
@@ -754,6 +653,21 @@ def main(argv: list[str]) -> int:
             else:
                 print("fix: wait for the X API rate limit window to reset, then retry", file=sys.stderr)
             return 75
+        if exc.status == 401:
+            variable = token_variable()
+            if variable:
+                print(
+                    f"fix: X rejected the access token in {variable}; set a current one, "
+                    "or unset it to use the saved login",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    "fix: X rejected the saved login even after a refresh; rerun setup with "
+                    "python3 scripts/x_api_auth.py",
+                    file=sys.stderr,
+                )
+            return 1
         if exc.status == 402:
             print(
                 "fix: use the Bird no-credit backend first: "

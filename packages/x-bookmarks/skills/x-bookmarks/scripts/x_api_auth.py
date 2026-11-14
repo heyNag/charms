@@ -22,9 +22,17 @@ import urllib.parse
 import urllib.request
 import webbrowser
 
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: F401
+import plugin_version
+import private_files
+
 AUTHORIZE_URL = "https://x.com/i/oauth2/authorize"
 TOKEN_URL = "https://api.x.com/2/oauth2/token"
-DEFAULT_REDIRECT_URI = "http://localhost:8739/callback"
+# X's developer documentation asks for http://127.0.0.1, not localhost, in
+# local callback URLs, and the listener below binds 127.0.0.1 only. A setup
+# saved with another loopback address keeps it; see main().
+DEFAULT_REDIRECT_URI = "http://127.0.0.1:8739/callback"
 DEFAULT_SCOPES = ["tweet.read", "users.read", "bookmark.read", "offline.access"]
 # OAuth 2.0 scopes documented by X; anything else is a typo X would reject.
 KNOWN_SCOPES = frozenset(
@@ -55,6 +63,8 @@ KNOWN_SCOPES = frozenset(
 )
 # How long setup waits for the browser to return to the local callback.
 CALLBACK_TIMEOUT_SECONDS = 300
+# An access token in one of these replaces the saved login; the first one set wins.
+TOKEN_VARIABLES = ("X_API_ACCESS_TOKEN", "X_API_BEARER_TOKEN")
 
 CONFIG_DIR = Path(os.environ.get("X_BOOKMARKS_CONFIG_DIR", "~/.config/x-bookmarks")).expanduser()
 CONFIG_FILE = CONFIG_DIR / "config.json"
@@ -70,15 +80,8 @@ def now() -> int:
 
 
 def private_write_json(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    os.chmod(path.parent, 0o700)
-    tmp = path.with_name(path.name + ".tmp")
-    with tmp.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, indent=2, sort_keys=True)
-        handle.write("\n")
-    os.chmod(tmp, 0o600)
-    tmp.replace(path)
-    os.chmod(path, 0o600)
+    """Save JSON that only this account can read; see private_files."""
+    private_files.write_private_text(path, json.dumps(data, indent=2, sort_keys=True) + "\n")
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -320,8 +323,9 @@ def run_auth_flow(
     server.timeout = min(1.0, timeout)
 
     print("Open this URL to authorize X bookmark access:")
+    print(auth_url)
     # Flush now: piped stdout is block-buffered and the wait below can last minutes.
-    print(auth_url, flush=True)
+    print(f"The X app must list this callback URL exactly: {redirect_uri}", flush=True)
     if open_browser:
         webbrowser.open(auth_url)
 
@@ -333,7 +337,9 @@ def run_auth_flow(
                 detail = f" (last callback rejected: {rejected})" if rejected else ""
                 raise AuthError(
                     f"no OAuth callback on {redirect_uri} within {timeout:g}s{detail}; "
-                    "rerun setup and approve access in the browser"
+                    "rerun setup and approve access in the browser. If X refused the callback "
+                    f"URL, add exactly {redirect_uri} to the app in the X Developer Console, or "
+                    "pass --redirect-uri with a loopback URL the app already lists"
                 )
             server.handle_request()
     finally:
@@ -380,10 +386,23 @@ def refresh_tokens(config: dict[str, Any], tokens: dict[str, Any]) -> dict[str, 
     return stamped
 
 
+def token_variable() -> str | None:
+    """Name the environment variable that supplies the access token, if one does."""
+    for name in TOKEN_VARIABLES:
+        if os.environ.get(name):
+            return name
+    return None
+
+
 def get_valid_token(force_refresh: bool = False) -> str:
-    env_token = os.environ.get("X_API_ACCESS_TOKEN") or os.environ.get("X_API_BEARER_TOKEN")
-    if env_token:
-        return env_token
+    """Return the access token to use, refreshing the saved one when it is due.
+
+    A token from the environment is returned as it is: this helper holds no
+    refresh token for it, so force_refresh cannot replace it.
+    """
+    variable = token_variable()
+    if variable:
+        return os.environ[variable]
 
     config = load_config()
     tokens = load_tokens()
@@ -413,6 +432,14 @@ def status() -> int:
     scopes = " ".join(str(item) for item in config.get("scopes", []))
     expires_at = tokens.get("expires_at")
     print("auth: configured")
+    redirect_uri = str(config.get("redirect_uri") or DEFAULT_REDIRECT_URI)
+    print(f"redirect_uri: {redirect_uri}")
+    if urllib.parse.urlparse(redirect_uri).hostname == "localhost":
+        print(
+            "note: this setup calls back to localhost and keeps working. X asks for 127.0.0.1 "
+            "in local callback URLs; to switch, add the URL to the X app and rerun setup with "
+            f"--redirect-uri {redirect_uri.replace('//localhost', '//127.0.0.1', 1)}"
+        )
     print(f"scopes: {scopes or 'unknown'}")
     extra = [str(item) for item in config.get("scopes", []) if str(item) not in DEFAULT_SCOPES]
     if extra:
@@ -445,14 +472,20 @@ def requested_scopes(include_write_scope: bool, extra_scopes: list[str]) -> list
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Set up local X API v2 OAuth for x-bookmarks.")
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument("--client-id", help="X OAuth 2.0 client ID.")
-    parser.add_argument("--client-secret", help="Optional X OAuth 2.0 client secret for confidential clients.")
+    # Not offered in the help. It is still parsed so that main() can refuse it
+    # with a pointer; left unknown, argparse would print the secret back.
+    parser.add_argument("--client-secret", help=argparse.SUPPRESS)
     parser.add_argument(
         "--client-secret-stdin",
         action="store_true",
-        help="Read the X OAuth 2.0 client secret from stdin without printing it.",
+        help="Read the X OAuth 2.0 client secret for a confidential client from stdin without printing it.",
     )
-    parser.add_argument("--redirect-uri", help=f"OAuth callback URL. Defaults to {DEFAULT_REDIRECT_URI}.")
+    parser.add_argument(
+        "--redirect-uri",
+        help=f"OAuth callback URL. A saved setup keeps its own; a new one uses {DEFAULT_REDIRECT_URI}.",
+    )
     parser.add_argument(
         "--include-write-scope",
         action="store_true",
@@ -472,6 +505,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    if args.client_secret is not None:
+        # The value is not repeated here: it may be a live secret.
+        print(
+            "error: --client-secret is not accepted, because a secret in a command line is "
+            "visible in the process list and saved in shell history",
+            file=sys.stderr,
+        )
+        print(
+            "fix: pass the secret on standard input with --client-secret-stdin, and regenerate "
+            "it in the X Developer Console if this command line may have been recorded",
+            file=sys.stderr,
+        )
+        return 2
     try:
         if args.status:
             return status()
@@ -479,8 +525,6 @@ def main(argv: list[str]) -> int:
             refresh_tokens(load_config(), load_tokens())
             print("auth: refreshed")
             return 0
-        if args.client_secret and args.client_secret_stdin:
-            raise AuthError("use either --client-secret or --client-secret-stdin, not both")
 
         existing_config: dict[str, Any] = {}
         if CONFIG_FILE.exists():
@@ -492,7 +536,7 @@ def main(argv: list[str]) -> int:
 
         scopes = requested_scopes(args.include_write_scope, args.scope)
 
-        client_secret = args.client_secret or existing_config.get("client_secret")
+        client_secret = existing_config.get("client_secret")
         if args.client_secret_stdin:
             client_secret = sys.stdin.readline().strip()
             if not client_secret:
@@ -500,6 +544,7 @@ def main(argv: list[str]) -> int:
         if not isinstance(client_secret, str):
             client_secret = None
 
+        # A saved setup keeps the callback URL its X app was registered with.
         redirect_uri = args.redirect_uri or str(existing_config.get("redirect_uri") or DEFAULT_REDIRECT_URI)
 
         config = {

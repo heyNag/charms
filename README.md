@@ -8,7 +8,7 @@ root `plugin.json` manifest and one
 | Plugin | Purpose | Plugin root |
 | --- | --- | --- |
 | `watch-video` | Analyze videos with Gemini or local models, original-audio transcription, matching transcripts, and timestamped frames. | [`packages/watch-video/`](packages/watch-video/) |
-| `x-bookmarks` | Fetch, search, and digest saved X/Twitter posts through Bird or X API v2. | [`packages/x-bookmarks/`](packages/x-bookmarks/) |
+| `x-bookmarks` | Fetch, search, and digest X/Twitter bookmarks using Bird or the optional X API v2 backend. | [`packages/x-bookmarks/`](packages/x-bookmarks/) |
 
 The repository root holds the shared `charms` marketplace and the development
 and release tooling; it is not itself a plugin. Every directory in `packages/`
@@ -66,9 +66,15 @@ make check
 ```
 
 `make check` runs conformance and marketplace validation, offline behavior
-tests, Python and shell syntax checks, linting, secret and artifact checks, and
-a working-tree whitespace check. Marketplace validation needs the release tags,
-so run `git fetch --tags` first if your clone lacks them.
+tests, Python and shell syntax checks, Ruff and ShellCheck, a check of the
+links between the documents, secret and artifact checks, and a working-tree
+whitespace check. Marketplace validation needs the release tags, so run
+`git fetch --tags` first if your clone lacks them. `make coverage` reports
+test coverage.
+
+Changes reach `main` through pull requests that are merged once CI is green,
+because skill-only installs follow `main`. See
+[Development](docs/development.md#branches-and-pull-requests).
 
 ## Documentation
 

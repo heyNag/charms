@@ -12,7 +12,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from jsonschema import Draft202012Validator
+try:
+    from jsonschema import Draft202012Validator
+except ImportError:  # A development dependency; the Python floor job runs without it.
+    Draft202012Validator = None
 
 TESTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TESTS))
@@ -20,6 +23,7 @@ sys.path.insert(0, str(TESTS.parent / "skills" / "watch-video" / "scripts"))
 import local_analyze  # noqa: E402
 import local_observations  # noqa: E402
 import network_guard  # noqa: E402
+import unittest_backports  # noqa: E402, F401
 
 
 def setUpModule():
@@ -144,6 +148,7 @@ class ObservationTests(unittest.TestCase):
         result = local_observations.parse_findings(json.dumps({"findings": findings}), observations, records)
         self.assertEqual([finding["text"] for finding in result], [finding["text"] for finding in findings])
 
+    @unittest.skipIf(Draft202012Validator is None, "jsonschema is not installed")
     def test_final_contract_and_parser_enforce_the_same_size_boundaries(self):
         frames = [{"frame_id": f"frame:{i}", "timestamp_seconds": i} for i in range(1, 10)]
         value = {"findings": [{"kind": "visual", "evidence_ids": [f"frame:{i}" for i in range(1, 9)],
@@ -201,11 +206,11 @@ class ObservationPipelineTests(unittest.TestCase):
             "metadata.json": {"visual_evidence_requested": True},
         }.items():
             (self.root / name).write_text(json.dumps(value))
-        self.client = mock.Mock()
+        self.client = mock.Mock(base_url="http://127.0.0.1:8147/v1")
         self.enterContext(mock.patch.object(local_analyze, "LocalClient", return_value=self.client))
 
     def run_analysis(self, **kwargs):
-        with contextlib.redirect_stdout(io.StringIO()):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             return local_analyze.analyze_local(self.root, **kwargs)
 
     def test_source_anchored_chart_survives_bad_final_summary(self):
@@ -263,7 +268,7 @@ class ObservationPipelineTests(unittest.TestCase):
             value = "```json\n" + payload + "\n```" if fenced else payload
             with self.subTest(fenced=fenced):
                 self.client.request_json.side_effect = [reply(value), final_reply("A chart appears.")]
-                with contextlib.redirect_stdout(io.StringIO()):
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                     result = local_analyze.analyze_local(self.root, api_key=secret, refresh=True)
                 self.assertEqual(result["status"], "complete")
                 self.assertIn("[REDACTED]", result["observations"][0]["description"])

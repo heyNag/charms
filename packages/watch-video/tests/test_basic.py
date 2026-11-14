@@ -327,6 +327,39 @@ class WatchVideoBasicTests(unittest.TestCase):
             self.assertTrue(first.exists())
             self.assertTrue(second.exists())
 
+    @unittest.skipUnless(os.name == "posix", "permission bits are POSIX-only")
+    def test_run_folders_are_private_and_existing_folders_keep_their_mode(self) -> None:
+        watch = importlib.import_module("watch")
+        previous = os.umask(0o022)
+        self.addCleanup(os.umask, previous)
+
+        def mode(path: Path) -> int:
+            return path.stat().st_mode & 0o777
+
+        with tempfile.TemporaryDirectory() as tmp:
+            shared = Path(tmp) / "shared"
+            shared.mkdir(mode=0o755)
+            in_shared = watch.create_run_dir(shared, "source.mp4")
+            self.assertEqual(mode(in_shared), 0o700)
+            # A folder the user already had is theirs to share; never chmod it.
+            self.assertEqual(mode(shared), 0o755)
+
+            new_root = Path(tmp) / "state" / "watch-video" / "runs"
+            in_new_root = watch.create_run_dir(new_root, "source.mp4")
+            self.assertEqual(mode(in_new_root), 0o700)
+            self.assertEqual(mode(new_root), 0o700)
+            # Only the run root is this tool's own; its parents stay ordinary.
+            self.assertEqual(mode(new_root.parent), 0o755)
+
+    def test_run_folder_creation_failure_is_reported_without_a_traceback(self) -> None:
+        watch = importlib.import_module("watch")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            blocker = Path(tmp) / "not-a-directory"
+            blocker.write_text("file", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "could not create a run directory"):
+                watch.create_run_dir(blocker, "source.mp4")
+
     def test_default_run_root_uses_user_state_outside_the_plugin(self) -> None:
         watch = importlib.import_module("watch")
 
@@ -686,7 +719,7 @@ Next idea starts here
         with tempfile.TemporaryDirectory() as tmp:
             media = Path(tmp) / "media"
 
-            def fake_run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+            def fake_run(cmd: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
                 calls.append(cmd)
                 if "--skip-download" not in cmd:
                     (media / "video.mp4").write_bytes(b"stub")
@@ -848,6 +881,36 @@ Next idea starts here
         self.assertTrue(status["ok"])
         self.assertEqual(status["size_bytes"], len(b"run-data"))
         self.assertIn(str(run_root), status["message"])
+
+    @unittest.skipUnless(os.name == "posix", "permission bits are POSIX-only")
+    def test_doctor_reports_run_folders_other_accounts_can_open(self) -> None:
+        doctor = importlib.import_module("doctor")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            run_root = Path(tmp) / "runs with space"
+            self.assertTrue(doctor.check_run_privacy(run_root)["ok"])
+
+            run_root.mkdir(mode=0o755)
+            run_root.chmod(0o755)
+            (run_root / "old-run").mkdir()
+            (run_root / "old-run").chmod(0o755)
+            (run_root / "new-run").mkdir()
+            (run_root / "new-run").chmod(0o700)
+            exposed = doctor.check_run_privacy(run_root)
+
+            self.assertFalse(exposed["ok"])
+            self.assertEqual(exposed["exposed"], 1)
+            self.assertEqual(exposed["fix"], f"chmod -R go-rwx '{run_root}'")
+            # Reporting must never change a mode on the user's behalf.
+            self.assertEqual((run_root / "old-run").stat().st_mode & 0o777, 0o755)
+
+            (run_root / "old-run").chmod(0o700)
+            self.assertTrue(doctor.check_run_privacy(run_root)["ok"])
+            (run_root / "old-run").chmod(0o755)
+            run_root.chmod(0o700)
+            self.assertTrue(doctor.check_run_privacy(run_root)["ok"])
+
+        self.assertIn("run-privacy", doctor.ADVISORY_CHECKS)
 
     def test_groq_missing_key_error(self) -> None:
         groq = importlib.import_module("groq_transcribe")

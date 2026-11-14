@@ -96,7 +96,8 @@ class LocalClientTests(unittest.TestCase):
                 self.assertEqual(caught.exception.http_status, status)
                 self.assertTrue(caught.exception.stop_remaining_chunks)
         with self.assertRaises(HTTPError) as caught:
-            api._RefuseRedirects().redirect_request(mock.Mock(full_url=client.base_url), None, 307, "", {}, "http://example.com")
+            api._RefuseRedirects().redirect_request(
+                mock.Mock(full_url=client.base_url), io.BytesIO(), 307, "", {}, "http://example.com")
         caught.exception.close()
 
     def test_successful_response_echo_is_redacted(self):
@@ -159,7 +160,7 @@ class LocalTranscriptionTests(unittest.TestCase):
                 self.assertEqual(command[command.index("-map") + 1], "0:a:0")
                 self.assertEqual(command[command.index("-t") + 1], "10.000000")
                 return mock.Mock(returncode=0)
-            with mock.patch.object(asr.shutil, "which", return_value="/ffmpeg"), mock.patch.object(asr.subprocess, "run", side_effect=run):
+            with mock.patch.object(asr.shutil, "which", return_value="/ffmpeg"), mock.patch.object(asr.timed_process.subprocess, "run", side_effect=run):
                 self.assertEqual(asr.extract_audio_clip(source, out, start=3, end=13), out.resolve())
 
     def test_no_caption_prompt_and_empty_omlx_response_is_valid_silence(self):

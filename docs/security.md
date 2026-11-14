@@ -18,23 +18,26 @@ Charms validation enforces:
 - no package symlinks in release artifacts;
 - an allowlisted deterministic archive;
 - marketplace entries pinned to an existing release tag and commit;
-- scans for tracked secrets and runtime artifacts.
+- scans for secrets and runtime artifacts in every file Git can see, with
+  `.gitignore` held to the same list of artifacts.
 
 ## Release integrity
 
 Every Charms GitHub release is immutable: once published, its assets cannot
 change and its tag name cannot be reused, even after the release is deleted.
 The release workflow fails, and leaves the marketplace unchanged, unless the
-release is immutable and its attestation verifies. A tag ruleset also blocks
-updates and deletions of `<name>--v<version>` tags; see
+release is immutable and its attestation verifies. With an optional read-only
+token it also refuses to publish while immutability is turned off. A tag
+ruleset also blocks updates and deletions of `<name>--v<version>` tags; see
 [Repository settings](releasing.md#repository-settings).
 
 Marketplace entries pin the release tag and the full release commit SHA, and
 Claude Code and Codex install from that SHA. The release workflow writes an
-entry only after the release is published and verified, and
-`scripts/update-marketplace.py` refuses a tag that does not point at the
-pinned commit. Skill-only installs through Skillshare or the skills CLI follow
-`main` instead and are not release content.
+entry only after the release is published and verified, and validates the
+marketplace file before pushing it. `scripts/update-marketplace.py` refuses a
+tag that does not point at the pinned commit. Skill-only installs through
+Skillshare or the skills CLI follow `main` instead and are not release
+content.
 
 Verify a release and a downloaded ZIP before extraction:
 
@@ -62,6 +65,14 @@ fixtures. The user's secret-manager and credential-access policy overrides an
 optional plugin storage helper; prefer environment injection through that
 approved workflow.
 
+The files the plugins write for credentials and state (the watch-video key
+file, and the x-bookmarks config, token and review-state files) are created
+with mode 600 from their first byte and then moved into place. Their content
+is never in a file another account can read, and a symbolic link planted
+beside them is not written through. A folder the scripts create for these
+files gets mode 700. A folder that already exists, including one named by an
+override, keeps its permissions.
+
 ## Plugin-specific boundaries
 
 ### watch-video
@@ -74,22 +85,27 @@ use configured local models directly without a cloud-route question, and
 speech-only requests may use suitable existing transcripts directly. Configuration
 can be established from context or presence checks; no secret retrieval is
 needed just to present a route choice.
-Explicit user choices and privacy constraints take priority. Private, local,
-unlisted, login-required, and meeting recordings stay local: use configured
-local ASR and vision models for original audio and frames, or `--transcriber
-none` for supplied captions and extracted evidence. Hosted transcription
-requires approval. Every local file requires consent for the source and
-provider before its video or audio is uploaded. Existing authorization for
-that upload does not need repeated approval; a configured key or approval for
-another source does not authorize it. The CLI defaults to no hosted
-transcription for local files and cached runs, even when API keys are present.
-For sources with uncertain privacy, use `--transcriber local` when configured;
-otherwise pass `--transcriber none` unless hosted ASR is already authorized.
+
+Nothing is uploaded without the user's consent for that source and provider.
+That rule is written once, in the skill's
+[Uploads need consent](../packages/watch-video/skills/watch-video/SKILL.md#uploads-need-consent)
+section, which the agent follows: it says what uploads, what counts as
+consent, and what to do without it. The code keeps its side of the rule
+whatever the agent does. The CLI defaults to no hosted transcription for every
+source, fresh URLs included, even when API keys are present, and Gemini runs
+only with `--engine gemini`.
 
 The local engine downloads through `yt-dlp --ignore-config` and
-extracts evidence locally. When its configured Groq or OpenAI fallback is
-needed, audio is sent to the selected provider. `--transcriber none` disables
-those uploads. Audio chunks and multipart sizes are checked before sending;
+extracts evidence locally. Every yt-dlp, FFmpeg, and ffprobe call has a time
+limit; a tool that passes it is stopped together with the helpers it started,
+such as the FFmpeg that yt-dlp runs. For YouTube, yt-dlp runs the site's
+player JavaScript in an external runtime. It enables only Deno by itself;
+watch-video passes Node, QuickJS, or Bun on to yt-dlp only when `--js-runtime`
+or `WATCH_VIDEO_JS_RUNTIME` names one, and never lets yt-dlp download solver
+scripts at run time. Audio is sent to Groq or OpenAI only when that
+provider is selected with `--transcriber` and captions are insufficient. When
+speech is missing and nothing was selected, the report names the available
+flags instead of uploading. Audio chunks and multipart sizes are checked before sending;
 failed intervals remain explicit, even when native captions provide some
 evidence there. Transcription requests refuse redirects.
 
@@ -145,11 +161,27 @@ must not enter source control or release archives. Local cleanup removes the
 requested media/images while keeping reports and transcripts; delete the run
 directory to remove all local artifacts.
 
+Recordings and transcripts stay on disk until something removes them.
+`doctor.py --prune` lists the run folders that have not changed for a given
+time (seven days unless `--older-than` says otherwise) and deletes them only
+with `--delete`. It removes real directories directly inside the run root that
+it recognises as runs by their name and recorded source, never follows a
+symbolic link, and leaves everything else in place.
+
+Run folders are created with mode 700, so other accounts on the same computer
+cannot read a recording, its transcript, or its frames. A run root the script
+creates is private as well. Folders that already exist are never changed;
+doctor's advisory `run-privacy` check lists run folders that are still open to
+other accounts and prints the `chmod` command for them.
+
 ### x-bookmarks
 
 Browser cookies and OAuth tokens stay in user-local state. The skill requests
 read-only scopes by default and adds write scope only for an explicit bookmark
-mutation.
+mutation. The client secret of a confidential OAuth client is read from
+standard input only; `x_api_auth.py` refuses it as a command argument. Bird
+accepts X session cookies as command arguments; `fetch_bookmarks_bird.py`
+refuses them and leaves the session to Bird's own browser lookup.
 
 ## Reporting
 

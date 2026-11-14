@@ -17,7 +17,8 @@ first. Marketplace installs use the published release; skill-only channels
 follow `main`. Use one channel per host. Run the commands below from the
 installed skill directory containing `SKILL.md` and `scripts/`: this is
 `skills/watch-video` inside a plugin, or the standalone skill directory. Use
-the host's installed skill path rather than a separate checkout or copied scripts.
+the host's installed skill path rather than a separate checkout or copied scripts;
+the user should not have to find a plugin cache or clone this repository.
 
 The user can simply ask **“Set up watch-video on this Mac.”** Start by locating
 the installed skill and running its read-only hardware/prerequisite check:
@@ -31,9 +32,11 @@ presence, and ordered setup steps without contacting oMLX or a provider. It
 works when the app is absent or stopped. Select Splash M1 for detected M1/M2
 hardware and official Splash for M3 or later. Unknown hardware or an unsupported
 OS needs clarification or another compatible runtime, not a guessed installer.
-Python 3.11+ and FFmpeg/ffprobe are required for the local flow; yt-dlp is optional
+Python 3.9+ and FFmpeg/ffprobe are required for the local flow; yt-dlp is optional
 until a source needs downloading. The credential environment and local.env are
 checked for presence only. The checker does not read the file or resolve secrets.
+If Python 3 is unavailable, guide installation of Python 3.9+ first, then run
+the preflight.
 
 Briefly report what was detected and the next missing step. Reuse existing
 choices; ask only for information that cannot be detected or is genuinely a
@@ -87,7 +90,8 @@ The setup helper installs these repositories through oMLX's model downloader:
 For authentication, guide the user to create or set an API key in oMLX's app.
 The client must use the same key; a client configuration file does not set the
 server's key. Reuse an existing method if the user already chose one. A secret
-manager is optional, not a prerequisite.
+manager is optional, not a prerequisite: do not assume 1Password or enumerate
+a vault.
 
 The default onboarding creates a protected local template outside the plugin:
 
@@ -170,8 +174,43 @@ python3 scripts/watch.py ./sample.mp4 --engine local --transcriber local --analy
 
 Check `local_analysis.json` for complete coverage and review the underlying
 evidence. A successful setup check verifies configuration, not transcription or
-visual accuracy. Stop a task-owned server afterward with the app or
+visual accuracy. From a checkout of the repository, `make omlx-test` runs the
+same read-only check against the running server and fails when the helper no
+longer understands oMLX's answers. Stop a task-owned server afterward with the app or
 `~/.omlx/bin/omlx stop`; leave a shared server alone.
+
+## Linux
+
+The setup above is for an Apple Silicon Mac: oMLX and Splash run only there.
+On Linux, `setup_local.py --preflight` reports `unsupported` and changes
+nothing, and `--check` and `--configure` have no oMLX to talk to. The rest of
+watch-video works on Linux as it does on a Mac: local extraction, captions,
+supplied transcripts, hosted transcription and Gemini.
+
+`--transcriber local` and `--analyzer local` are not tied to oMLX. They use
+any server on a loopback address that offers, under one base URL, the two
+OpenAI-compatible endpoints described in
+[Connect a local runtime](#connect-a-local-runtime):
+`/v1/audio/transcriptions` returning timestamped segments, and
+`/v1/chat/completions` accepting images. To use such a server on Linux:
+
+1. Install and start it yourself; watch-video does not install a runtime or
+   download models there.
+2. Run `python3 scripts/setup_local.py --init-config`, which works on Linux,
+   and set the address, the two model identifiers and the key in
+   `~/.config/watch-video/local.env`. Environment variables work too.
+3. Check the configuration, then try a short clip before a long recording:
+
+```sh
+python3 scripts/doctor.py ./sample.mp4 --engine local --transcriber local --analyzer local --check
+python3 scripts/watch.py ./sample.mp4 --engine local --transcriber local --analyzer local --duration 30
+```
+
+This route has not been tried on Linux: the project's checks run the local
+clients against a stand-in server, and the real runs were on oMLX. Read
+`local_analysis.json` for coverage and gaps before relying on a result.
+Without a local server, use `--transcriber none` or a supplied transcript;
+nothing falls back to a hosted provider.
 
 ## Connect a local runtime
 
@@ -305,7 +344,8 @@ it does not repeat audio extraction, ASR, or frame extraction. Review the new
 original `watch.py` metadata/report is not rewritten by this standalone command.
 Inspect recorded coverage, gaps, and truncation; a synthesis cannot recover
 evidence omitted or unreadable in earlier stages. Sampled frames do not prove
-that every transition or brief event was observed.
+that every transition or brief event was observed, and a missing object in one
+batch does not establish its absence from the whole video.
 `status: complete` means processing completed; `quality.status` remains
 `requires_source_review`. Verify consequential conclusions against the frame
 observations and underlying media. Recorded `asr_gaps` describe transcription

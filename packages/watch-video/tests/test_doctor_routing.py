@@ -19,6 +19,7 @@ sys.path.insert(0, str(TESTS_DIR.parent / "skills" / "watch-video" / "scripts"))
 
 import doctor  # noqa: E402
 import network_guard  # noqa: E402
+import unittest_backports  # noqa: E402, F401
 
 
 YOUTUBE = "https://www.youtube.com/watch?v=qSuCPooR3E4"
@@ -50,6 +51,7 @@ class DoctorRoutingTests(unittest.TestCase):
             ("check_gemini_key", "GEMINI_API_KEY"),
             ("check_config_file", "whisper-config"),
             ("check_run_artifacts", "run-artifacts"),
+            ("check_run_privacy", "run-privacy"),
             ("check_env_local", ".env.local"),
         ):
             self.enterContext(mock.patch.object(doctor, function, return_value=ok_check(name)))
@@ -58,6 +60,10 @@ class DoctorRoutingTests(unittest.TestCase):
             side_effect=lambda provider: ok_check(f"{provider.upper()}_API_KEY"),
         ))
         self.enterContext(mock.patch.object(doctor, "current_platform", return_value="macOS"))
+        # An installed yt-dlp is not started to ask about its JavaScript runtime.
+        self.enterContext(mock.patch.object(doctor, "yt_dlp_self_report", return_value={
+            "runtimes": "deno-2.9.8", "libraries": "yt_dlp_ejs-0.8.0",
+        }))
         self.subprocess_run = self.enterContext(mock.patch.object(
             doctor.subprocess, "run", side_effect=AssertionError("unexpected subprocess"),
         ))
@@ -81,6 +87,28 @@ class DoctorRoutingTests(unittest.TestCase):
                     code, output, errors = self.cli(source, "--engine", "gemini", "--check")
                     self.assertEqual((code, output, errors), (0, "", ""))
         self.subprocess_run.assert_not_called()
+
+    def test_reports_name_the_plugin_version(self):
+        version = doctor.plugin_version.VERSION
+        with mock.patch.object(doctor.shutil, "which", return_value=None):
+            _, output, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini", "--json")
+            self.assertEqual(json.loads(output)["plugin_version"], version)
+            _, output, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini")
+        self.assertEqual(output.splitlines()[0], f"Watch Video Doctor (watch-video {version})")
+
+    def test_the_checkout_only_check_is_left_out_of_an_installed_plugin(self):
+        with mock.patch.object(doctor.shutil, "which", return_value=None):
+            with mock.patch.object(doctor, "find_repo_root", return_value=None):
+                _, output, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini", "--json")
+                installed = [check["name"] for check in json.loads(output)["checks"]]
+                _, report, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini")
+            with mock.patch.object(doctor, "find_repo_root", return_value=Path("/fixture/checkout")):
+                _, output, _ = self.cli(LOCAL_VIDEO, "--engine", "gemini", "--json")
+                checkout = [check["name"] for check in json.loads(output)["checks"]]
+        self.assertNotIn(".env.local", installed)
+        self.assertNotIn(".env.local", report)
+        self.assertNotIn("repo root", report)
+        self.assertEqual(checkout, [*installed, ".env.local"])
 
     def test_local_file_ignores_missing_downloader_but_requires_media_tools(self):
         installed = {"ffmpeg", "ffprobe"}

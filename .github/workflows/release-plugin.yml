@@ -52,12 +52,28 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
+      # A release published while immutability is off is not immutable, and its
+      # tag is used up. Only a token with the Administration permission can read
+      # the setting, and this workflow's own token cannot hold it, so the check
+      # needs the optional RELEASE_SETTINGS_TOKEN secret; see docs/releasing.md.
+      # It runs before any dependency is installed, so only this repository's
+      # script handles the token.
+      - name: Require release immutability before anything is published
+        env:
+          SETTINGS_TOKEN: ${{ secrets.RELEASE_SETTINGS_TOKEN }}
+        run: |
+          if [ -z "${SETTINGS_TOKEN}" ]; then
+            echo "::notice title=Release immutability not checked before publishing::The RELEASE_SETTINGS_TOKEN secret is not set, so this run cannot read the setting. The verify job checks the release once it is published."
+            exit 0
+          fi
+          python3 scripts/check-release-immutability.py "${GITHUB_REPOSITORY}"
+
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
 
       - name: Install validation tools
-        run: python -m pip install --quiet --requirement requirements-dev.txt
+        run: make dev-deps PYTHON=python
 
       - name: Plan the release
         id: plan
@@ -85,18 +101,8 @@ jobs:
             echo "commit_sha=$(git rev-parse HEAD)"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Full repository check
-        run: make check
-
-      - name: Require checks to leave the tree clean
-        run: |
-          changed="$(git status --porcelain)"
-          if [ -n "${changed}" ]; then
-            echo "Repository checks changed the working tree:" >&2
-            echo "${changed}" >&2
-            exit 1
-          fi
-
+      # The full check runs once, in the ci job above, which this release also
+      # waits for. This job only plans the release and checks its archive.
       - name: Build validation archive
         id: archive
         env:
@@ -403,6 +409,11 @@ jobs:
               echo "${changed}" >&2
               exit 1
             fi
+            # The commit changes this one file, so this is the whole check for
+            # it. It needs no dependency, which keeps third-party code out of a
+            # job that can push.
+            python3 scripts/validate_plugins.py --marketplace
+            git diff --check
             git add "${marketplace}"
             git commit --quiet -m "Point marketplace at ${PLUGIN} ${VERSION}"
             if git push origin "HEAD:${GITHUB_REF_NAME}"; then
@@ -413,3 +424,19 @@ jobs:
           done
           echo "Could not push the marketplace update; re-run the failed job." >&2
           exit 1
+
+  # A push made with GITHUB_TOKEN starts no workflow, so the marketplace commit
+  # would never get a CI run. A dispatch is the exception to that rule.
+  ci-on-main:
+    needs: marketplace
+    permissions:
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Start CI on the branch that holds the marketplace commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/dispatches" \
+            -f ref="${GITHUB_REF_NAME}"

@@ -15,6 +15,7 @@ from unittest import mock
 
 
 TESTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(TESTS))
 sys.path.insert(0, str(TESTS.parent / "skills/watch-video/scripts"))
 
 import doctor  # noqa: E402
@@ -22,6 +23,7 @@ import local_analyze  # noqa: E402
 import local_api  # noqa: E402
 import local_config as config  # noqa: E402
 import local_transcribe  # noqa: E402
+import unittest_backports  # noqa: E402, F401
 import watch  # noqa: E402
 
 
@@ -184,10 +186,10 @@ class LocalConfigTests(unittest.TestCase):
                                                       "range": {"start_seconds": 0, "end_seconds": 5}}))
         (run / "transcript.json").write_text(json.dumps({"source": "local_whisper", "segments": [
             {"start": 0, "end": 1, "text": "test audio"}]}))
-        client = mock.Mock()
+        client = mock.Mock(base_url="http://127.0.0.1:8147/v1")
         client.request_json.side_effect = RuntimeError("failure echo file-secret")
         with mock.patch.object(local_analyze, "LocalClient", return_value=client), \
-                contextlib.redirect_stdout(io.StringIO()):
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             result = local_analyze.analyze_local(run)
         self.assertEqual(result["model"], "file-vision")
         self.assertEqual(client.request_json.call_args.args[1]["model"], "file-vision")

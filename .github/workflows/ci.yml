@@ -1,9 +1,20 @@
 name: CI
 
 on:
+  # A branch gets its run from its pull request, so a push to it starts no second one.
   push:
+    branches: [main]
   pull_request:
   workflow_call:
+  # The release workflow starts a run on main after it pushes the marketplace commit.
+  workflow_dispatch:
+
+# A newer push to a pull request replaces the run of the older one. Every other
+# run is in a group of its own, so a run on main or in a release is never
+# cancelled and never waits for another.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -12,6 +23,11 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest Python the repository tooling supports, and the newest release.
+        python: ["3.11", "3.15"]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -19,10 +35,10 @@ jobs:
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python }}
 
       - name: Install pinned development dependencies
-        run: python -m pip install --requirement requirements-dev.txt
+        run: make dev-deps PYTHON=python
 
       - name: Install ffmpeg so frame-engine tests run
         run: |
@@ -33,6 +49,60 @@ jobs:
       - name: Test, lint, and validate plugins
         run: make ci
 
+      # The tests run once more, under coverage.py. One Python version is
+      # enough to show the total falling below the floor in pyproject.toml.
+      - name: Measure test coverage
+        if: matrix.python == '3.11'
+        run: make coverage
+
+      - name: Require checks to leave the tree clean
+        run: |
+          changed="$(git status --porcelain)"
+          if [ -n "${changed}" ]; then
+            echo "Repository checks changed the working tree:" >&2
+            echo "${changed}" >&2
+            exit 1
+          fi
+
+  # The plugins support Python 3.9, which is older than the tooling above needs.
+  # Their tests use the standard library only, so nothing is installed with pip
+  # and one schema cross-check that needs jsonschema is skipped.
+  python-floor:
+    # setup-python has no Python 3.9 build for runner images newer than this one.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.9"
+
+      - name: Install ffmpeg so frame-engine tests run
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | sed -n '1p'
+
+      # FFmpeg older than 5.1 has no -fps_mode, and the plugin passes -vsync to
+      # it. This image's FFmpeg accepts both options, which lets a test run that
+      # fallback against a real build. Current releases have dropped -vsync, so
+      # on a newer image the test would be skipped without a word.
+      - name: Require an FFmpeg build that still accepts -vsync
+        run: |
+          help_output="$(ffmpeg -hide_banner -h full 2>&1)"
+          for option in -fps_mode -vsync; do
+            case "${help_output}" in
+              *"${option}"*) ;;
+              *) echo "Expected ${option} support, which the -vsync fallback test needs" >&2; exit 1 ;;
+            esac
+          done
+
+      - name: Run the plugin tests on the oldest supported Python
+        run: |
+          python3 --version
+          make test-plugins
+
   macos-tests:
     runs-on: macos-latest
     timeout-minutes: 20
@@ -41,10 +111,10 @@ jobs:
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: "3.11"
+          python-version: "3.15"
 
       - name: Install pinned development dependencies
-        run: python -m pip install --requirement requirements-dev.txt
+        run: make dev-deps PYTHON=python
 
       - name: Install current FFmpeg
         shell: bash
@@ -52,8 +122,9 @@ jobs:
           brew install ffmpeg
           ffmpeg -version | sed -n '1p'
 
-      # Current FFmpeg releases no longer accept -vsync, so Homebrew's build covers
-      # the -fps_mode path while Ubuntu's older packaged FFmpeg covers -vsync.
+      # Current FFmpeg releases no longer accept -vsync. Homebrew's build shows
+      # that the plugin does not pass it to them; the python-floor job covers a
+      # build that still accepts it.
       - name: Require an FFmpeg build without -vsync
         shell: bash
         run: |
@@ -72,3 +143,16 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: make test
+
+      # Apple's Command Line Tools ship their own python3. It is the oldest
+      # interpreter the plugins are likely to meet on a Mac.
+      - name: Run the plugin tests on the Python that macOS ships
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          if /usr/bin/python3 --version; then
+            make test-plugins PYTHON=/usr/bin/python3
+          else
+            echo "::warning::/usr/bin/python3 is not available on this runner, so the plugin tests did not run on it."
+          fi

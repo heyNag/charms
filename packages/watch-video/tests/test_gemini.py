@@ -197,6 +197,8 @@ class GeminiTests(unittest.TestCase):
             with self.assertRaises(gemini.GeminiError) as caught:
                 self.run_video(self.video, upload_timeout=5)
         self.assertEqual(caught.exception.category, "timeout")
+        self.assertIn("within the limit of 5 seconds", str(caught.exception))
+        self.assertIn("--gemini-upload-timeout", str(caught.exception))
         self.assertEqual(self.calls[-1][0].method, "DELETE")
 
     def test_untrusted_upload_destinations_receive_no_media(self):
@@ -253,6 +255,70 @@ class GeminiTests(unittest.TestCase):
                     self.run_video()
                 self.assertEqual(caught.exception.category, "response")
 
+    def test_output_limit_is_sent_and_can_be_raised(self):
+        self.replies = [response(completed()), response(completed())]
+        self.run_video()
+        self.run_video(max_output_tokens=20000)
+        limits = [json.loads(request.data)["generation_config"] for request, _ in self.calls]
+        self.assertEqual(limits, [{"max_output_tokens": 8192}, {"max_output_tokens": 20000}])
+        self.assertEqual(gemini.DEFAULT_MAX_OUTPUT_TOKENS, 8192)
+        self.assertEqual(gemini.DEFAULT_UPLOAD_TIMEOUT, 900)
+
+    def test_a_cut_off_answer_names_the_limit_and_keeps_what_was_returned(self):
+        cut_off = {
+            "status": "incomplete",
+            "steps": [{"type": "model_output", "content": [{"type": "text", "text": f"At 00:03 a menu {KEY}"}]}],
+            "usage": {"total_output_tokens": 8192, "total_thought_tokens": 512},
+        }
+        self.replies = [*self.upload_responses(), response(cut_off), Response()]
+        with self.assertRaises(gemini.GeminiError) as caught:
+            self.run_video(self.video)
+        error = caught.exception
+        self.assertEqual(error.category, "incomplete")
+        self.assertEqual(str(error), (
+            "Gemini incomplete: The answer was cut off before it was finished. The output limit "
+            "for this run was 8192 tokens, and the response used 8192 output tokens and 512 "
+            "thought tokens. Raise the limit with --gemini-max-output-tokens, or ask a narrower "
+            "question or select a shorter range. The part that was returned is saved as a "
+            "partial answer."
+        ))
+        self.assertEqual(error.partial_answer, "At 00:03 a menu [redacted]")
+        record = error.to_dict()
+        self.assertEqual(record["partial_answer"], "At 00:03 a menu [redacted]")
+        self.assertEqual(record["usage"], {"total_output_tokens": 8192, "total_thought_tokens": 512})
+        self.assertNotIn(KEY, json.dumps(record))
+        # The uploaded file is deleted after a cut-off answer too.
+        self.assertEqual(self.calls[-1][0].method, "DELETE")
+        self.assertEqual(record["remote_file"]["cleanup_status"], "deleted")
+
+    def test_a_cut_off_answer_without_text_or_usage_still_names_the_limit(self):
+        self.replies = [response({"status": "incomplete", "steps": []})]
+        with self.assertRaises(gemini.GeminiError) as caught:
+            self.run_video(max_output_tokens=100)
+        self.assertEqual(caught.exception.category, "incomplete")
+        self.assertEqual(str(caught.exception), (
+            "Gemini incomplete: The answer was cut off before it was finished. The output limit "
+            "for this run was 100 tokens. Raise the limit with --gemini-max-output-tokens, or "
+            "ask a narrower question or select a shorter range."
+        ))
+        self.assertIsNone(caught.exception.partial_answer)
+        self.assertNotIn("partial_answer", caught.exception.to_dict())
+        self.assertNotIn("usage", caught.exception.to_dict())
+
+    def test_other_statuses_are_named_only_when_the_api_documents_them(self):
+        for status, named in (("failed", True), ("cancelled", True), ("requires_continuation", True),
+                              ("in_progress", True), (KEY, False), ("<b>unknown</b>", False), (7, False)):
+            with self.subTest(status=status):
+                self.replies = [response({"status": status})]
+                with self.assertRaises(gemini.GeminiError) as caught:
+                    self.run_video()
+                self.assertEqual(caught.exception.category, "response")
+                expected = "Gemini response: The provider did not return a completed analysis."
+                if named:
+                    expected += f" It reported the status {status}."
+                self.assertEqual(str(caught.exception), expected)
+                self.assertNotIn("partial_answer", caught.exception.to_dict())
+
     def test_response_size_limit_and_redaction(self):
         self.replies = [Response(b"x" * (gemini.MAX_RESPONSE_BYTES + 1))]
         with self.assertRaises(gemini.GeminiError):
@@ -277,7 +343,9 @@ class GeminiTests(unittest.TestCase):
     def test_invalid_inputs_fail_before_network(self):
         for kwargs in [{"timeout": 0}, {"timeout": float("nan")}, {"upload_timeout": float("inf")},
                        {"poll_interval": -1}, {"start": -1}, {"start": 9, "end": 8},
-                       {"end": 0}, {"model": "model\n"}, {"question": 12}]:
+                       {"end": 0}, {"model": "model\n"}, {"question": 12},
+                       {"max_output_tokens": 0}, {"max_output_tokens": -5}, {"max_output_tokens": True},
+                       {"max_output_tokens": 1.5}, {"max_output_tokens": "8192"}]:
             with self.subTest(kwargs=kwargs):
                 with self.assertRaises(gemini.GeminiError):
                     self.run_video(**kwargs)

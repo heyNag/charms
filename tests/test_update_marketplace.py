@@ -51,7 +51,7 @@ class UpdateMarketplaceTests(unittest.TestCase):
         return json.loads(self.marketplace.read_text(encoding="utf-8"))["plugins"]
 
     def test_adds_a_pinned_entry_from_the_release_commit(self):
-        sha = self.release("demo-plugin", "1.0.0")
+        sha = self.release("demo-plugin", "2026.11.0")
 
         entry, changed = self.module.update_marketplace(self.root, "demo-plugin", sha)
 
@@ -63,14 +63,14 @@ class UpdateMarketplaceTests(unittest.TestCase):
                 "source": "git-subdir",
                 "url": "https://github.com/heyNag/charms.git",
                 "path": "packages/demo-plugin",
-                "ref": "demo-plugin--v1.0.0",
+                "ref": "demo-plugin--v2026.11.0",
                 "sha": sha,
             },
         )
-        self.assertEqual((entry["version"], entry["description"]), ("1.0.0", "Demo plugin."))
+        self.assertEqual((entry["version"], entry["description"]), ("2026.11.0", "Demo plugin."))
 
     def test_rerunning_for_the_same_release_is_a_no_op(self):
-        sha = self.release("demo-plugin", "1.0.0")
+        sha = self.release("demo-plugin", "2026.11.0")
         self.module.update_marketplace(self.root, "demo-plugin", sha)
         before = self.marketplace.read_bytes()
 
@@ -80,11 +80,11 @@ class UpdateMarketplaceTests(unittest.TestCase):
         self.assertEqual(self.marketplace.read_bytes(), before)
 
     def test_moves_forward_and_keeps_entries_sorted(self):
-        first = self.release("demo-plugin", "1.0.0")
+        first = self.release("demo-plugin", "2026.11.0")
         self.module.update_marketplace(self.root, "demo-plugin", first)
-        other = self.release("another-plugin", "1.0.0")
+        other = self.release("another-plugin", "2026.11.0")
         self.module.update_marketplace(self.root, "another-plugin", other)
-        second = self.release("demo-plugin", "1.1.0")
+        second = self.release("demo-plugin", "2026.11.1")
 
         self.module.update_marketplace(self.root, "demo-plugin", second)
 
@@ -93,29 +93,45 @@ class UpdateMarketplaceTests(unittest.TestCase):
         self.assertEqual(entries[1]["source"]["sha"], second)
 
     def test_refuses_to_move_an_entry_backwards(self):
-        old = self.release("demo-plugin", "1.0.0")
-        new = self.release("demo-plugin", "1.1.0")
+        old = self.release("demo-plugin", "2026.11.0")
+        new = self.release("demo-plugin", "2026.11.1")
         self.module.update_marketplace(self.root, "demo-plugin", new)
 
-        with self.assertRaisesRegex(ValueError, "refusing to move it to 1.0.0"):
+        with self.assertRaisesRegex(ValueError, "refusing to move it to 2026.11.0"):
+            self.module.update_marketplace(self.root, "demo-plugin", old)
+
+    def test_moves_from_a_1_x_release_to_the_first_calver_release(self):
+        old = self.release("demo-plugin", "1.3.2")
+        self.module.update_marketplace(self.root, "demo-plugin", old)
+        new = self.release("demo-plugin", "2026.11.0")
+
+        entry, changed = self.module.update_marketplace(self.root, "demo-plugin", new)
+
+        self.assertTrue(changed)
+        self.assertEqual(self.entries(), [entry])
+        self.assertEqual(
+            (entry["version"], entry["source"]["ref"], entry["source"]["sha"]),
+            ("2026.11.0", "demo-plugin--v2026.11.0", new),
+        )
+        with self.assertRaisesRegex(ValueError, "refusing to move it to 1.3.2"):
             self.module.update_marketplace(self.root, "demo-plugin", old)
 
     def test_requires_the_release_tag_at_the_commit(self):
         write_json(
             self.root / "packages" / "demo-plugin" / "plugin.json",
-            {"name": "demo-plugin", "version": "1.0.0", "description": "Demo plugin."},
+            {"name": "demo-plugin", "version": "2026.11.0", "description": "Demo plugin."},
         )
         sha = commit_all(self.root)
         with self.assertRaisesRegex(ValueError, "missing or does not point at"):
             self.module.update_marketplace(self.root, "demo-plugin", sha)
 
-        git(self.root, "tag", "demo-plugin--v1.0.0")
+        git(self.root, "tag", "demo-plugin--v2026.11.0")
         later = commit_all(self.root, "Later commit")
         with self.assertRaisesRegex(ValueError, "missing or does not point at"):
             self.module.update_marketplace(self.root, "demo-plugin", later)
 
     def test_main_rejects_an_abbreviated_sha(self):
-        sha = self.release("demo-plugin", "1.0.0")
+        sha = self.release("demo-plugin", "2026.11.0")
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
             code = self.module.main(["demo-plugin", "--sha", sha[:12], "--root", str(self.root)])

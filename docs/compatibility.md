@@ -33,11 +33,13 @@ filesystem access, or approval interface.
 
 | Plugin | Required environment |
 | --- | --- |
-| `watch-video` | macOS or Linux, Python 3.11+. Local files need `ffmpeg` and `ffprobe` for local extraction; local URL runs also need `yt-dlp`. Gemini needs network access and environment-supplied `GEMINI_API_KEY`, with no local binaries for supported YouTube URLs or local files; other URLs need the downloader toolkit. Remote media and hosted transcription need network access. Optional local ASR/VLM needs a separately configured loopback OpenAI-compatible server. |
-| `x-bookmarks` | Python 3.11+ and either Bird with browser-cookie access or X API v2 OAuth credentials. Live retrieval requires network access. |
+| `watch-video` | macOS or Linux, Python 3.9+. Local files need `ffmpeg` and `ffprobe` for local extraction; local URL runs also need `yt-dlp`, which needs a JavaScript runtime such as Deno for YouTube. Gemini needs network access and environment-supplied `GEMINI_API_KEY`, with no local binaries for supported YouTube URLs or local files; other URLs need the downloader toolkit. Remote media and hosted transcription need network access. Optional local ASR/VLM needs a separately configured loopback OpenAI-compatible server. |
+| `x-bookmarks` | Python 3.9+ and either Bird with browser-cookie access or X API v2 OAuth credentials. Live retrieval requires network access. |
 
 These requirements are also declared in each skill's `compatibility`
-frontmatter and explained in its package README.
+frontmatter and explained in its package README. Each plugin's scripts check
+the Python version before anything else and stop with one line on an older
+`python3`.
 
 `watch-video` uses only Python's standard library for provider adapters. The CLI
 defaults to local; the skill passes an explicit engine based on the task.
@@ -46,17 +48,14 @@ without an explicit route ask the user to choose once per video or batch. The
 choice is preserved for follow-ups; exact visual work recommends local. Local
 file/folder paths use configured local models directly, without a cloud-route
 question. Speech-only tasks can use local transcript detail with existing
-captions directly. Explicit choices and privacy constraints take priority. Private/local,
-unlisted, login-required, and meeting recordings stay local. Use configured
-local ASR/VLM for original audio and frames, or `--transcriber none` with provided
-captions. Hosted transcription requires approval. Other or unclear sources use local unless Gemini is requested;
-for uncertain privacy, use `--transcriber local` when configured, otherwise
-`--transcriber none` unless hosted ASR is approved.
-The CLI also defaults to no hosted transcription for local files and cached
-runs. Cloud use requires the user's consent for that source and provider;
-a configured API key is not consent. Fresh URL runs retain Groq as the CLI
-fallback, so agents must explicitly disable it for private or uncertain URLs.
-`--analyzer local` defaults an omitted transcriber to local rather than Groq;
+captions directly. Explicit choices and privacy constraints take priority.
+Whether anything may be uploaded is decided by one rule, the skill's
+[Uploads need consent](../packages/watch-video/skills/watch-video/SKILL.md#uploads-need-consent)
+section: cloud use needs the user's consent for that source and provider.
+The CLI defaults to no hosted transcription for every source, fresh URLs
+included: Groq or OpenAI transcription runs only with an explicit
+`--transcriber groq` or `--transcriber openai`.
+`--analyzer local` defaults an omitted transcriber to local;
 an explicit `--transcriber none` is respected. Local model failures never
 select a hosted fallback. These clients use loopback endpoints only, with
 separate speech and vision-language models, and do not install or start a runtime.
@@ -98,6 +97,28 @@ index accompanies local runs, while Gemini returns an attributed
 an agent needs image-reading capability to inspect local frames. Optional local
 model analysis adds `local_analysis.json`, `local_analysis.md`, and persisted
 batch results. The host must retain their provenance, uncertainty, and gaps.
+
+## Last tested with
+
+A newer version of a tool usually works. This table records the versions a
+release was last tried with, so that it is the first place to look when one
+does not. Update the rows when a plugin is released; the
+[release steps](releasing.md#record-what-the-release-was-tested-with) list the
+commands.
+
+| Tool | Version | How it is tried | Recorded |
+| --- | --- | --- | --- |
+| Python | 3.9, 3.11 and 3.15, and the `python3` of Apple's Command Line Tools | CI, on every change | 2026-11-14 |
+| FFmpeg | 6.1.1 on the Ubuntu 24.04 runner, which still accepts `-vsync`; the build of the latest Ubuntu runner; and the current Homebrew build, which has dropped `-vsync` | CI, on every change. Each run prints the version it used | 2026-11-14 |
+| yt-dlp, and Deno for it | Not recorded yet | A real URL run by hand: `doctor.py "<url>"`, then `watch.py "<url>" --detail transcript` | |
+| oMLX and Splash | Not recorded yet. Splash must be 1.3.0 or later | `make omlx-test` against the running server, then a short `--transcriber local --analyzer local` run | |
+| Bird | 0.8.0, read as source when the incremental fetch was written. No live run is recorded yet | `bird check --plain`, then a small fetch with each helper | 2026-11-14 |
+| X API v2 | Not recorded yet | `x_api_auth.py --status`, then a small fetch | |
+| Claude Code | 2.1.307 | A marketplace install | |
+| Codex CLI | 0.147.0 | A marketplace install | |
+
+"Not recorded yet" means that nobody wrote the version down, not that the
+tool fails.
 
 ## Capability handling
 

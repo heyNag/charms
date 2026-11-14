@@ -10,7 +10,6 @@ import math
 import mimetypes
 import os
 import shutil
-import subprocess
 import sys
 import time
 import uuid
@@ -18,6 +17,13 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: F401
+import plugin_version
+import private_files
+import timed_process
+import tool_hints
 
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -128,7 +134,11 @@ def read_stored_key(name: str) -> str | None:
 
 
 def set_stored_key(name: str, value: str) -> Path:
-    """Store a key in the config file with private permissions (0600)."""
+    """Store a key in the config file, which only this account can read.
+
+    The config folder is made private when it has to be created; one that
+    already exists keeps its permissions.
+    """
     if name not in KEY_NAMES.values():
         raise ValueError(f"unsupported key name: {name}")
     value = value.strip()
@@ -138,8 +148,6 @@ def set_stored_key(name: str, value: str) -> Path:
         raise ValueError("key must be a single line")
 
     path = config_env_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    os.chmod(path.parent, 0o700)
 
     lines: list[str] = []
     replaced = False
@@ -155,17 +163,13 @@ def set_stored_key(name: str, value: str) -> Path:
     if not replaced:
         lines.append(f"{name}={value}")
 
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    os.chmod(tmp, 0o600)
-    tmp.replace(path)
-    os.chmod(path, 0o600)
+    private_files.write_private_text(path, "\n".join(lines) + "\n")
     return path
 
 
 def _require_ffmpeg() -> None:
     if shutil.which("ffmpeg") is None:
-        raise RuntimeError("ffmpeg is not installed. fix: brew install ffmpeg")
+        raise RuntimeError(tool_hints.missing_tool("ffmpeg"))
 
 
 def provider_label(provider: str) -> str:
@@ -190,6 +194,12 @@ def default_model(provider: str) -> str:
     if provider == "openai":
         return os.environ.get("OPENAI_TRANSCRIBE_MODEL") or DEFAULT_OPENAI_MODEL
     raise ValueError("provider must be groq or openai")
+
+
+def has_api_key(provider: str) -> bool:
+    """Report whether a provider key is configured, without returning it."""
+    env_name = KEY_NAMES[provider]
+    return bool((os.environ.get(env_name) or "").strip() or read_stored_key(env_name))
 
 
 def _read_key(provider: str = "groq", api_key: str | None = None) -> str:
@@ -252,9 +262,12 @@ def extract_audio_clip(
         ]
     )
 
-    result = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-    )
+    try:
+        result = timed_process.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
+    except timed_process.CommandTimeout as exc:
+        raise RuntimeError(f"ffmpeg audio extraction failed: {exc}") from exc
     if result.returncode != 0:
         detail = result.stderr.strip() or "unknown ffmpeg error"
         raise RuntimeError(f"ffmpeg audio extraction failed: {detail}")
@@ -396,7 +409,7 @@ def _post_transcription(
                 # A custom User-Agent is load-bearing: Groq sits behind
                 # Cloudflare, and the default Python-urllib UA can trip WAF
                 # rules with a 403 before auth even runs.
-                "User-Agent": "charms-watch-video/0.1",
+                "User-Agent": plugin_version.USER_AGENT,
             },
         )
         try:
@@ -497,23 +510,26 @@ def transcribe_audio(
 def audio_duration_seconds(audio_path: Path) -> float:
     """Return the duration of an audio file in seconds via ffprobe."""
     if shutil.which("ffprobe") is None:
-        raise RuntimeError("ffprobe is not installed. fix: brew install ffmpeg")
-    result = subprocess.run(
-        [
-            "ffprobe",
-            "-v",
-            "quiet",
-            "-print_format",
-            "json",
-            "-show_format",
-            str(audio_path),
-        ],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
+        raise RuntimeError(tool_hints.missing_tool("ffprobe"))
+    try:
+        result = timed_process.run(
+            [
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
+                "-show_format",
+                str(audio_path),
+            ],
+            timeout=timed_process.probe_timeout(),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except timed_process.CommandTimeout as exc:
+        raise RuntimeError(f"ffprobe failed on audio clip: {exc}") from exc
     if result.returncode != 0:
         raise RuntimeError(f"ffprobe failed on audio clip: {result.stderr.strip()}")
     try:
@@ -597,9 +613,12 @@ def split_audio(
             "copy",
             str(out_path),
         ]
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-        )
+        try:
+            result = timed_process.run(
+                cmd, capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
+        except timed_process.CommandTimeout as exc:
+            raise RuntimeError(f"ffmpeg failed to split audio chunk {index + 1}: {exc}") from exc
         if result.returncode != 0 or not out_path.exists() or out_path.stat().st_size == 0:
             raise RuntimeError(
                 f"ffmpeg failed to split audio chunk {index + 1}: {result.stderr.strip()}"
@@ -787,6 +806,7 @@ def segments_from_response(data: object, *, offset_seconds: float = 0.0) -> Tran
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Transcribe audio with Groq or OpenAI Whisper.")
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument("audio_file", help="Audio file to transcribe")
     parser.add_argument("--out", help="Path for the raw JSON response")
     parser.add_argument("--provider", choices=["groq", "openai"], default="groq")

@@ -6,16 +6,23 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import platform
+import shlex
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: E402
+import plugin_version  # noqa: E402
+import prune_runs  # noqa: E402
+import tool_hints  # noqa: E402
+from tool_hints import brew_packages as _brew_packages, current_platform  # noqa: E402
 from groq_transcribe import (  # noqa: E402
     KEY_NAMES,
     config_env_path,
@@ -23,18 +30,33 @@ from groq_transcribe import (  # noqa: E402
     set_stored_key,
 )
 from gemini import is_youtube_url  # noqa: E402
-from watch import default_run_root, is_url  # noqa: E402
+from watch import (  # noqa: E402
+    JS_RUNTIME_ENV,
+    OPT_IN_JS_RUNTIMES,
+    default_js_runtime,
+    default_run_root,
+    is_url,
+    js_runtime_args,
+)
 
 
-MIN_PYTHON = (3, 11)
 ENV_LOCAL = ".env" + ".local"
 # Key checks are advisory: watch-video still works caption/frames-only.
 ADVISORY_CHECKS = {
     "GROQ_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "whisper-config", "run-artifacts",
-    "WATCH_VIDEO_LOCAL_API_KEY", "local-models",
+    "run-privacy", "WATCH_VIDEO_LOCAL_API_KEY", "local-models", "js-runtime",
 }
 RUN_ARTIFACTS_WARN_BYTES = 500 * 1024 * 1024
+# Limits for doctor's own helper commands, in seconds.
+COMMAND_TIMEOUT = 10
+YT_DLP_REPORT_TIMEOUT = 20
+INSTALL_TIMEOUT = 1800
 LOCAL_BINARIES = ("yt-dlp", "ffmpeg", "ffprobe")
+# The yt-dlp extractor for these hosts runs the site's player JavaScript.
+YOUTUBE_HOSTS = ("youtube.com", "youtu.be", "youtube-nocookie.com")
+# The names yt-dlp uses for the runtimes it leaves off, and their programs.
+JS_RUNTIME_PROGRAMS = {"node": "node", "quickjs": "qjs", "bun": "bun"}
+DENO_INSTALL_PAGE = "https://docs.deno.com/runtime/getting_started/installation/"
 
 
 def required_binaries(
@@ -56,29 +78,28 @@ def required_binaries(
     return list(LOCAL_BINARIES if remote else ("ffmpeg", "ffprobe"))
 
 
+def needs_js_runtime(
+    engine: str = "local", source: str | None = None, from_run: str | None = None,
+) -> bool:
+    """True when this flow has yt-dlp read YouTube, or names no source at all."""
+    if "yt-dlp" not in required_binaries(engine, source, from_run):
+        return False
+    if source is None:
+        return True
+    try:
+        host = (urlsplit(source).hostname or "").lower()
+    except ValueError:
+        return False
+    return any(host == name or host.endswith(f".{name}") for name in YOUTUBE_HOSTS)
+
+
 def install_hints(binaries: list[str] | None = None) -> dict[str, list[str]]:
-    packages = _brew_packages(list(LOCAL_BINARIES) if binaries is None else binaries)
-    return {
-        "macOS": [f"brew install {' '.join(packages)}"] if packages else [],
-        "Linux": (
-            (["sudo apt install ffmpeg"] if "ffmpeg" in packages else [])
-            + (["pipx install yt-dlp"] if "yt-dlp" in packages else [])
-        ),
-    }
-
-
-def current_platform(system: str | None = None) -> str:
-    system = system or platform.system()
-    if system == "Darwin":
-        return "macOS"
-    if system == "Linux":
-        return "Linux"
-    return "Unsupported"
+    return tool_hints.install_hints(list(LOCAL_BINARIES) if binaries is None else binaries)
 
 
 def platform_hints(binaries: list[str] | None = None) -> list[str]:
     hints = install_hints(binaries)
-    return hints.get(current_platform(), ["watch-video supports macOS and Linux only"])
+    return hints.get(current_platform(), [tool_hints.UNSUPPORTED])
 
 
 def check_platform(system: str | None = None) -> dict[str, object]:
@@ -94,14 +115,15 @@ def check_platform(system: str | None = None) -> dict[str, object]:
 
 
 def check_python_version(version_info: tuple[int, int, int] | None = None) -> dict[str, object]:
-    version = version_info or (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)
-    ok = (version[0], version[1]) >= MIN_PYTHON
+    version = tuple((version_info or sys.version_info)[:3])
+    floor = python_floor.version_text()
+    ok = python_floor.problem(version) is None
     return {
         "name": "python",
         "ok": ok,
-        "version": ".".join(str(part) for part in version),
-        "message": "ok" if ok else f"Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]}+ required",
-        "fix": "Use Python 3.11 or newer.",
+        "version": python_floor.version_text(version),
+        "message": "ok" if ok else f"Python {floor}+ required",
+        "fix": f"Use Python {floor} or newer.",
     }
 
 
@@ -114,6 +136,103 @@ def check_binary(name: str) -> dict[str, object]:
         "message": "ok" if path else f"{name} is not installed",
         "fix": "; ".join(platform_hints([name])),
     }
+
+
+def yt_dlp_self_report(js_runtime: str | None = None) -> dict[str, str] | None:
+    """Ask the installed yt-dlp what it can run YouTube's JavaScript with.
+
+    No URL is given, so yt-dlp prints its debug header and stops without
+    making a request. None means it could not be asked.
+    """
+    cmd = ["yt-dlp", "--ignore-config", "--verbose", *js_runtime_args(js_runtime)]
+    try:
+        result = subprocess.run(
+            cmd, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", check=False, timeout=YT_DLP_REPORT_TIMEOUT,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    labels = {"runtimes": "[debug] JS runtimes:", "libraries": "[debug] Optional libraries:"}
+    report: dict[str, str] = {}
+    for line in f"{result.stdout}\n{result.stderr}".splitlines():
+        for key, label in labels.items():
+            if line.startswith(label):
+                report[key] = line[len(label):].strip()
+    return report
+
+
+def _deno_fix() -> str:
+    if current_platform() == "macOS":
+        return "brew install deno"
+    return f"pipx inject yt-dlp deno (when yt-dlp came from pipx), or install Deno: {DENO_INSTALL_PAGE}"
+
+
+def check_js_runtime(js_runtime: str | None = None) -> dict[str, object]:
+    """Advisory: can yt-dlp run YouTube's player JavaScript?
+
+    yt-dlp needs an external JavaScript runtime and its solver scripts for
+    full YouTube support, and returns fewer formats without them. Only yt-dlp
+    knows what it will accept: it finds a Deno inside its own environment,
+    rejects old versions, and enables nothing but Deno unless told to. So the
+    answer comes from yt-dlp, and `problem` says which part is missing.
+    """
+    check: dict[str, object] = {"name": "js-runtime", "ok": True, "problem": None}
+    if shutil.which("yt-dlp") is None:
+        check["message"] = "not checked until yt-dlp is installed"
+        return check
+    report = yt_dlp_self_report(js_runtime)
+    listed = None if report is None else report.get("runtimes")
+    if listed is None:
+        check["message"] = "not checked: this yt-dlp did not report its JavaScript runtimes"
+        return check
+
+    consequence = "YouTube formats may be missing or downloads may fail"
+    entries = [entry.strip() for entry in listed.split(",") if entry.strip()]
+    # "none", "none (disabled)", "node-18.0.0 (unsupported)", "foo (unknown)".
+    usable = [entry for entry in entries if not entry.startswith("none") and "(" not in entry]
+    if usable:
+        if "yt_dlp_ejs" in (report.get("libraries") or ""):
+            check["message"] = f"{usable[0]} (reported by yt-dlp)"
+            return check
+        check.update(
+            ok=False,
+            problem="scripts",
+            message=(
+                f"yt-dlp can use {usable[0]} but is installed without its challenge solver "
+                f"scripts (yt-dlp-ejs), so {consequence}"
+            ),
+            fix=(
+                'install yt-dlp with its default extras (pipx install --force "yt-dlp[default,deno]"), '
+                "or use the Homebrew formula or an official yt-dlp build, which include them"
+            ),
+        )
+        return check
+
+    rejected = [entry for entry in entries if "(" in entry and not entry.startswith("none")]
+    idle = [
+        name for name, program in JS_RUNTIME_PROGRAMS.items()
+        if name != js_runtime and shutil.which(program)
+    ]
+    if js_runtime:
+        found = f"; yt-dlp reported {', '.join(rejected)}" if rejected else ""
+        message = f"yt-dlp could not use the selected runtime {js_runtime}{found}, so {consequence}"
+    elif rejected:
+        message = f"yt-dlp cannot use {', '.join(rejected)}, so {consequence}"
+    elif idle:
+        message = (
+            f"yt-dlp has no JavaScript runtime it may use: it enables only Deno by itself, and "
+            f"leaves {', '.join(idle)} off for security reasons. {consequence[0].upper()}{consequence[1:]}"
+        )
+    else:
+        message = f"yt-dlp found no JavaScript runtime, so {consequence}"
+    fix = _deno_fix()
+    if idle:
+        fix += (
+            f"; or, when the user agrees, let yt-dlp use one it found: --js-runtime {idle[0]} "
+            f"(or {JS_RUNTIME_ENV}={idle[0]})"
+        )
+    check.update(ok=False, problem="runtime", message=message, fix=fix)
+    return check
 
 
 def key_shape_status(value: str | None, prefix: str = "gsk_") -> dict[str, object]:
@@ -317,8 +436,45 @@ def check_run_artifacts(run_root: Path | None = None) -> dict[str, object]:
             f"{size_mb:.0f} MB of run artifacts under {root}"
             + ("" if ok else " - old runs are piling up")
         ),
-        "fix": "delete old run directories, or use --cleanup on one-shot analyses",
+        "fix": (
+            "list old runs with scripts/doctor.py --prune and add --delete to remove them, "
+            "or use --cleanup on one-shot analyses"
+        ),
     }
+
+
+def check_run_privacy(run_root: Path | None = None) -> dict[str, object]:
+    """Advisory: run folders made by older versions can be open to other accounts.
+
+    New run folders are created for the current user only. This looks at the
+    run root and the folders directly inside it, and never changes a mode.
+    """
+    root = (run_root or default_run_root()).expanduser()
+    check: dict[str, object] = {"name": "run-privacy", "ok": True, "exposed": 0}
+    if os.name != "posix" or not root.is_dir():
+        check["message"] = "no local run artifacts found"
+        return check
+    try:
+        if root.stat().st_mode & 0o077 == 0:
+            check["message"] = "run folders are private to this account"
+            return check
+        exposed = sum(
+            1 for entry in root.iterdir()
+            if entry.is_dir() and not entry.is_symlink() and entry.stat().st_mode & 0o077
+        )
+    except OSError:
+        check["message"] = f"could not inspect {root}"
+        return check
+    if not exposed:
+        check["message"] = "run folders are private to this account"
+        return check
+    check.update(
+        ok=False,
+        exposed=exposed,
+        message=f"{exposed} run folder(s) under {root} can be opened by other accounts on this computer",
+        fix=f"chmod -R go-rwx {shlex.quote(str(root))}",
+    )
+    return check
 
 
 def find_repo_root(start: Path | None = None) -> Path | None:
@@ -341,13 +497,15 @@ def is_gitignored(repo_root: Path, path: Path) -> bool | None:
             encoding="utf-8",
             errors="replace",
             check=False,
+            timeout=COMMAND_TIMEOUT,
         )
-    except (OSError, ValueError):
+    except (OSError, ValueError, subprocess.SubprocessError):
         return None
     return result.returncode == 0
 
 
 def check_env_local(repo_root: Path | None = None) -> dict[str, object]:
+    """Development check: a .env.local in a Charms checkout must be gitignored."""
     repo = repo_root or find_repo_root()
     if repo is None:
         return {
@@ -373,12 +531,13 @@ def check_env_local(repo_root: Path | None = None) -> dict[str, object]:
 
 def collect_status(
     engine: str = "local", source: str | None = None, from_run: str | None = None,
-    transcriber: str | None = None, analyzer: str = "none",
+    transcriber: str | None = None, analyzer: str = "none", js_runtime: str | None = None,
 ) -> dict[str, object]:
     validate_local_options(engine, transcriber, analyzer)
     if analyzer == "local" and transcriber is None:
         transcriber = "local"
     binaries = required_binaries(engine, source, from_run)
+    repo_root = find_repo_root()
     source_kind = (
         "unspecified" if source is None else
         "YouTube URL" if is_url(source) and is_youtube_url(source) else
@@ -388,13 +547,17 @@ def collect_status(
         check_platform(),
         check_python_version(),
         *(check_binary(name) for name in binaries),
+        *([check_js_runtime(js_runtime)] if needs_js_runtime(engine, source, from_run) else []),
         check_whisper_key("groq"),
         check_whisper_key("openai"),
         check_gemini_key(),
         *check_local_runtime(transcriber, analyzer),
         check_config_file(),
         check_run_artifacts(),
-        check_env_local(),
+        check_run_privacy(),
+        # Only a Charms checkout has a .env.local to check. An installed
+        # plugin is not in one, and the check would only say it was skipped.
+        *([check_env_local(repo_root)] if repo_root is not None else []),
     ]
     required_ok = all(
         bool(check["ok"])
@@ -403,6 +566,7 @@ def collect_status(
     )
     return {
         "ok": required_ok,
+        "plugin_version": plugin_version.VERSION,
         "engine": engine,
         "transcriber": transcriber,
         "analyzer": analyzer,
@@ -419,7 +583,7 @@ def collect_status(
 
 def human_report(status: dict[str, object]) -> str:
     checks = status.get("checks") or []
-    lines = ["Watch Video Doctor", ""]
+    lines = [f"Watch Video Doctor ({plugin_version.VERSION_LINE})", ""]
     if status.get("scope"):
         lines.extend([f"Checking: {status['scope']}", ""])
     for check in checks:
@@ -446,17 +610,19 @@ def check_mode_error(status: dict[str, object]) -> str | None:
     return None
 
 
-def _brew_packages(missing: list[str]) -> list[str]:
-    packages: list[str] = []
-    for name in missing:
-        package = "ffmpeg" if name in {"ffmpeg", "ffprobe"} else name
-        if package not in packages:
-            packages.append(package)
-    return packages
+def _js_runtime_gap(
+    engine: str, source: str | None, from_run: str | None, js_runtime: str | None,
+) -> dict[str, object] | None:
+    """The failed js-runtime check for this flow, or None when there is nothing to fix."""
+    if shutil.which("yt-dlp") is None or not needs_js_runtime(engine, source, from_run):
+        return None
+    check = check_js_runtime(js_runtime)
+    return None if check["ok"] else check
 
 
 def install_missing(
     engine: str = "local", source: str | None = None, from_run: str | None = None,
+    js_runtime: str | None = None,
 ) -> int:
     """Opt-in installer: brew on macOS, exact Linux commands. Never sudo."""
     binaries = required_binaries(engine, source, from_run)
@@ -467,14 +633,31 @@ def install_missing(
         name for name in binaries
         if shutil.which(name) is None
     ]
-    if not missing:
+    # A YouTube flow also needs a JavaScript runtime that yt-dlp can use.
+    runtime = _js_runtime_gap(engine, source, from_run, js_runtime)
+    if not missing and runtime is None:
         print("all required binaries are already installed")
         return 0
 
+    packages: list[str] = []
     if current_platform() == "macOS" and shutil.which("brew"):
         packages = _brew_packages(missing)
+        # Homebrew's own yt-dlp brings Deno; another yt-dlp needs it added.
+        if runtime is not None and runtime["problem"] == "runtime":
+            packages.append("deno")
+    if packages:
         print(f"[doctor] running: brew install {' '.join(packages)}", file=sys.stderr)
-        result = subprocess.run(["brew", "install", *packages], check=False)
+        try:
+            result = subprocess.run(
+                ["brew", "install", *packages], check=False, timeout=INSTALL_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired:
+            print(
+                f"error: brew install did not finish within {INSTALL_TIMEOUT // 60} minutes "
+                "and was stopped; run it yourself to see what it is waiting for",
+                file=sys.stderr,
+            )
+            return 2
         still_missing = [name for name in missing if shutil.which(name) is None]
         if result.returncode != 0 or still_missing:
             print(
@@ -483,12 +666,18 @@ def install_missing(
             )
             return 2
         print(f"installed via brew: {', '.join(packages)}")
-        return 0
+        missing = []
+        # Ask the yt-dlp that is installed now.
+        runtime = _js_runtime_gap(engine, source, from_run, js_runtime)
 
-    print(f"missing: {', '.join(missing)}. Install manually (this script never uses sudo):")
-    for hint in platform_hints(missing):
-        print(f"  {hint}")
-    return 2
+    if missing:
+        print(f"missing: {', '.join(missing)}. Install manually (this script never uses sudo):")
+        for hint in platform_hints(missing):
+            print(f"  {hint}")
+    if runtime is not None:
+        print(f"{runtime['message']}.")
+        print(f"  fix: {runtime['fix']}")
+    return 2 if missing or runtime is not None else 0
 
 
 def store_key(provider: str) -> int:
@@ -510,10 +699,34 @@ def store_key(provider: str) -> int:
     return 0
 
 
+def prune_command(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    """List old run folders, and delete them only when --delete is given."""
+    other_modes = [
+        label for label, given in (
+            ("a source", args.source), ("--from-run", args.from_run), ("--install", args.install),
+            ("--set-key", args.set_key), ("--check", args.check),
+        ) if given
+    ]
+    if other_modes:
+        parser.error(f"--prune cannot be combined with {', '.join(other_modes)}")
+    try:
+        older_than = prune_runs.parse_age(args.older_than or prune_runs.DEFAULT_AGE)
+    except ValueError as exc:
+        parser.error(str(exc))
+    root = Path(args.out_dir).expanduser().resolve() if args.out_dir else default_run_root()
+    result = prune_runs.prune(root, older_than, delete=args.delete)
+    if args.json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        print(prune_runs.report(result), end="")
+    return 0 if result["ok"] else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run Watch Video preflight checks or store a Whisper API key."
+        description="Run Watch Video preflight checks, store a Whisper API key, or prune old runs."
     )
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument(
         "source", nargs="?",
         help="Video URL or local path; omit both source and --from-run to check the full local toolkit",
@@ -534,6 +747,13 @@ def main() -> int:
         "--analyzer", choices=["none", "local"], default="none",
         help="Match the selected local-engine model analysis route (default: none)",
     )
+    parser.add_argument(
+        "--js-runtime", choices=OPT_IN_JS_RUNTIMES,
+        help=(
+            "Match watch.py's --js-runtime (default: $WATCH_VIDEO_JS_RUNTIME); checks whether "
+            "yt-dlp can use that runtime for YouTube"
+        ),
+    )
     parser.add_argument("--check", action="store_true", help="Silent success; concise error on failure")
     parser.add_argument("--json", action="store_true", help="Print structured status JSON")
     parser.add_argument(
@@ -546,20 +766,48 @@ def main() -> int:
         action="store_true",
         help="Install this flow's missing binaries (brew on macOS; prints Linux commands; never sudo)",
     )
+    parser.add_argument(
+        "--prune", action="store_true",
+        help="List run folders unchanged for --older-than; deletes nothing without --delete",
+    )
+    parser.add_argument(
+        "--older-than", metavar="AGE",
+        help=f"With --prune: 12h, 7d or 2w (default: {prune_runs.DEFAULT_AGE}; at least 1h)",
+    )
+    parser.add_argument(
+        "--delete", action="store_true", help="With --prune, delete the listed run folders",
+    )
+    parser.add_argument(
+        "--out-dir", metavar="DIR",
+        help=(
+            "With --prune, the run root to look in (default: $WATCH_VIDEO_RUNS_DIR, "
+            "else the watch-video state directory)"
+        ),
+    )
     args = parser.parse_args()
 
+    if args.prune:
+        return prune_command(parser, args)
+    prune_only = [
+        flag for flag, given in (
+            ("--older-than", args.older_than), ("--delete", args.delete), ("--out-dir", args.out_dir),
+        ) if given
+    ]
+    if prune_only:
+        parser.error(f"{', '.join(prune_only)} only applies with --prune")
     if args.set_key:
         return store_key(args.set_key)
     try:
         validate_local_options(args.engine, args.transcriber, args.analyzer)
         required_binaries(args.engine, args.source, args.from_run)
+        js_runtime = args.js_runtime or default_js_runtime()
     except ValueError as exc:
         parser.error(str(exc))
     if args.install:
-        return install_missing(args.engine, args.source, args.from_run)
+        return install_missing(args.engine, args.source, args.from_run, js_runtime)
 
     status = collect_status(
-        args.engine, args.source, args.from_run, args.transcriber, args.analyzer,
+        args.engine, args.source, args.from_run, args.transcriber, args.analyzer, js_runtime,
     )
     if args.json:
         print(json.dumps(status, indent=2, ensure_ascii=False))

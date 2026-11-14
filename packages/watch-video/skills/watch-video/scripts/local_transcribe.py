@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import math
 import shutil
-import subprocess
 import uuid
 from pathlib import Path
 
@@ -17,6 +16,7 @@ from groq_transcribe import (
 )
 from local_api import LocalAPIError, LocalClient
 from local_config import get_setting
+import timed_process
 
 
 DEFAULT_ASR_MODEL = "whisper-large-v3-asr-fp16"
@@ -68,7 +68,8 @@ def extract_audio_clip(source, out_path, *, start=None, end=None, duration=None)
         command.extend(["-t", f"{duration if duration is not None else end - (start or 0):.6f}"])
     command.extend(["-map", "0:a:0", "-vn", "-acodec", "pcm_s16le", "-ar", "16000",
                     "-ac", "1", "-f", "wav", str(output)])
-    result = subprocess.run(command, capture_output=True, check=False)
+    # CommandTimeout names only the tool and the limit, so it is safe to record.
+    result = timed_process.run(command, capture_output=True)
     if result.returncode or not output.is_file() or output.stat().st_size <= 44:
         raise RuntimeError("FFmpeg could not extract PCM audio; verify the source has an audio track.")
     return output
@@ -195,7 +196,9 @@ def transcribe_with_chunking(audio_path, *, out_json=None, model=None, api_key=N
         except (RuntimeError, OSError) as exc:
             # Local API errors and our fixed validation descriptions are safe
             # to persist; arbitrary process exceptions can contain private text.
-            known_error = isinstance(exc, (LocalAPIError, LocalTranscriptionValidationError))
+            known_error = isinstance(exc, (
+                LocalAPIError, LocalTranscriptionValidationError, timed_process.CommandTimeout,
+            ))
             message = str(exc) if known_error else "audio processing or timestamp validation failed"
             last_failure = exc
             record["error"] = message

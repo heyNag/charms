@@ -30,7 +30,7 @@ Each `packages/<name>/` directory is a self-contained plugin root with:
 - every runtime script and reference needed by that skill;
 - plugin-specific documentation, license, and offline behavior tests.
 
-Each plugin has its own semantic version, release tag, GitHub release,
+Each plugin has its own calendar version, release tag, GitHub release,
 archive, marketplace entry, runtime prerequisites, trust boundary, and failure
 surface. Host clients control permissions for each installation. Installing
 one plugin never requires loading the other.
@@ -111,7 +111,8 @@ ways:
 
 - every immediate child directory of `packages/` must be a plugin root;
 - the directory name, manifest name, and single skill name must match;
-- versions must be `MAJOR.MINOR.PATCH` semantic versions;
+- versions must be `YEAR.MONTH.RELEASE` calendar versions, and a version
+  waiting for release must be the plugin's next one;
 - all discovered paths must remain inside their plugin root;
 - symlinks and special files are rejected from release archives;
 - manifest client-extension keys are allowed only in the v1 reverse-domain form;

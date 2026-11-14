@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import contextlib
+import datetime
 import hashlib
 import importlib.util
 import io
 import json
+import os
 import pathlib
 import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from release_fixtures import commit_all, git, init_repository, isolate_git, write_marketplace
 
@@ -18,6 +21,12 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "validate_plugins.py"
 SCHEMA = ROOT / "schemas" / "agent-plugins" / "1.0.0" / "plugin.schema.json"
 SCHEMA_SHA256 = "0a4aad95ce337878ad38802ebf0daa3fde76abe3f65400c86bcbb1ec0b3ab883"
+# The watch-video plugin's own record of what a run creates.
+PRUNE_RUNS = ROOT / "packages/watch-video/skills/watch-video/scripts/prune_runs.py"
+IGNORE_REASON = "Git must ignore every local artifact the validator forbids"
+# The fixtures hold versions of March 2027, so the checks are given a day in it.
+TODAY = datetime.date(2027, 3, 15)
+RUN_HELPER = "; run `python3 scripts/bump-plugin-version.py demo-plugin`"
 
 
 def load_module():
@@ -33,6 +42,7 @@ class ValidatePluginsTests(unittest.TestCase):
     def setUp(self) -> None:
         isolate_git(self)
         self.module = load_module()
+        self.enterContext(mock.patch.object(self.module, "utc_today", return_value=TODAY))
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = pathlib.Path(self.temp.name)
@@ -42,12 +52,14 @@ class ValidatePluginsTests(unittest.TestCase):
         (self.root / "packages").mkdir()
         self.plugin = self.add_plugin("demo-plugin")
         write_marketplace(self.root)
+        self.ignore_file = self.root / ".gitignore"
+        self.ignore_file.write_text("\n".join(self.module.ignore_rules()) + "\n", encoding="utf-8")
 
     def manifest(self, name: str) -> dict:
         return {
             "$schema": self.module.CANONICAL_SCHEMA,
             "name": name,
-            "version": "1.0.0",
+            "version": "2027.3.0",
             "description": f"Portable {name} plugin.",
             "author": {"name": "Test Author", "url": "https://example.com/author"},
             "homepage": "https://example.com/plugins",
@@ -75,6 +87,8 @@ class ValidatePluginsTests(unittest.TestCase):
             f"# {name}\n",
             encoding="utf-8",
         )
+        with (self.root / "README.md").open("a", encoding="utf-8") as readme:
+            readme.write(f"| `{name}` | Portable {name} plugin. | `packages/{name}/` |\n")
         return plugin
 
     def write_manifest(self, plugin: pathlib.Path, data: object) -> None:
@@ -214,7 +228,7 @@ class ValidatePluginsTests(unittest.TestCase):
         errors = self.plugin_errors()
         self.assertTrue(any("must match plugin directory 'demo-plugin'" in error for error in errors))
 
-    def test_release_metadata_must_be_complete_and_semver(self) -> None:
+    def test_release_metadata_must_be_complete(self) -> None:
         manifest = self.manifest("demo-plugin")
         manifest.update(
             {
@@ -230,7 +244,7 @@ class ValidatePluginsTests(unittest.TestCase):
         self.write_manifest(self.plugin, manifest)
         errors = self.plugin_errors()
         for needle in [
-            "version must be MAJOR.MINOR.PATCH semantic versioning",
+            "version must be YEAR.MONTH.RELEASE, three plain numbers such as 2026.11.0",
             "description must be a non-empty string",
             "author.name must be a non-empty string",
             "author.url must be a non-empty string",
@@ -241,19 +255,133 @@ class ValidatePluginsTests(unittest.TestCase):
         ]:
             self.assertTrue(any(needle in error for error in errors), needle)
 
-    def test_versions_must_be_plain_semver(self) -> None:
+    def test_a_plugin_version_must_be_three_plain_numbers(self) -> None:
         manifest = self.manifest("demo-plugin")
-        for version in ["0.1.0", "12.3.45"]:
+        # A plugin checked on its own may be a 1.x release from before CalVer.
+        for version in ["2027.3.0", "2026.11.12", "1.3.2"]:
             with self.subTest(version=version):
                 manifest["version"] = version
                 self.write_manifest(self.plugin, manifest)
                 self.assertEqual(self.plugin_errors(), [])
-        for version in ["1.0", "01.0.0", "1.0.0-beta", "2026.8.10.1", "２.0.0"]:
+        for version in ["2027.3", "2027.03.0", "2027.3.0-beta", "2026.8.10.1", "２027.3.0"]:
             with self.subTest(version=version):
                 manifest["version"] = version
                 self.write_manifest(self.plugin, manifest)
                 errors = self.plugin_errors()
-                self.assertTrue(any("semantic versioning" in error for error in errors), errors)
+                self.assertTrue(any("version must be YEAR.MONTH.RELEASE" in error for error in errors), errors)
+
+    def version_errors(self, version: str) -> list[str]:
+        manifest = self.manifest("demo-plugin")
+        manifest["version"] = version
+        self.write_manifest(self.plugin, manifest)
+        prefix = "packages/demo-plugin/plugin.json: version "
+        return [error for error in self.repository_errors() if error.startswith(prefix)]
+
+    def test_a_plugin_never_released_starts_a_month_at_release_zero(self) -> None:
+        # Set this month, or in an earlier one and not released yet.
+        for version in ["2027.3.0", "2027.2.0", "2026.11.0"]:
+            with self.subTest(version=version):
+                self.assertEqual(self.version_errors(version), [])
+        cases = [
+            ("1.0.0", "version is not YEAR.MONTH.RELEASE, such as 2026.11.0: '1.0.0'"),
+            ("2027.3.15", "version 2027.3.15 must be 2027.3.0: the third number counts the releases "
+             "the plugin has already made in that month"),
+            ("2027.4.0", "version 2027.4.0 names a month after 2027.3, the current month in UTC"),
+        ]
+        for version, message in cases:
+            with self.subTest(version=version):
+                self.assertEqual(
+                    self.version_errors(version),
+                    [f"packages/demo-plugin/plugin.json: {message}{RUN_HELPER}"],
+                )
+
+    def test_a_version_waiting_for_release_must_follow_the_latest_release(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        # Between releases the manifest holds the version of the latest one.
+        self.assertEqual(self.repository_errors(), [])
+
+        self.assertEqual(self.version_errors("2027.3.1"), [])
+        cases = [
+            ("2027.3.2", "version 2027.3.2 must be 2027.3.1: the third number counts"),
+            ("2027.2.9", "version 2027.2.9 must be greater than the latest release 2027.3.0"),
+            ("2027.4.0", "version 2027.4.0 names a month after 2027.3"),
+            ("2.0.0", "version is not YEAR.MONTH.RELEASE"),
+        ]
+        for version, message in cases:
+            with self.subTest(version=version):
+                errors = self.version_errors(version)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn(message, errors[0])
+                self.assertTrue(errors[0].endswith(RUN_HELPER), errors[0])
+
+    def test_a_1_x_version_stays_valid_until_the_plugin_is_bumped(self) -> None:
+        manifest = self.manifest("demo-plugin")
+        manifest["version"] = "1.3.2"
+        self.write_manifest(self.plugin, manifest)
+        init_repository(self.root)
+        sha = commit_all(self.root, "Release demo-plugin 1.3.2")
+        for tag in ["demo-plugin--v1.3.1", "demo-plugin--v1.3.2"]:
+            git(self.root, "tag", tag)
+        write_marketplace(self.root, [self.demo_entry(sha, "1.3.2")])
+        self.assertEqual(self.repository_errors(), [])
+
+        # Its next version is CalVer. Another 1.x version is not.
+        self.assertEqual(self.version_errors("2027.3.0"), [])
+        for version in ["1.3.3", "1.4.0", "2.0.0"]:
+            with self.subTest(version=version):
+                self.assertEqual(
+                    self.version_errors(version),
+                    [
+                        "packages/demo-plugin/plugin.json: version is not YEAR.MONTH.RELEASE, "
+                        f"such as 2026.11.0: {version!r}{RUN_HELPER}"
+                    ],
+                )
+        # A branch cut before the latest release still holds an older one, so this
+        # check accepts it. The marketplace check reports a manifest that fell behind.
+        self.assertEqual(self.version_errors("1.3.1"), [])
+        self.assert_error_containing(
+            "released version 1.3.2 is newer than packages/demo-plugin/plugin.json version 1.3.1",
+            self.repository_errors(),
+        )
+
+    def test_versions_follow_the_marketplace_where_git_has_no_tags_to_read(self) -> None:
+        listed = {"name": "demo-plugin", "version": "2027.3.4"}
+        write_marketplace(self.root, [listed])
+
+        def check() -> None:
+            self.assertEqual(self.version_errors("2027.3.4"), [])
+            self.assertEqual(self.version_errors("2027.3.5"), [])
+            self.assertEqual(
+                self.version_errors("2027.3.6"),
+                [
+                    "packages/demo-plugin/plugin.json: version 2027.3.6 must be 2027.3.5: the third "
+                    f"number counts the releases the plugin has already made in that month{RUN_HELPER}"
+                ],
+            )
+
+        # The fixture is a plain directory, where Git cannot list tags.
+        ceiling = {"GIT_CEILING_DIRECTORIES": str(self.root.parent)}
+        with mock.patch.dict(os.environ, ceiling):
+            with self.assertRaises(RuntimeError):
+                self.module.known_releases(self.root, "demo-plugin")
+            check()
+        # Git is not installed.
+        missing = FileNotFoundError(2, "No such file or directory", "git")
+        with mock.patch.object(self.module, "known_releases", side_effect=missing):
+            check()
+        # A checkout whose tags were not fetched.
+        init_repository(self.root)
+        self.assertEqual(self.module.known_releases(self.root, "demo-plugin"), ["2027.3.4"])
+        check()
+
+    def test_versions_are_not_checked_for_a_plugin_validated_on_its_own(self) -> None:
+        # A release archive is checked this way, away from the tags and the marketplace.
+        manifest = self.manifest("demo-plugin")
+        manifest["version"] = "2027.4.9"
+        self.write_manifest(self.plugin, manifest)
+        self.assertEqual(self.plugin_errors(), [])
+        self.assertNotEqual(self.repository_errors(), [])
 
     def test_extension_namespaces_must_be_reverse_domain_style(self) -> None:
         manifest = self.manifest("demo-plugin")
@@ -291,6 +419,48 @@ class ValidatePluginsTests(unittest.TestCase):
         )
         errors = self.plugin_errors()
         self.assertTrue(any("Unexpected fields in frontmatter: user-invocable" in error for error in errors))
+
+    def test_skill_instructions_must_stay_within_the_recommended_size(self) -> None:
+        skill_file = self.plugin / "skills" / "demo-plugin" / "SKILL.md"
+        frontmatter = (
+            "---\nname: demo-plugin\n"
+            "description: Use when the user needs demo-plugin for a test.\n---\n"
+        )
+
+        # The frontmatter is not counted as instructions, and the limits themselves pass.
+        at_the_limit = "x" * self.module.SKILL_MAX_BODY_CHARACTERS
+        skill_file.write_text(frontmatter + at_the_limit, encoding="utf-8")
+        self.assertEqual(self.plugin_errors(), [])
+        skill_file.write_text(
+            frontmatter + "\n" * (self.module.SKILL_MAX_LINES - 4), encoding="utf-8"
+        )
+        self.assertEqual(self.plugin_errors(), [])
+
+        skill_file.write_text(frontmatter + at_the_limit + "x", encoding="utf-8")
+        self.assertEqual(
+            self.plugin_errors(),
+            [
+                "packages/demo-plugin/skills/demo-plugin/SKILL.md: the instructions are 20001 "
+                "characters, over the limit of 20000 (about 5,000 tokens); "
+                "move detail into files under references/"
+            ],
+        )
+
+        skill_file.write_text(
+            frontmatter + "\n" * (self.module.SKILL_MAX_LINES - 3), encoding="utf-8"
+        )
+        self.assertEqual(
+            self.plugin_errors(),
+            [
+                "packages/demo-plugin/skills/demo-plugin/SKILL.md: 501 lines, over the limit of "
+                "500; move detail into files under references/"
+            ],
+        )
+
+    def test_the_plugins_in_this_repository_keep_their_instructions_short(self) -> None:
+        for skill_file in sorted(ROOT.glob("packages/*/skills/*/SKILL.md")):
+            with self.subTest(skill=skill_file.parent.name):
+                self.assertEqual(self.module._validate_skill_size(skill_file, ROOT), [])
 
     def test_skills_directory_cannot_escape_plugin_root(self) -> None:
         outside = self.root / "outside-skills"
@@ -358,9 +528,157 @@ class ValidatePluginsTests(unittest.TestCase):
         self.assertTrue(any(".venv: forbidden local artifact directory" in error for error in errors))
         self.assertTrue(any("capture.mp4: forbidden local artifact file" in error for error in errors))
 
+    def test_what_a_watch_video_run_creates_is_reported(self) -> None:
+        run = self.plugin / "runs" / "20261114-101500-video-0a1b2c3d"
+        for folder in ("audio_chunks", "local_analysis/chunks", "media", "videos"):
+            (run / folder).mkdir(parents=True)
+        (run / "local_analysis" / "chunks" / "chunk-0001.json").write_text("{}\n", encoding="utf-8")
+        (run / "media" / "video.info.json").write_text("{}\n", encoding="utf-8")
+        files = ("analysis.json", "evidence.json", "native_captions.json", "CUE_0001_00-00-30.JPG")
+        for name in files:
+            (run / name).write_text("{}\n", encoding="utf-8")
+        (run / "notes.txt").write_text("not something a run creates\n", encoding="utf-8")
+
+        where = "packages/demo-plugin/runs/20261114-101500-video-0a1b2c3d"
+        self.assertEqual(
+            [error for error in self.plugin_errors() if "forbidden local artifact" in error],
+            sorted(
+                [f"{where}/{name}: forbidden local artifact file" for name in files]
+                + [
+                    f"{where}/{name}: forbidden local artifact directory"
+                    for name in ("audio_chunks", "local_analysis", "media", "videos")
+                ]
+            ),
+        )
+
+    def test_everything_a_watch_video_run_creates_is_forbidden(self) -> None:
+        spec = importlib.util.spec_from_file_location("watch_video_prune_runs", PRUNE_RUNS)
+        assert spec is not None and spec.loader is not None
+        prune_runs = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(prune_runs)
+        self.assertIn("metadata.json", prune_runs.RUN_FILES)
+        self.assertIn("frames", prune_runs.RUN_FOLDERS)
+
+        allowed_files = sorted(
+            name for name in prune_runs.RUN_FILES if not self.module._is_forbidden_file_name(name)
+        )
+        self.assertEqual(allowed_files, [], "add these run files to FORBIDDEN_FILE_NAMES")
+        allowed_folders = sorted(prune_runs.RUN_FOLDERS - self.module.FORBIDDEN_DIRECTORY_NAMES)
+        self.assertEqual(allowed_folders, [], "add these run folders to FORBIDDEN_DIRECTORY_NAMES")
+
+    def test_gitignore_must_hold_a_line_for_every_forbidden_artifact(self) -> None:
+        rules = self.module.ignore_rules()
+        for rule in (".env", "*.mp4", "cue_*.jpg", "evidence.json", "media/"):
+            self.assertIn(rule, rules)
+
+        # Only the whole line counts: not a comment, an exception or a longer path.
+        kept = [rule for rule in rules if rule not in {"cue_*.jpg", "media/"}]
+        others = ["# media/", "!media/", "docs/media/", "cue_*.jpg.bak", ""]
+        self.ignore_file.write_text("\n".join([*kept, *others]) + "\n", encoding="utf-8")
+        self.assertEqual(
+            self.repository_errors(),
+            [
+                f'.gitignore: missing the line "cue_*.jpg"; {IGNORE_REASON}',
+                f'.gitignore: missing the line "media/"; {IGNORE_REASON}',
+            ],
+        )
+
+        # Git drops the spaces that end a line.
+        self.ignore_file.write_text("".join(f"{rule}  \n" for rule in rules), encoding="utf-8")
+        self.assertEqual(self.repository_errors(), [])
+
+        self.ignore_file.unlink()
+        self.assertEqual(self.repository_errors(), [f".gitignore: missing; {IGNORE_REASON}"])
+        self.assertEqual(self.plugin_errors(), [])
+
+    def test_git_ignores_everything_the_rules_name(self) -> None:
+        init_repository(self.root)
+        folder = self.root / "work" / "nested"
+        lists = self.module
+        samples = [
+            *(folder / name / "inside.txt" for name in lists.FORBIDDEN_DIRECTORY_NAMES),
+            *(folder / name for name in lists.FORBIDDEN_FILE_NAMES),
+            *(folder / f"sample{suffix}" for suffix in lists.FORBIDDEN_SUFFIXES),
+            *(folder / pattern.replace("*", "0001") for pattern in lists.FORBIDDEN_FILE_PATTERNS),
+        ]
+        for sample in [*samples, folder / "kept.txt"]:
+            sample.parent.mkdir(parents=True, exist_ok=True)
+            sample.write_text("sample\n", encoding="utf-8")
+
+        self.assertEqual(len(samples), len(self.module.ignore_rules()))
+        self.assertEqual(
+            git(self.root, "ls-files", "--others", "--exclude-standard", "--", "work"),
+            "work/nested/kept.txt",
+        )
+        self.assertEqual(self.repository_errors(), [])
+
+    def test_an_artifact_added_by_force_is_still_reported(self) -> None:
+        init_repository(self.root)
+        info = self.plugin / "media" / "video.info.json"
+        info.parent.mkdir()
+        info.write_text("{}\n", encoding="utf-8")
+        self.assertEqual(self.repository_errors(), [])
+
+        git(self.root, "add", "--force", str(info))
+        self.assertEqual(
+            self.repository_errors(),
+            ["packages/demo-plugin/media: forbidden local artifact directory"],
+        )
+
+    def test_readme_must_describe_each_plugin_in_its_manifest_words(self) -> None:
+        readme = self.root / "README.md"
+        row = "| `demo-plugin` | Portable demo-plugin plugin. | `packages/demo-plugin/` |"
+        wanted = (
+            "README.md: describe demo-plugin in its manifest's words; "
+            "its table row must start: | `demo-plugin` | Portable demo-plugin plugin. |"
+        )
+        for text in (
+            "# Demo\n",
+            row.replace("Portable", "A portable") + "\n",
+            row.replace("`demo-plugin`", "demo-plugin", 1) + "\n",
+            row.replace("`demo-plugin`", "`other-plugin`", 1) + "\n",
+            "Text before the row. " + row + "\n",
+        ):
+            with self.subTest(text=text):
+                readme.write_text(text, encoding="utf-8")
+                self.assertEqual(self.repository_errors(), [wanted])
+
+        # Cells may be padded, as in a table whose columns are lined up.
+        padded = "|  `demo-plugin`   |   Portable demo-plugin plugin.    |\n"
+        readme.write_text("| Plugin | Purpose |\n| --- | --- |\n" + padded, encoding="utf-8")
+        self.assertEqual(self.repository_errors(), [])
+
+        self.add_plugin("second-plugin")
+        readme.write_text(padded, encoding="utf-8")
+        self.assertEqual(self.repository_errors(), [wanted.replace("demo-plugin", "second-plugin")])
+
+    def test_readme_row_may_escape_a_pipe_in_the_description(self) -> None:
+        manifest = self.manifest("demo-plugin")
+        manifest["description"] = "Fetch | search bookmarks."
+        self.write_manifest(self.plugin, manifest)
+        readme = self.root / "README.md"
+
+        readme.write_text("| `demo-plugin` | Fetch | search bookmarks. |\n", encoding="utf-8")
+        self.assertEqual(
+            self.repository_errors(),
+            [
+                "README.md: describe demo-plugin in its manifest's words; "
+                "its table row must start: | `demo-plugin` | Fetch \\| search bookmarks. |"
+            ],
+        )
+
+        readme.write_text("| `demo-plugin` | Fetch \\| search bookmarks. |\n", encoding="utf-8")
+        self.assertEqual(self.repository_errors(), [])
+
+    def test_readme_is_required_only_for_the_repository(self) -> None:
+        (self.root / "README.md").unlink()
+        self.assertEqual(
+            self.repository_errors(), ["README.md: missing; its table describes each plugin"]
+        )
+        self.assertEqual(self.plugin_errors(), [])
+
     def test_repository_hygiene_honors_gitignore_but_focused_validation_is_strict(self) -> None:
         init_repository(self.root)
-        (self.root / ".gitignore").write_text(".ruff_cache/\n", encoding="utf-8")
         ignored_cache = self.plugin / ".ruff_cache"
         ignored_cache.mkdir()
         (ignored_cache / "cache.bin").write_bytes(b"cache")
@@ -371,21 +689,27 @@ class ValidatePluginsTests(unittest.TestCase):
         )
 
     def test_secret_scan_reports_only_the_path(self) -> None:
-        secret = "gsk_" + ("s" * 16)
         path = self.plugin / "secret.txt"
-        path.write_text(secret + "\n", encoding="utf-8")
-        errors = self.plugin_errors()
-        joined = "\n".join(errors)
-        self.assertIn("secret.txt: possible secret value found", joined)
-        self.assertNotIn(secret, joined)
+        # Built here, so that this file holds nothing the scan would report.
+        for secret in ("gsk_" + ("s" * 16), "AIza" + ("s" * 35)):
+            with self.subTest(kind=secret[:4]):
+                path.write_text(f"KEY={secret}\n", encoding="utf-8")
+                errors = self.plugin_errors()
+                joined = "\n".join(errors)
+                self.assertIn("secret.txt: possible secret value found", joined)
+                self.assertNotIn(secret, joined)
+
+        # A Google API key is AIza and 35 more characters. Anything shorter is not one.
+        path.write_text("KEY=" + "AIza" + ("s" * 34) + " and more\n", encoding="utf-8")
+        self.assertEqual(self.plugin_errors(), [])
 
     def release_demo(self) -> str:
         init_repository(self.root)
-        sha = commit_all(self.root, "Release demo-plugin 1.0.0")
-        git(self.root, "tag", "demo-plugin--v1.0.0")
+        sha = commit_all(self.root, "Release demo-plugin 2027.3.0")
+        git(self.root, "tag", "demo-plugin--v2027.3.0")
         return sha
 
-    def demo_entry(self, sha: str, version: str = "1.0.0", **changes: object) -> dict:
+    def demo_entry(self, sha: str, version: str = "2027.3.0", **changes: object) -> dict:
         entry = {
             "name": "demo-plugin",
             "description": "Portable demo-plugin plugin.",
@@ -455,13 +779,14 @@ class ValidatePluginsTests(unittest.TestCase):
     def test_marketplace_entry_name_must_be_a_package_string(self) -> None:
         write_marketplace(
             self.root,
-            [{"name": ["demo-plugin"], "description": "x", "version": "1.0.0", "source": {}}],
+            [{"name": ["demo-plugin"], "description": "x", "version": "2027.3.0", "source": {}}],
         )
         self.assert_error_containing("['demo-plugin'] is not a plugin under packages/", self.repository_errors())
 
     def test_marketplace_directory_ignores_gitignored_files(self) -> None:
         init_repository(self.root)
-        (self.root / ".gitignore").write_text(".DS_Store\n", encoding="utf-8")
+        with self.ignore_file.open("a", encoding="utf-8") as rules:
+            rules.write(".DS_Store\n")
         (self.root / ".claude-plugin" / ".DS_Store").write_bytes(b"finder")
         self.assertEqual(self.repository_errors(), [])
 
@@ -476,28 +801,104 @@ class ValidatePluginsTests(unittest.TestCase):
         later = commit_all(self.root, "Later change")
 
         write_marketplace(self.root, [self.demo_entry(later)])
-        self.assert_error_containing(f"demo-plugin--v1.0.0 points at {sha}, not {later}", self.repository_errors())
+        self.assert_error_containing(f"demo-plugin--v2027.3.0 points at {sha}, not {later}", self.repository_errors())
 
         write_marketplace(self.root, [self.demo_entry(sha, description="Changed.")])
         self.assert_error_containing("version and description must match", self.repository_errors())
 
         manifest = self.manifest("demo-plugin")
-        manifest["version"] = "1.1.0"
+        manifest["version"] = "2027.3.1"
         self.write_manifest(self.plugin, manifest)
-        write_marketplace(self.root, [self.demo_entry(sha, "1.1.0")])
+        write_marketplace(self.root, [self.demo_entry(sha, "2027.3.1")])
         self.assert_error_containing(
-            "release tag demo-plugin--v1.1.0 is not available locally; run `git fetch --tags`",
+            "release tag demo-plugin--v2027.3.1 is not available locally; run `git fetch --tags`",
             self.repository_errors(),
         )
+
+    def test_marketplace_alone_is_checked_without_the_development_dependencies(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        # None makes the import fail, as it does where the packages are not installed.
+        with mock.patch.dict(sys.modules, {"jsonschema": None, "skills_ref": None}):
+            module = load_module()
+            self.assertEqual(module.validate_marketplace(self.root), [])
+
+            write_marketplace(self.root, [self.demo_entry(sha, description="Changed.")])
+            self.assert_error_containing(
+                "version and description must match", module.validate_marketplace(self.root)
+            )
+            with self.assertRaises(ImportError):
+                module.validate_repository(self.root)
+
+    def test_marketplace_alone_reports_what_the_repository_check_reports_for_it(self) -> None:
+        sha = self.release_demo()
+        pinned = self.demo_entry(sha)
+        for entries in (
+            [pinned],
+            [self.demo_entry(sha[:12])],
+            [self.demo_entry(sha, name="ghost-plugin")],
+            [pinned, pinned],
+            [{**pinned, "policy": {}}],
+        ):
+            with self.subTest(entries=entries):
+                path = write_marketplace(self.root, entries)
+                self.assertEqual(self.module.validate_marketplace(self.root), self.repository_errors())
+
+                path.write_text("{not json", encoding="utf-8")
+                self.assertEqual(self.module.validate_marketplace(self.root), self.repository_errors())
+
+    def test_marketplace_alone_leaves_the_plugins_to_the_repository_check(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        (self.plugin / "skills" / "demo-plugin" / "SKILL.md").write_text("no frontmatter\n", encoding="utf-8")
+
+        self.assertNotEqual(self.repository_errors(), [])
+        self.assertEqual(self.module.validate_marketplace(self.root), [])
+
+    def test_marketplace_alone_needs_the_packages_it_lists(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        shutil.rmtree(self.root / "packages")
+
+        self.assertEqual(
+            self.module.validate_marketplace(self.root),
+            [".claude-plugin/marketplace.json[plugins][0]: 'demo-plugin' is not a plugin under packages/"],
+        )
+
+    def test_cli_marketplace_option_checks_this_repository_only(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with mock.patch.object(self.module, "REPOSITORY_ROOT", self.root):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = self.module.main(["--marketplace"])
+            self.assertEqual((code, stdout.getvalue(), stderr.getvalue()), (0, "validated the marketplace manifest\n", ""))
+
+            write_marketplace(self.root, [self.demo_entry(sha[:12])])
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = self.module.main(["--marketplace"])
+            self.assertEqual((code, stdout.getvalue()), (1, ""))
+            self.assertEqual(
+                stderr.getvalue(),
+                "error: .claude-plugin/marketplace.json[plugins][0]: source.sha must be the full "
+                "40-character release commit SHA\n",
+            )
+
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as refused:
+                self.module.main(["--marketplace", str(self.plugin)])
+            self.assertEqual(refused.exception.code, 2)
+            self.assertIn("--marketplace takes no plugin roots", stderr.getvalue())
 
     def test_package_version_cannot_fall_below_its_release(self) -> None:
         sha = self.release_demo()
         manifest = self.manifest("demo-plugin")
-        manifest["version"] = "0.9.0"
+        manifest["version"] = "2027.2.4"
         self.write_manifest(self.plugin, manifest)
         write_marketplace(self.root, [self.demo_entry(sha)])
         self.assert_error_containing(
-            "released version 1.0.0 is newer than packages/demo-plugin/plugin.json version 0.9.0",
+            "released version 2027.3.0 is newer than packages/demo-plugin/plugin.json version 2027.2.4",
             self.repository_errors(),
         )
 

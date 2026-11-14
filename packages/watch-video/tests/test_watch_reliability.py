@@ -17,6 +17,7 @@ sys.path.insert(0, str(TESTS))
 import network_guard  # noqa: E402
 import watch  # noqa: E402
 from groq_transcribe import TranscriptionSegments  # noqa: E402
+from run_contents import unexpected_entries  # noqa: E402
 
 
 def setUpModule():
@@ -36,6 +37,8 @@ class WatchReliabilityTests(unittest.TestCase):
         def audio(_source, target, **_kwargs):
             target.write_bytes(b"audio fixture")
         with contextlib.ExitStack() as stack:
+            # Hosted transcription is opt-in and needs its key before any download.
+            stack.enter_context(mock.patch.dict(os.environ, {"GROQ_API_KEY": "test-placeholder-groq", "WATCH_VIDEO_CONFIG_DIR": str(root / "unused-config")}))
             source_info = {} if source_duration is None else {"duration": source_duration}
             stack.enter_context(mock.patch.object(watch, "probe_url", return_value=({"path": str(caption)}, source_info)))
             download = stack.enter_context(mock.patch.object(watch, "download_media", side_effect=SystemExit("unavailable") if download_error else None, return_value=(media, None)))
@@ -47,15 +50,27 @@ class WatchReliabilityTests(unittest.TestCase):
             stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
             code = watch.main()
         run = next((root / "runs").iterdir())
+        self.assertEqual(unexpected_entries(run), [])
         return code, json.loads((run / "transcript.json").read_text()), download, extract, transcribe, run
 
     def test_missing_focus_captions_download_audio_before_fallback(self):
         with tempfile.TemporaryDirectory() as temporary:
-            _, transcript, download, _, transcribe, _ = self.run_url(Path(temporary), 60, "--start", "80", "--end", "90")
+            _, transcript, download, _, transcribe, _ = self.run_url(Path(temporary), 60, "--start", "80", "--end", "90", "--transcriber", "groq")
             self.assertTrue(download.call_args.kwargs["audio_only"])
             self.assertEqual(download.call_args.kwargs["download_section"], "*00:01:20-00:01:30")
             self.assertEqual(transcribe.call_args.kwargs["offset_seconds"], 80)
             self.assertEqual(transcript["segments"][0]["text"], "fallback")
+
+    def test_weak_focus_captions_do_not_download_audio_without_a_transcriber(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            _, transcript, download, extract, transcribe, run = self.run_url(Path(temporary), 60, "--start", "80", "--end", "90")
+            download.assert_not_called()
+            extract.assert_not_called()
+            transcribe.assert_not_called()
+            self.assertEqual(transcript["source"], "none")
+            metadata = json.loads((run / "metadata.json").read_text())
+            self.assertEqual(metadata["transcriber"], "none")
+            self.assertTrue(any("--transcriber groq is configured" in error for error in metadata["errors"]))
 
     def test_fully_captioned_focus_does_not_download_or_transcribe(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -78,7 +93,7 @@ class WatchReliabilityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             fallback = [{"start": 0, "end": 60, "text": "complete speech"}]
             _, transcript, download, extract, transcribe, _ = self.run_url(
-                Path(temporary), 1, "--start", "0", "--end", "60",
+                Path(temporary), 1, "--start", "0", "--end", "60", "--transcriber", "groq",
                 source_duration=None, media_duration=60, fallback=fallback,
             )
             download.assert_called_once()
@@ -106,7 +121,7 @@ class WatchReliabilityTests(unittest.TestCase):
     def test_no_speech_is_a_completed_transcription(self):
         with tempfile.TemporaryDirectory() as temporary:
             fallback = TranscriptionSegments([], no_speech=True)
-            _, transcript, _, _, _, _ = self.run_url(Path(temporary), 60, "--start", "80", "--end", "90", fallback=fallback)
+            _, transcript, _, _, _, _ = self.run_url(Path(temporary), 60, "--start", "80", "--end", "90", "--transcriber", "groq", fallback=fallback)
             self.assertTrue(transcript["no_speech"])
             self.assertEqual(transcript["segments"], [])
 
@@ -130,6 +145,7 @@ class WatchReliabilityTests(unittest.TestCase):
             extract.assert_not_called()
             transcribe.assert_not_called()
             run = next((root / "runs").iterdir())
+            self.assertEqual(unexpected_entries(run), [])
             self.assertEqual(json.loads((run / "transcript.json").read_text())["segments"][0]["text"], "saved")
             self.assertIsNone(watch.reusable_transcript(prior, 90, 110))
 
@@ -163,9 +179,73 @@ class WatchReliabilityTests(unittest.TestCase):
             download.assert_not_called()
             self.assertEqual(analyze.call_args.args[1], "Find the slide")
             run = next(root.iterdir())
+            self.assertEqual(unexpected_entries(run), [])
             record = json.loads((run / "analysis.json").read_text())
             self.assertEqual(record["engine"], "gemini")
+            saved = json.loads((run / "metadata.json").read_text())
+            self.assertEqual(saved["plugin_version"], watch.plugin_version.VERSION)
             self.assertIn("Gemini's observations", (run / "report.md").read_text())
+
+    def gemini_run(self, root, *flags, **analyze):
+        """Run watch.py with the Gemini engine and a stubbed analysis."""
+        argv = ["watch", "https://www.youtube.com/watch?v=qSuCPooR3E4", "--engine", "gemini", "--out-dir", str(root), *flags]
+        with mock.patch.dict(os.environ, {"GEMINI_API_KEY": "test-only"}), mock.patch.object(sys, "argv", argv), \
+                mock.patch.object(watch.gemini, "analyze_video", **analyze) as analyze_video, \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            code = watch.main()
+        return code, analyze_video
+
+    def test_gemini_limits_are_options_with_the_old_values_as_defaults(self):
+        result = {"answer": "At 00:10 a slide appears.", "source_kind": "youtube_url", "processing": "agentic", "usage": {}, "warnings": []}
+        for flags, tokens, upload in (
+            ((), 8192, 900.0),
+            (("--gemini-max-output-tokens", "20000", "--gemini-upload-timeout", "1800"), 20000, 1800.0),
+        ):
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as temporary:
+                code, analyze = self.gemini_run(Path(temporary), *flags, return_value=dict(result))
+                self.assertEqual(code, 0)
+                self.assertEqual(analyze.call_args.kwargs["max_output_tokens"], tokens)
+                self.assertEqual(analyze.call_args.kwargs["upload_timeout"], upload)
+                run = next(Path(temporary).iterdir())
+                self.assertEqual(unexpected_entries(run), [])
+                self.assertEqual(json.loads((run / "analysis.json").read_text())["max_output_tokens"], tokens)
+
+    def test_gemini_limits_must_be_positive(self):
+        for flags, message in (
+            (("--gemini-max-output-tokens", "0"), "--gemini-max-output-tokens must be a whole number greater than zero"),
+            (("--gemini-max-output-tokens", "-1"), "--gemini-max-output-tokens must be a whole number greater than zero"),
+            (("--gemini-upload-timeout", "0"), "--gemini-upload-timeout must be finite and positive"),
+            (("--gemini-upload-timeout", "nan"), "--gemini-upload-timeout must be finite and positive"),
+        ):
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as temporary:
+                with self.assertRaises(SystemExit) as stopped:
+                    self.gemini_run(Path(temporary), *flags, side_effect=AssertionError("must not run"))
+                self.assertEqual(str(stopped.exception), message)
+                self.assertEqual(list(Path(temporary).iterdir()), [])
+
+    def test_a_cut_off_gemini_answer_fails_the_run_and_keeps_the_part_returned(self):
+        error = watch.gemini.GeminiError("incomplete", "The answer was cut off before it was finished.")
+        error.partial_answer = "At 00:10 a slide appears.\n```\nUntrusted content"
+        error.usage = {"total_output_tokens": 8192}
+        with tempfile.TemporaryDirectory() as temporary:
+            code, _ = self.gemini_run(Path(temporary), side_effect=error)
+            self.assertEqual(code, 1)
+            run = next(Path(temporary).iterdir())
+            self.assertEqual(unexpected_entries(run), [])
+            analysis = json.loads((run / "analysis.json").read_text())
+            self.assertIsNone(analysis["result"])
+            self.assertEqual(analysis["error"]["category"], "incomplete")
+            self.assertEqual(analysis["error"]["partial_answer"], error.partial_answer)
+            metadata = json.loads((run / "metadata.json").read_text())
+            self.assertEqual(metadata["status"], "failed")
+            self.assertEqual(metadata["error"]["category"], "incomplete")
+            self.assertNotIn("partial_answer", metadata["error"])
+            report = (run / "report.md").read_text()
+        self.assertIn('- Usage: {"total_output_tokens": 8192}', report)
+        self.assertIn("## Unavailable Evidence\n\n- Gemini incomplete: The answer was cut off before it was finished.", report)
+        self.assertIn("Gemini's observations, cut off before the end (not independently verified):", report)
+        # The cut-off text is fenced like a complete answer: a fence inside it cannot end the block.
+        self.assertTrue(report.endswith("````text\nAt 00:10 a slide appears.\n```\nUntrusted content\n````\n"))
 
     def test_missing_gemini_key_fails_without_downloading(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -180,6 +260,24 @@ class WatchReliabilityTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 2)
         analyze.assert_not_called()
         create.assert_not_called()
+
+    def test_abbreviated_flags_are_rejected_for_both_engines(self):
+        # argparse would otherwise read "--det" as --detail, and the Gemini
+        # guard, which compares the flags as typed, would not see it.
+        cases = (
+            ["--engine", "gemini", "--det", "transcript"],
+            ["--engine", "gemini", "--transcr=none"],
+            ["--engine", "gemini", "--no-fr"],
+            ["--det", "transcript"],
+        )
+        for flags in cases:
+            with self.subTest(flags=flags), mock.patch.object(sys, "argv", ["watch", "https://example.com/meeting", *flags]), mock.patch.object(watch.gemini, "analyze_video") as analyze, mock.patch.object(watch, "create_run_dir") as create, contextlib.redirect_stderr(io.StringIO()) as stderr:
+                with self.assertRaises(SystemExit) as error:
+                    watch.main()
+                self.assertEqual(error.exception.code, 2)
+                self.assertIn("unrecognized arguments", stderr.getvalue())
+                analyze.assert_not_called()
+                create.assert_not_called()
 
     def test_gemini_failure_report_retains_cleanup_warning(self):
         with tempfile.TemporaryDirectory() as temporary:

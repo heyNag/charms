@@ -26,6 +26,12 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: F401
+import plugin_version
+import timed_process
+import tool_hints
+
 
 DEFAULT_INTERVAL_SECONDS = 5.0
 DEFAULT_MAX_FRAMES = 80
@@ -402,13 +408,13 @@ def _quality_args(frame_format: str) -> list[str]:
 @functools.lru_cache(maxsize=1)
 def _vfr_output_args() -> tuple[str, str]:
     """Use -fps_mode when available, with a -vsync capability fallback."""
-    result = subprocess.run(
+    result = timed_process.run(
         ["ffmpeg", "-hide_banner", "-h", "full"],
+        timeout=timed_process.probe_timeout(),
         capture_output=True,
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False,
     )
     help_text = f"{result.stdout}\n{result.stderr}"
     if "-fps_mode" in help_text:
@@ -423,7 +429,7 @@ def _vfr_output_args() -> tuple[str, str]:
 
 def _require_ffmpeg() -> None:
     if shutil.which("ffmpeg") is None:
-        raise RuntimeError("ffmpeg is not installed. fix: brew install ffmpeg")
+        raise RuntimeError(tool_hints.missing_tool("ffmpeg"))
 
 
 def probe_duration(source: str | Path) -> float | None:
@@ -436,25 +442,28 @@ def probe_duration(source: str | Path) -> float | None:
     if shutil.which("ffprobe") is None:
         return None
     for entries in ("format=duration:stream=duration", "packet=pts_time"):
-        result = subprocess.run(
-            [
-                "ffprobe",
-                "-v",
-                "error",
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                entries,
-                "-of",
-                "default=noprint_wrappers=1:nokey=1",
-                str(Path(source).expanduser()),
-            ],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
+        try:
+            result = timed_process.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-select_streams",
+                    "v:0",
+                    "-show_entries",
+                    entries,
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    str(Path(source).expanduser()),
+                ],
+                timeout=timed_process.probe_timeout(),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except timed_process.CommandTimeout:
+            return None
         if result.returncode != 0:
             return None
         values: list[float] = []
@@ -500,9 +509,15 @@ def _seek_args(
 
 
 def _run_ffmpeg(cmd: list[str], frame_format: str) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-    )
+    try:
+        result = timed_process.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
+    except timed_process.CommandTimeout as exc:
+        raise RuntimeError(
+            f"ffmpeg frame extraction failed: {exc}. Select a shorter range, "
+            "or raise the limit with --process-timeout."
+        ) from exc
     if result.returncode != 0:
         detail = result.stderr.strip() or "unknown ffmpeg error"
         if frame_format == "webp" and "webp" in detail.lower():
@@ -576,7 +591,10 @@ def _thumbnail_sequence(files: list[Path]) -> list[bytes]:
         "rawvideo",
         "-",
     ]
-    result = subprocess.run(cmd, capture_output=True, check=False)
+    try:
+        result = timed_process.run(cmd, capture_output=True)
+    except timed_process.CommandTimeout:
+        return []
     if result.returncode != 0:
         return []
     chunk = DEDUP_THUMB * DEDUP_THUMB * 3
@@ -1248,9 +1266,14 @@ def extract_at_timestamps(
             *_quality_args(frame_format),
             str(path),
         ]
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-        )
+        try:
+            result = timed_process.run(
+                cmd, capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
+        except timed_process.CommandTimeout as exc:
+            path.unlink(missing_ok=True)
+            warnings.append(f"cue at {value:g}s: {exc}")
+            continue
         if result.returncode == 0 and path.exists():
             try:
                 actual = media_time_offset + seek + _showinfo_timestamps(result.stderr, 1)[0]
@@ -1290,6 +1313,7 @@ def extract_at_timestamps(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Extract timestamped frames with ffmpeg.")
+    parser.add_argument("--version", action="version", version=plugin_version.VERSION_LINE)
     parser.add_argument("source", help="Video path or ffmpeg-readable source")
     parser.add_argument("out_dir", help="Directory for extracted frames")
     parser.add_argument("--start", help="Start time as SS, MM:SS, or HH:MM:SS")

@@ -3,33 +3,43 @@
 
 With no arguments, validate the complete repository and require every immediate
 directory under ``packages/`` to be the only kind of plugin root. With one or
-more arguments, validate just those plugin roots.
+more arguments, validate just those plugin roots. With ``--marketplace``,
+validate only the marketplace manifest.
 """
 
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
-from jsonschema import Draft202012Validator
-from skills_ref import validate as validate_skill
+# jsonschema and skills_ref are imported where they are used. The marketplace
+# check needs neither, so the release job that pushes the marketplace commit
+# can run it without installing anything.
+if TYPE_CHECKING:
+    from jsonschema import Draft202012Validator
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from plugin_release import (  # noqa: E402
+    BUMP_HELPER,
     GIT_SHA_RE,
     MARKETPLACE_NAME,
     MARKETPLACE_PATH,
+    check_next_version,
+    known_releases,
     manifest_at,
     marketplace_entry,
+    marketplace_version,
     parse_version,
     tag_commit,
+    utc_today,
 )
 
 
@@ -63,7 +73,23 @@ DISALLOWED_ROOT_SURFACES = (
 DISALLOWED_PACKAGE_SURFACES = (".claude-plugin", "commands", "tool.json")
 MARKETPLACE_KEYS = {"name", "owner", "metadata", "plugins"}
 MARKETPLACE_ENTRY_KEYS = {"name", "description", "version", "source"}
+# A row of the root README's plugin table: | `name` | description | ...
+# The Agent Skills specification recommends that the instructions loaded with a
+# skill stay under 500 lines and about 5,000 tokens, with the detail in files
+# beside SKILL.md. Characters stand in for tokens here, at four to a token.
+SKILL_MAX_LINES = 500
+SKILL_MAX_BODY_CHARACTERS = 20_000
+SKILL_FRONTMATTER_RE = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
+README_PLUGIN_ROW_RE = re.compile(
+    r"^\|\s*`(?P<name>[^`]+)`\s*\|\s*(?P<description>(?:\\\||[^|])*?)\s*\|"
+)
 
+# What must stay out of commits and out of released packages: what the plugins
+# write while they run, credentials, caches and media. This is the one list.
+# The artifact scan refuses what it names, and the repository check requires
+# .gitignore to hold the line that ignore_rules() gives for each entry, so the
+# two cannot drift apart. A test holds the list against the watch-video
+# plugin's own record of what a run creates.
 FORBIDDEN_DIRECTORY_NAMES = {
     ".codex",
     ".dist",
@@ -74,23 +100,37 @@ FORBIDDEN_DIRECTORY_NAMES = {
     ".watch-video",
     ".x-bookmarks",
     "__pycache__",
+    "audio_chunks",
     "dist",
     "frames",
+    "local_analysis",
+    "media",
     "node_modules",
+    "videos",
 }
 FORBIDDEN_FILE_NAMES = {
     ".env",
     ".env.local",
     "local.env",
+    "analysis.json",
     "auth.json",
+    "batch.json",
     "bookmarks.json",
     "bookmarks.jsonl",
     "bookmarks.ndjson",
+    "evidence.json",
     "groq_transcript.raw.json",
+    "local_analysis.json",
+    "local_analysis.md",
+    "local_analysis.tmp",
+    "local_transcript.raw.json",
     "metadata.json",
+    "native_captions.json",
+    "openai_transcript.raw.json",
     "report.md",
     "search-index.json",
     "state.json",
+    "supporting_transcripts.json",
     "tokens.json",
     "transcript.json",
     "transcript.md",
@@ -111,14 +151,26 @@ FORBIDDEN_SUFFIXES = {
     ".webm",
     ".wmv",
 }
-FRAME_FILE_RE = re.compile(r"^frame_.*\.(?:jpe?g|png|webp)$", re.IGNORECASE)
-ROLLOUT_FILE_RE = re.compile(r"^rollout-.*\.jsonl$", re.IGNORECASE)
+# Shell patterns for a whole file name, in lower case. A name is lowered
+# before it is compared, so FRAME_0001.JPG is refused too.
+FORBIDDEN_FILE_PATTERNS = (
+    "cue_*.jpeg",
+    "cue_*.jpg",
+    "cue_*.png",
+    "cue_*.webp",
+    "frame_*.jpeg",
+    "frame_*.jpg",
+    "frame_*.png",
+    "frame_*.webp",
+    "rollout-*.jsonl",
+)
 SECRET_RE = re.compile(
     rb"gsk_[A-Za-z0-9_-]{12,}"
     rb"|sk-[A-Za-z0-9_-]{12,}"
     rb"|ghp_[A-Za-z0-9]{20,}"
     rb"|github_pat_[A-Za-z0-9_]{20,}"
     rb"|xox[baprs]-[A-Za-z0-9-]{10,}"
+    rb"|AIza[A-Za-z0-9_-]{35}"
     rb"|OPENAI_API_KEY\s*=\s*sk-[A-Za-z0-9_-]{12,}"
     rb"|GROQ_API_KEY\s*=\s*gsk_[A-Za-z0-9_-]{12,}"
 )
@@ -170,6 +222,8 @@ def _resolve_contained(
 
 
 def _load_schema(path: Path) -> tuple[Draft202012Validator | None, list[str]]:
+    from jsonschema import Draft202012Validator
+
     errors: list[str] = []
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -247,6 +301,49 @@ def _git_visible_files(scan_root: Path) -> list[Path] | None:
     return [scan_root / os.fsdecode(item) for item in result.stdout.split(b"\0") if item]
 
 
+def _is_forbidden_file_name(name: str) -> bool:
+    return (
+        name in FORBIDDEN_FILE_NAMES
+        or Path(name).suffix.lower() in FORBIDDEN_SUFFIXES
+        or any(fnmatch.fnmatchcase(name.lower(), pattern) for pattern in FORBIDDEN_FILE_PATTERNS)
+    )
+
+
+def ignore_rules() -> list[str]:
+    """The .gitignore line that keeps each forbidden artifact out of a commit."""
+
+    return sorted(
+        [f"{name}/" for name in FORBIDDEN_DIRECTORY_NAMES]
+        + list(FORBIDDEN_FILE_NAMES)
+        + [f"*{suffix}" for suffix in FORBIDDEN_SUFFIXES]
+        + list(FORBIDDEN_FILE_PATTERNS)
+    )
+
+
+def _validate_ignore_rules(root: Path) -> list[str]:
+    """Require .gitignore to ignore everything the artifact scan refuses.
+
+    The scan reports an artifact when a check runs, and a push may have
+    published it by then. The ignore rule keeps `git add` from picking the
+    file up in the first place.
+    """
+
+    path = root / ".gitignore"
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return [".gitignore: missing; Git must ignore every local artifact the validator forbids"]
+    except (OSError, UnicodeError) as exc:
+        return [f".gitignore: cannot read the ignore rules: {exc}"]
+    present = {line.rstrip() for line in text.splitlines()}
+    return [
+        f'.gitignore: missing the line "{rule}"; '
+        "Git must ignore every local artifact the validator forbids"
+        for rule in ignore_rules()
+        if rule not in present
+    ]
+
+
 def _scan_file_artifact(path: Path, report_root: Path, errors: list[str]) -> None:
     name = path.name
     forbidden_parent = None
@@ -262,12 +359,7 @@ def _scan_file_artifact(path: Path, report_root: Path, errors: list[str]) -> Non
             errors.append(message)
         return
 
-    if (
-        name in FORBIDDEN_FILE_NAMES
-        or path.suffix.lower() in FORBIDDEN_SUFFIXES
-        or FRAME_FILE_RE.match(name)
-        or ROLLOUT_FILE_RE.match(name)
-    ):
+    if _is_forbidden_file_name(name):
         errors.append(f"{_display(path, report_root)}: forbidden local artifact file")
         return
     if path.is_symlink() or not path.is_file():
@@ -328,7 +420,9 @@ def _validate_manifest_quality(manifest: dict[str, Any], manifest_path: Path, ro
         try:
             parse_version(version)
         except ValueError:
-            errors.append(f"{display}: version must be MAJOR.MINOR.PATCH semantic versioning")
+            errors.append(
+                f"{display}: version must be YEAR.MONTH.RELEASE, three plain numbers such as 2026.11.0"
+            )
 
     author = manifest.get("author")
     if not isinstance(author, dict):
@@ -358,7 +452,34 @@ def _validate_manifest_quality(manifest: dict[str, Any], manifest_path: Path, ro
     return errors
 
 
+def _validate_skill_size(skill_file: Path, report_root: Path) -> list[str]:
+    """Hold SKILL.md to the size the Agent Skills specification recommends."""
+    try:
+        text = skill_file.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        return [f"{_display(skill_file, report_root)}: cannot read SKILL.md: {exc}"]
+
+    errors: list[str] = []
+    advice = "move detail into files under references/"
+    lines = len(text.splitlines())
+    if lines > SKILL_MAX_LINES:
+        errors.append(
+            f"{_display(skill_file, report_root)}: {lines} lines, over the limit of "
+            f"{SKILL_MAX_LINES}; {advice}"
+        )
+    frontmatter = SKILL_FRONTMATTER_RE.match(text)
+    body = text[frontmatter.end():] if frontmatter else text
+    if len(body) > SKILL_MAX_BODY_CHARACTERS:
+        errors.append(
+            f"{_display(skill_file, report_root)}: the instructions are {len(body)} characters, "
+            f"over the limit of {SKILL_MAX_BODY_CHARACTERS} (about 5,000 tokens); {advice}"
+        )
+    return errors
+
+
 def _validate_skill(plugin_root: Path, plugin_name: str, report_root: Path) -> list[str]:
+    from skills_ref import validate as validate_skill
+
     errors: list[str] = []
     skills_path = plugin_root / "skills"
     if not _lexists(skills_path):
@@ -423,6 +544,7 @@ def _validate_skill(plugin_root: Path, plugin_name: str, report_root: Path) -> l
 
     for problem in validate_skill(skill_path):
         errors.append(f"{_display(skill_path, report_root)}: {problem}")
+    errors.extend(_validate_skill_size(skill_file, report_root))
 
     nested_skill_files = []
     for current, _directories, files in _walk_without_following_symlinks(skills_path):
@@ -667,6 +789,99 @@ def _validate_marketplace(root: Path, plugin_roots: list[Path]) -> list[str]:
     return errors
 
 
+def _validate_versions(root: Path, plugin_roots: list[Path]) -> list[str]:
+    """Require each manifest version to be a release already made, or the next one.
+
+    Between releases a manifest holds the version of a release: the latest
+    one, or an earlier one on a branch cut before it. Either may be a 1.x
+    version from before CalVer. Any other version is waiting to be released,
+    and it must be the YEAR.MONTH.RELEASE that the bump helper writes. The
+    release workflow makes the same check, but only once a release has started.
+    """
+
+    today = utc_today()
+    errors: list[str] = []
+    for plugin_root in plugin_roots:
+        try:
+            manifest = json.loads((plugin_root / "plugin.json").read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue  # The plugin root check reports the broken manifest.
+        version = manifest.get("version") if isinstance(manifest, dict) else None
+        name = plugin_root.name
+        try:
+            parse_version(version)
+            released = known_releases(root, name)
+        except ValueError:
+            continue  # The plugin root check reports the version or the name.
+        except (OSError, RuntimeError):
+            # Not a Git checkout, so the marketplace is all that records a release.
+            listed = marketplace_version(root, name)
+            released = [listed] if listed is not None else []
+        if version in released:
+            continue
+        try:
+            check_next_version(version, released, today)
+        except ValueError as exc:
+            errors.append(
+                f"{_display(plugin_root / 'plugin.json', root)}: {exc}; "
+                f"run `python3 {BUMP_HELPER} {name}`"
+            )
+    return errors
+
+
+def _validate_readme(root: Path, plugin_roots: list[Path]) -> list[str]:
+    """Require the root README to describe each plugin in its manifest's words.
+
+    The marketplace entry repeats the description of the released manifest and
+    is checked against it. The README's table is the third place the sentence
+    is written.
+    """
+
+    try:
+        text = (root / "README.md").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return ["README.md: missing; its table describes each plugin"]
+    except (OSError, UnicodeError) as exc:
+        return [f"README.md: cannot read the plugin table: {exc}"]
+    rows: dict[str, str] = {}
+    for line in text.splitlines():
+        match = README_PLUGIN_ROW_RE.match(line)
+        if match:
+            rows.setdefault(match["name"], match["description"].replace("\\|", "|"))
+
+    errors: list[str] = []
+    for plugin_root in plugin_roots:
+        try:
+            manifest = json.loads((plugin_root / "plugin.json").read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue  # The plugin root check reports the broken manifest.
+        description = manifest.get("description") if isinstance(manifest, dict) else None
+        if not _non_empty_string(description):
+            continue  # The plugin root check reports the missing description.
+        name = plugin_root.name
+        if rows.get(name) != description:
+            cell = description.replace("|", "\\|")
+            errors.append(
+                f"README.md: describe {name} in its manifest's words; "
+                f"its table row must start: | `{name}` | {cell} |"
+            )
+    return errors
+
+
+def validate_marketplace(root: Path) -> list[str]:
+    """Validate only the marketplace manifest, with Git and the standard library alone.
+
+    The release workflow runs this on the marketplace commit before pushing
+    it. That commit changes no other file, and the job that makes it can push
+    to the repository, so it installs no development dependency.
+    """
+
+    root = root.absolute()
+    packages_path = root / "packages"
+    plugin_roots = _plugin_directories(packages_path) if packages_path.is_dir() else []
+    return sorted(dict.fromkeys(_validate_marketplace(root, plugin_roots)))
+
+
 def _plugin_directories(packages_path: Path) -> list[Path]:
     return sorted(
         (
@@ -694,6 +909,7 @@ def validate_repository(root: Path) -> tuple[list[Path], list[str]]:
                 f"{_display(path, root)}: root plugin or client surface is not part of the "
                 "Charms v1 repository shape"
             )
+    errors.extend(_validate_ignore_rules(root))
 
     packages_path = root / "packages"
     if not _lexists(packages_path):
@@ -738,6 +954,8 @@ def validate_repository(root: Path) -> tuple[list[Path], list[str]]:
         )
 
     errors.extend(_validate_marketplace(root, plugin_roots))
+    errors.extend(_validate_versions(root, plugin_roots))
+    errors.extend(_validate_readme(root, plugin_roots))
 
     expected_manifests = {plugin_root / "plugin.json" for plugin_root in plugin_roots}
     for current, directories, files in _walk_without_following_symlinks(root):
@@ -780,7 +998,22 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Optional plugin roots. With no paths, validate the complete repository.",
     )
+    parser.add_argument(
+        "--marketplace",
+        action="store_true",
+        help="Validate only the marketplace manifest. Needs no development dependency.",
+    )
     args = parser.parse_args(argv)
+
+    if args.marketplace:
+        if args.plugin_roots:
+            parser.error("--marketplace takes no plugin roots")
+        errors = validate_marketplace(REPOSITORY_ROOT)
+        for error in errors:
+            print(f"error: {error}", file=sys.stderr)
+        if not errors:
+            print("validated the marketplace manifest")
+        return 1 if errors else 0
 
     if args.plugin_roots:
         plugin_roots, errors = validate_explicit_plugins(args.plugin_roots)

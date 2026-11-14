@@ -2,16 +2,43 @@
 
 ## Setup
 
-Use Python 3.11 or newer:
+Use Python 3.11 or newer for the repository tooling:
 
 ```sh
 python3 -m pip install -r requirements-dev.txt
 make check
 ```
 
-The development dependencies are pinned in `requirements-dev.txt`. Validation
-uses a vendored copy of the immutable Agent Plugins v1 manifest schema and the
-official Agent Skills reference validator.
+The plugins themselves support Python 3.9, so code under `packages/` stays
+within Python 3.9's syntax and standard library. See
+[Python versions](#python-versions).
+
+`requirements-dev.txt` pins the development tools (Ruff, ShellCheck,
+coverage.py, jsonschema and the Agent Skills validator) and every package they
+pull in. CI installs them with `make dev-deps`, which installs those lines and
+nothing else, then runs `pip check`: a tool that starts to need a package the
+file does not list fails the run, so add the package to the file. Dependabot
+opens at most one pull request a month for these pins and one for the actions
+pinned in the workflows; see `.github/dependabot.yml`.
+
+`make check` runs the tests, the Python and shell syntax checks, Ruff,
+ShellCheck on the shell scripts, a check that the links between the documents
+resolve, plugin validation, and a whitespace check. Links to other sites are
+not followed. `make coverage` runs the tests once more under coverage.py,
+child processes included, and prints how much of each script they reach. It
+fails when the total is below the floor in `pyproject.toml`.
+
+Validation uses a vendored copy of the immutable Agent Plugins v1 manifest
+schema and the official Agent Skills reference validator.
+
+Three checks need something real and are not part of `make check`:
+`make groq-test AUDIO=path/to/audio.mp3` sends one audio file to Groq with
+your `GROQ_API_KEY`, `make omlx-test` asks a running oMLX server the
+read-only questions of the local setup helper, and `make agent-evals` runs
+agent sessions on your Claude account to see which command an agent chooses
+after reading the watch-video skill. See
+[Check what an agent does with the skill](releasing.md#check-what-an-agent-does-with-the-skill).
+`make check` still tests that the eval cases are well formed.
 
 `make check` also validates `.claude-plugin/marketplace.json` against the
 release tags, so it needs them locally. Fetch them if your clone lacks them:
@@ -30,6 +57,7 @@ packages/<name>/
 ├── README.md
 ├── LICENSE
 ├── skills/<name>/
+├── evals/          optional: agent eval cases
 └── tests/
 ```
 
@@ -52,6 +80,56 @@ Then run the complete check before committing:
 make check
 ```
 
+A file that a plugin writes while it runs must never be committed. The list of
+such files is in `scripts/validate_plugins.py`, and `.gitignore` carries a
+line for each entry; validation fails when a line is missing. When a
+watch-video run starts to create a new file or folder, name it in
+`RUN_FILES` or `RUN_FOLDERS` in `prune_runs.py`, in the validator's list, and
+in `.gitignore`. `make check` fails until all three have it.
+
+## Branches and pull requests
+
+Skill-only installs take whatever `main` holds, so `main` has to stay fit to
+use at every commit:
+
+1. Work on a short-lived branch, one change to a branch.
+2. Open a pull request. CI runs on pull requests and on `main`, not on a
+   branch by itself, so open one, as a draft if need be, to get a run.
+3. Merge when every CI job is green, then delete the branch.
+
+Dependabot's pull requests follow the same rule. Only the release workflow
+pushes to `main` directly, for the marketplace commit, which it validates
+first.
+
+This is a working rule, not one the repository enforces: the branch ruleset
+on `main` cannot require a pull request or a status check. See
+[Repository settings](releasing.md#repository-settings) for the reason and
+for what enforcing it would take.
+
+## Python versions
+
+Each plugin states its oldest supported Python once, as `MIN_PYTHON` in
+`skills/<name>/scripts/python_floor.py`. Every script that can be run directly
+imports `python_floor` before any other module of the skill, so an older
+`python3` stops with one line instead of a traceback. A package test starts
+each script that way and fails if a new one skips the import.
+
+Three checks keep the plugins inside that floor:
+
+- Ruff treats `packages/` as Python 3.9 code and reports newer syntax as an
+  error. The rest of the repository targets Python 3.11.
+- `make test-plugins` runs only the plugin tests. They need no development
+  dependencies, so they also run on a bare Python 3.9:
+  `make test-plugins PYTHON=python3.9`. Without `jsonschema`, one schema
+  cross-check is skipped.
+- CI runs the plugin tests on Python 3.9 and the complete check on Python 3.11
+  and the newest release.
+
+To raise the floor, change `MIN_PYTHON` in each plugin, the `compatibility`
+line of each `SKILL.md`, the Ruff target in `pyproject.toml`, the Python
+version of the `python-floor` CI job, and the documented requirement in the
+package READMEs and [Compatibility](compatibility.md).
+
 ## Add a plugin
 
 Create one new immediate child directory of `packages/`. The package name must
@@ -68,45 +146,78 @@ packages/<name>/skills/<name>/SKILL.md
 packages/<name>/tests/test_basic.py
 ```
 
-Set the manifest version to `1.0.0` and keep its `$schema` fixed to the
-supported v1 identifier. The skill description must state its activation
-conditions. Add `compatibility` only for real runtime requirements.
+A plugin with Python scripts also carries its own
+`skills/<name>/scripts/python_floor.py` and `plugin_version.py`; copy them
+from an existing plugin and change `PLUGIN` in each.
+
+Set the manifest version with `python3 scripts/bump-plugin-version.py <name>`,
+which gives a plugin with no release the first version of the current month,
+such as `2026.11.0`. Keep the manifest's `$schema` fixed to the supported v1
+identifier. The skill description must state its activation conditions. Add
+`compatibility` only for real runtime requirements.
 
 Keep scripts and references inside the skill directory, plugin metadata in
 `plugin.json`, and skill metadata in `SKILL.md`. The current Charms package
 contract is skill-only and does not accept `mcp.json`.
 
 Update the root README, `packages/README.md`, and compatibility table so the
-repository presents a complete current inventory. Do not add a marketplace
-entry; the first release adds it.
+repository presents a complete current inventory. The plugin's row in the root
+README's table repeats the `description` of its `plugin.json` word for word,
+and validation fails when the two differ. Do not add a marketplace entry; the
+first release adds it.
 
 ## Versions
 
-Each plugin uses Semantic Versioning, `MAJOR.MINOR.PATCH`, and starts at
-`1.0.0`. Bump the version in a normal commit when the plugin is ready to
-release:
+Each plugin uses calendar versions, `YEAR.MONTH.RELEASE`: the year and month
+in UTC, then the number of releases the plugin has already made in that
+month, such as `2026.11.0`. Set the next version in a normal commit when the
+plugin is ready to release:
 
 ```sh
-python3 scripts/bump-plugin-version.py watch-video minor
+git fetch --tags
+python3 scripts/bump-plugin-version.py watch-video
 ```
 
-The second argument is `major`, `minor`, or `patch`. Add `--dry-run` to print
-the next version without changing `plugin.json`.
+The helper works the version out from today's date and the plugin's releases,
+so there is no part to choose. Add `--dry-run` to print the version without
+changing `plugin.json`.
+
+`plugin.json` is the only place a version is written. The scripts read it
+through `skills/<name>/scripts/plugin_version.py`, which supplies what
+`--version` prints, the `User-Agent` on requests and, for watch-video, the
+doctor header and the `plugin_version` saved in a run's `metadata.json`. A
+copy of a skill without its plugin folder has no manifest and reports
+`unknown`.
 
 Commits on `main` do not reach marketplace installs until a release. A version
-may never be reused or go below a released one, and validation fails if a
-package's version is lower than its marketplace entry. See
-[Releasing](releasing.md).
+may never be reused or go below a released one. Validation fails if a
+package's version is lower than its marketplace entry, and if it is neither a
+version the plugin has released nor the next one the helper would write. See
+[Releasing](releasing.md#versions-and-tags).
 
 ## CI
 
-The CI workflow runs on every push and pull request, and the release workflow
-reuses it on the commit being released:
+The CI workflow runs on every pull request and on every push to `main`. A
+newer push to a pull request cancels the run of the older one. The release
+workflow reuses CI on the commit being released, and starts it once more on
+`main` after it pushes the marketplace commit:
 
-- the Ubuntu job installs Ubuntu's packaged FFmpeg, which still accepts
-  `-vsync`, and runs `make ci`;
-- the macOS job installs current Homebrew FFmpeg, asserts that it lacks
-  `-vsync` so the `-fps_mode` path is covered, and runs `make test`.
+- the Ubuntu job runs `make ci` on Python 3.11 and on the newest Python
+  release, with the FFmpeg that its runner image packages, and requires the
+  checks to leave the working tree clean. On Python 3.11 it also runs
+  `make coverage`;
+- the Python floor job runs `make test-plugins` on Python 3.9 with nothing
+  installed from `requirements-dev.txt`. Its older runner image packages an
+  FFmpeg that accepts both `-fps_mode` and `-vsync`. The job asserts that,
+  because the test of the `-vsync` fallback is skipped on any other build;
+- the macOS job installs current Homebrew FFmpeg and asserts that it lacks
+  `-vsync`, which shows that the plugin passes `-fps_mode` to a build that
+  dropped the old option. It runs `make test` on the newest Python release,
+  then `make test-plugins` on the `python3` that Apple's Command Line Tools
+  provide.
+
+When a new Python release reaches `actions/setup-python`, raise the newest
+version in `.github/workflows/ci.yml`.
 
 ## Review checklist
 
@@ -118,5 +229,7 @@ reuses it on the commit being released:
 - Package behavior tests cover the change.
 - Package and root documentation describe the resulting behavior.
 - A version bump, when needed, uses `scripts/bump-plugin-version.py`.
+- The change is on a branch, and CI is green on its pull request before the
+  merge.
 - `.claude-plugin/marketplace.json` is unchanged; only releases update it.
 - `make check` passes from a clean checkout with release tags fetched.

@@ -52,8 +52,11 @@ class ReviewStateTest(unittest.TestCase):
         self.api = load_module("fetch_bookmarks_api_review_state", SCRIPTS / "fetch_bookmarks_api.py")
         self.state_file = self.tmp / "state" / "state.json"
         self.bookmarks = bookmarks(1000, 250)
+        self.requests: list[str] = []
+        self.token = mock.Mock(return_value="test-token")
 
     def fake_api_get(self, path: str, _token: str, params: dict[str, str] | None = None):
+        self.requests.append(path)
         params = params or {}
         if path == "/users/me":
             return {"data": {"id": "u1", "username": "me", "name": "Me"}}, {}
@@ -72,7 +75,7 @@ class ReviewStateTest(unittest.TestCase):
     def run_main(self, *argv: str) -> tuple[int, dict | None, str]:
         stdout, stderr = io.StringIO(), io.StringIO()
         with (
-            mock.patch.object(self.api, "get_valid_token", return_value="test-token"),
+            mock.patch.object(self.api, "get_valid_token", self.token),
             mock.patch.object(self.api, "api_get", self.fake_api_get),
             contextlib.redirect_stdout(stdout),
             contextlib.redirect_stderr(stderr),
@@ -80,6 +83,10 @@ class ReviewStateTest(unittest.TestCase):
             code = self.api.main([*argv, "--state-file", str(self.state_file)])
         output = json.loads(stdout.getvalue()) if stdout.getvalue() else None
         return code, output, stderr.getvalue()
+
+    def write_state(self, content: bytes) -> None:
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        self.state_file.write_bytes(content)
 
     def test_update_state_keeps_cutoff_when_default_count_stops_early(self) -> None:
         # 30 bookmarks arrived since the review; the default --count 20 cannot reach it.
@@ -290,6 +297,245 @@ class ReviewStateTest(unittest.TestCase):
 
         self.assertEqual(output["meta"]["cutoff_mode"], "created_at_fallback")
         self.assertIn("warning: no saved review anchor is still bookmarked", stderr)
+
+    def test_a_damaged_state_file_stops_the_run_before_any_request(self) -> None:
+        damaged = {
+            "cut short": b'{"scopes": {"all": {"last_seen_id": "97',
+            "empty": b"",
+            "not UTF-8": b'{"scopes": "\xff\xfe"}',
+            "a list": b'["970"]',
+            "scopes is a list": b'{"scopes": ["all"]}',
+            "a scope is text": b'{"scopes": {"all": "970"}}',
+            "anchors are text": b'{"scopes": {"all": {"anchor_ids": "970"}}}',
+            "an anchor is an object": b'{"scopes": {"all": {"anchor_ids": [{"id": "970"}]}}}',
+            "the newest ID is a list": b'{"scopes": {"all": {"last_seen_id": ["970"]}}}',
+            "the time is a number": b'{"scopes": {"all": {"last_seen_id": "970", "last_seen_created_at": 5}}}',
+            "another scope is damaged": b'{"scopes": {"all": {"last_seen_id": "970"}, "folder:7": []}}',
+            # Too deep for Python to read, or, where the stack is large enough, a list.
+            "nested too deep": b"[" * 100_000 + b"]" * 100_000,
+        }
+        for label, content in damaged.items():
+            for flags in (("--since-last",), ("--update-state",), ("--all", "--since-last", "--update-state")):
+                with self.subTest(label, flags=flags):
+                    self.write_state(content)
+
+                    code, output, stderr = self.run_main(*flags)
+
+                    self.assertEqual(code, 1)
+                    self.assertIsNone(output)
+                    self.assertIn(f"error: the review state file {self.state_file} is ", stderr)
+                    self.assertIn("fix: restore the file from a backup, or move it aside", stderr)
+                    self.assertEqual(self.requests, [])
+                    self.token.assert_not_called()
+                    self.assertEqual(self.state_file.read_bytes(), content)
+
+    def test_a_state_path_that_cannot_be_read_stops_the_run_before_any_request(self) -> None:
+        self.state_file.mkdir(parents=True)
+
+        code, output, stderr = self.run_main("--all", "--since-last", "--update-state")
+
+        self.assertEqual(code, 1)
+        self.assertIsNone(output)
+        self.assertIn(f"error: cannot read the review state file {self.state_file}: ", stderr)
+        self.assertEqual(self.requests, [])
+        self.token.assert_not_called()
+
+    def test_a_fetch_that_does_not_use_review_state_never_opens_the_file(self) -> None:
+        self.write_state(b"{not json")
+
+        code, output, stderr = self.run_main("--count", "5")
+        self.assertEqual((code, len(output["data"]), stderr), (0, 5, ""))
+
+        code, output, stderr = self.run_main("--folders", "--since-last")
+        self.assertEqual((code, output["meta"]["kind"], stderr), (0, "bookmark-folders", ""))
+
+    def test_state_saved_with_numeric_ids_is_still_read(self) -> None:
+        self.write_state(b'{"scopes": {"all": {"last_seen_id": 970, "anchor_ids": [970, 969]}}}')
+
+        code, output, _stderr = self.run_main("--all", "--since-last")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(returned_ids(output), [str(1000 - i) for i in range(30)])
+        self.assertEqual(output["meta"]["cutoff_mode"], "anchor")
+
+    def test_a_failed_save_still_prints_the_bookmarks_and_reports_the_error(self) -> None:
+        self.save_state(last_seen_id="970")
+        saved = self.state_file.read_bytes()
+
+        # The fetch helper saves through the shared review module.
+        shared = sys.modules[self.api.review.__module__]
+        with mock.patch.object(shared, "save_state", side_effect=PermissionError(13, "Permission denied")):
+            code, output, stderr = self.run_main("--all", "--since-last", "--update-state")
+
+        self.assertEqual(code, 1)
+        self.assertEqual(returned_ids(output), [str(1000 - i) for i in range(30)])
+        self.assertFalse(output["meta"]["state_updated"])
+        self.assertIn(f"error: cannot save the review state file {self.state_file}: Permission denied", stderr)
+        self.assertIn("fix: make that folder writable or pass --state-file", stderr)
+        self.assertEqual(self.state_file.read_bytes(), saved)
+
+    def test_a_tilde_in_the_state_path_is_expanded_once_for_reading_and_saving(self) -> None:
+        home = self.tmp / "home"
+        home.mkdir()
+        stdout = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, {"HOME": str(home)}),
+            mock.patch.object(self.api, "get_valid_token", self.token),
+            mock.patch.object(self.api, "api_get", self.fake_api_get),
+            contextlib.redirect_stdout(stdout),
+        ):
+            code = self.api.main(["--all", "--update-state", "--state-file", "~/reviews/state.json"])
+
+        expected = home / "reviews" / "state.json"
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(stdout.getvalue())["meta"]["state_file"], str(expected))
+        self.assertEqual(json.loads(expected.read_text())["scopes"]["all"]["last_seen_id"], "1000")
+        self.assertFalse((Path.cwd() / "~").exists())
+
+    def bookmark_pages(self) -> int:
+        return sum(1 for path in self.requests if path.endswith("/bookmarks"))
+
+    def review_then_add(self, new: int) -> list[str]:
+        """Review 250 bookmarks in full, then bookmark `new` more; return the new IDs."""
+        _code, output, _stderr = self.run_main("--all", "--since-last", "--update-state")
+        self.assertTrue(output["meta"]["state_updated"])
+        self.bookmarks = bookmarks(1000 + new, 250 + new)
+        self.requests.clear()
+        return [str(1000 + new - index) for index in range(new)]
+
+    def test_an_early_stop_ends_the_fetch_on_the_page_that_shows_the_cutoff(self) -> None:
+        new = self.review_then_add(30)
+
+        code, output, stderr = self.run_main(
+            "--all", "--since-last", "--update-state", "--stop-after-known", "10"
+        )
+
+        self.assertEqual((code, stderr), (0, ""))
+        self.assertEqual(returned_ids(output), new)
+        # One page of 100 held the 30 new bookmarks and the row of reviewed ones.
+        self.assertEqual(self.bookmark_pages(), 1)
+        meta = output["meta"]
+        self.assertEqual((meta["cutoff_mode"], meta["stopped_early"]), ("early_stop", True))
+        self.assertEqual((meta["cutoff_reached"], meta["state_updated"], meta["fetched_count"]), (True, True, 100))
+        entry = self.saved_entry()
+        self.assertEqual(entry["anchor_ids"], [str(1030 - index) for index in range(50)])
+
+        # Nothing new since: the row is at the very top of the first page.
+        self.requests.clear()
+        _code, output, _stderr = self.run_main(
+            "--all", "--since-last", "--update-state", "--stop-after-known", "10"
+        )
+        self.assertEqual(returned_ids(output), [])
+        self.assertEqual((self.bookmark_pages(), output["meta"]["cutoff_mode"]), (1, "early_stop"))
+
+    def test_an_early_stop_reads_on_until_the_row_is_long_enough(self) -> None:
+        for count, pages in ((95, 2), (150, 2), (200, 3)):
+            with self.subTest(new=count):
+                self.state_file.unlink(missing_ok=True)
+                self.bookmarks = bookmarks(1000, 250)
+                new = self.review_then_add(count)
+
+                _code, output, _stderr = self.run_main("--all", "--since-last", "--stop-after-known", "10")
+
+                # With 95 new bookmarks only five reviewed ones end the first page.
+                self.assertEqual(returned_ids(output), new)
+                self.assertEqual(self.bookmark_pages(), pages)
+                self.assertEqual(output["meta"]["cutoff_mode"], "early_stop")
+
+    def test_an_early_stop_needs_a_saved_review_and_enough_of_it_left(self) -> None:
+        # No review saved yet: there is nothing to recognise, so the whole list is read.
+        _code, output, _stderr = self.run_main("--all", "--since-last", "--stop-after-known", "5")
+        self.assertEqual((self.bookmark_pages(), output["meta"]["cutoff_mode"]), (3, "no_state"))
+        self.assertFalse(output["meta"]["stopped_early"])
+
+        # Four reviewed bookmarks are left where five in a row are asked for.
+        self.requests.clear()
+        self.state_file.unlink(missing_ok=True)
+        self.save_state(last_seen_id="1000", anchor_ids=["1000", "999", "998", "997"])
+        self.bookmarks = [*posts(["n2", "n1"]), *self.bookmarks]
+
+        _code, output, stderr = self.run_main("--all", "--since-last", "--stop-after-known", "5")
+
+        self.assertEqual(returned_ids(output), ["n2", "n1"])
+        self.assertEqual((self.bookmark_pages(), output["meta"]["cutoff_mode"]), (3, "anchor"))
+        self.assertEqual((output["meta"]["stopped_early"], stderr), (False, ""))
+
+    def test_reviewed_posts_bookmarked_again_out_of_their_old_order_are_not_the_cutoff(self) -> None:
+        self.review_everything()
+        new = [f"n{index}" for index in range(1, 121)]
+        again = ["r10", "r20", "r30", "r40", "r45", "r50"]
+        self.bookmark(*new, *again)
+        self.requests.clear()
+
+        _code, output, _stderr = self.run_main("--all", "--since-last", "--stop-after-known", "5")
+
+        # Six reviewed posts head the list, but newest review last. That is not
+        # a row in the saved order, so the fetch reads on to the real cutoff,
+        # which starts on page two of five.
+        self.assertEqual(returned_ids(output), [*reversed(again), *reversed(new)])
+        self.assertEqual((self.bookmark_pages(), output["meta"]["cutoff_mode"]), (2, "early_stop"))
+
+    def test_an_early_stop_is_fooled_by_a_row_bookmarked_again_in_its_old_order(self) -> None:
+        # The documented price of the option, kept here so the documents stay true.
+        self.review_everything()
+        new = [f"n{index}" for index in range(1, 121)]
+        self.bookmark(*new)
+        self.bookmark("r5", "r4", "r3", "r2", "r1")
+        self.requests.clear()
+
+        _code, output, _stderr = self.run_main("--all", "--since-last", "--stop-after-known", "5")
+
+        # r1..r5 head the list in saved order, and 120 new bookmarks fill the rest of page one.
+        self.assertEqual((self.bookmark_pages(), output["meta"]["cutoff_mode"]), (1, "early_stop"))
+        self.assertEqual(returned_ids(output), [])
+
+        # Without the option the same list is read in full and nothing is missed.
+        _code, output, _stderr = self.run_main("--all", "--since-last")
+        self.assertEqual(returned_ids(output), ["r1", "r2", "r3", "r4", "r5", *reversed(new)])
+
+    def test_a_page_limit_before_the_row_is_found_is_a_partial_fetch(self) -> None:
+        self.review_then_add(150)
+
+        _code, output, stderr = self.run_main(
+            "--all", "--max-pages", "1", "--since-last", "--update-state", "--stop-after-known", "10"
+        )
+
+        self.assertEqual(len(output["data"]), 100)
+        meta = output["meta"]
+        self.assertEqual((meta["cutoff_mode"], meta["cutoff_reached"], meta["stopped_early"]), ("unfiltered", False, False))
+        self.assertFalse(meta["state_updated"])
+        self.assertIn("warning: the fetch stopped before the end of the list", stderr)
+
+    def test_an_early_stop_is_refused_where_it_cannot_work(self) -> None:
+        for argv, message in (
+            (("--since-last", "--stop-after-known", "10"), "works only with --all --since-last"),
+            (("--all", "--stop-after-known", "10"), "works only with --all --since-last"),
+            (("--all", "--since-last", "--folders", "--stop-after-known", "10"), "works only with --all --since-last"),
+            (("--all", "--since-last", "--stop-after-known", "4"), "must be between 5 and 50"),
+            (("--all", "--since-last", "--stop-after-known", "51"), "must be between 5 and 50"),
+        ):
+            with self.subTest(argv=argv):
+                code, output, stderr = self.run_main(*argv)
+
+                self.assertEqual(code, 2)
+                self.assertIsNone(output)
+                self.assertIn(f"error: --stop-after-known {message}", stderr)
+        self.assertEqual(self.requests, [])
+        self.token.assert_not_called()
+
+    def test_known_run_counts_only_saved_ids_in_saved_order(self) -> None:
+        anchors = [f"r{index}" for index in range(1, 11)]
+        known_run = self.api.known_run
+
+        self.assertTrue(known_run(["n1", "r1", "r2", "r3"], anchors, 3))
+        # Gaps are fine: reviewed bookmarks may have been removed since.
+        self.assertTrue(known_run(["r2", "r5", "r9"], anchors, 3))
+        self.assertFalse(known_run(["r1", "r2", "n1", "r3"], anchors, 3))
+        self.assertFalse(known_run(["r3", "r2", "r1"], anchors, 2))
+        # A row may start again after a step back.
+        self.assertTrue(known_run(["r5", "r1", "r2", "r3"], anchors, 3))
+        self.assertFalse(known_run([], anchors, 1))
+        self.assertFalse(known_run(["r1"], [], 1))
 
     def test_update_last_seen_keeps_newest_anchors_then_older_ones(self) -> None:
         state = self.api.update_last_seen({}, "all", ["old-2", "old-1"])

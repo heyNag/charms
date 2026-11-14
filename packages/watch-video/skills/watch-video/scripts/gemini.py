@@ -6,6 +6,8 @@ deletes any remote file it creates. It never selects another engine on failure.
 
 Wire formats: https://ai.google.dev/api/interactions-api and
 https://ai.google.dev/gemini-api/docs/video-understanding (checked 2026-10-31).
+The interaction statuses, including "incomplete" for an answer that reached
+max_output_tokens, are from the first page (checked 2026-11-14).
 """
 
 from __future__ import annotations
@@ -33,6 +35,15 @@ INTERACTIONS_URL = f"{API_ORIGIN}/v1beta/interactions"
 UPLOAD_HOSTS = frozenset({"generativelanguage.googleapis.com"})
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 REQUEST_TIMEOUT = 60.0
+# The two limits a caller can raise: the length of the answer, and the time
+# allowed for uploading a local video and for Google to process it.
+DEFAULT_MAX_OUTPUT_TOKENS = 8192
+DEFAULT_UPLOAD_TIMEOUT = 900.0
+# Statuses the Interactions API documents. Only these are repeated in an error.
+STATUSES = frozenset({
+    "in_progress", "requires_action", "completed", "failed", "cancelled",
+    "incomplete", "requires_continuation",
+})
 CLEANUP_TIMEOUT = 15.0
 FILE_NAME_RE = re.compile(r"files/[A-Za-z0-9_-]+\Z")
 MODEL_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
@@ -56,14 +67,22 @@ class GeminiError(RuntimeError):
         self.category = category
         self.warnings: list[str] = []
         self.remote_file: dict[str, str] | None = None
+        # Set only when the provider stopped part-way through its answer.
+        self.partial_answer: str | None = None
+        self.usage: dict[str, Any] = {}
         super().__init__(f"Gemini {category}: {message}")
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        record: dict[str, Any] = {
             "engine": "gemini", "status": "failed", "category": self.category,
             "message": str(self), "warnings": list(self.warnings),
             "remote_file": self.remote_file,
         }
+        if self.partial_answer:
+            record["partial_answer"] = self.partial_answer
+        if self.usage:
+            record["usage"] = dict(self.usage)
+        return record
 
 
 class _RefuseRedirects(HTTPRedirectHandler):
@@ -194,10 +213,15 @@ def _json(raw: bytes) -> dict[str, Any]:
     return data
 
 
-def _remaining(deadline: float, maximum: float = REQUEST_TIMEOUT) -> float:
+def _remaining(deadline: float, maximum: float = REQUEST_TIMEOUT, *, limit: float) -> float:
     remaining = deadline - time.monotonic()
     if remaining <= 0:
-        raise GeminiError("timeout", "The upload or processing deadline was exceeded.")
+        raise GeminiError(
+            "timeout",
+            "Uploading the video and Google's processing of it did not finish within the "
+            f"limit of {limit:g} seconds. Raise it with --gemini-upload-timeout, or use a "
+            "shorter video.",
+        )
     return min(remaining, maximum)
 
 
@@ -230,7 +254,7 @@ def _upload(
                 "Content-Type": "application/json", "X-Goog-Upload-Protocol": "resumable",
                 "X-Goog-Upload-Command": "start", "X-Goog-Upload-Header-Content-Length": str(size),
                 "X-Goog-Upload-Header-Content-Type": mime_type,
-            }, timeout=_remaining(deadline),
+            }, timeout=_remaining(deadline, limit=timeout),
         )
         session_url = headers.get("x-goog-upload-url")
         if not session_url:
@@ -241,7 +265,7 @@ def _upload(
             "POST", session_url, None, body=stream, upload=True,
             headers={"Content-Type": mime_type, "Content-Length": str(size),
                      "X-Goog-Upload-Offset": "0", "X-Goog-Upload-Command": "upload, finalize"},
-            timeout=_remaining(deadline, timeout),
+            timeout=_remaining(deadline, timeout, limit=timeout),
         )
     info = _json(raw).get("file")
     if not isinstance(info, dict):
@@ -249,8 +273,10 @@ def _upload(
     name = _file_name(info.get("name"))
     remote.update(name=name, cleanup_status="pending")
     while info.get("state") == "PROCESSING":
-        time.sleep(min(poll_interval, _remaining(deadline, poll_interval)))
-        _, raw = _request("GET", f"{API_ORIGIN}/v1beta/{name}", key, timeout=_remaining(deadline))
+        time.sleep(min(poll_interval, _remaining(deadline, poll_interval, limit=timeout)))
+        _, raw = _request(
+            "GET", f"{API_ORIGIN}/v1beta/{name}", key, timeout=_remaining(deadline, limit=timeout),
+        )
         info = _json(raw)
         if info.get("name") != name:
             raise GeminiError("response", "The processing response named a different uploaded file.")
@@ -282,10 +308,30 @@ def _public_remote(remote: dict[str, str], key: str) -> dict[str, str] | None:
     return {name: value.replace(key, "[redacted]") for name, value in remote.items()} if remote else None
 
 
-def _answer(data: dict[str, Any], key: str) -> tuple[str, dict[str, Any]]:
+def _cut_off(max_output_tokens: int, usage: dict[str, Any], has_text: bool) -> str:
+    """The error for an answer the provider stopped before it was finished."""
+    used = [
+        f"{usage[name]} {label} tokens"
+        for name, label in (("total_output_tokens", "output"), ("total_thought_tokens", "thought"))
+        if name in usage
+    ]
+    return (
+        "The answer was cut off before it was finished. The output limit for this run was "
+        f"{max_output_tokens} tokens"
+        + (f", and the response used {' and '.join(used)}" if used else "")
+        + ". Raise the limit with --gemini-max-output-tokens, or ask a narrower question or "
+        "select a shorter range."
+        + (" The part that was returned is saved as a partial answer." if has_text else "")
+    )
+
+
+def _answer(
+    data: dict[str, Any], key: str, max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
+) -> tuple[str, dict[str, Any]]:
     status = data.get("status")
-    if status != "completed":
-        raise GeminiError("response", "The provider did not return a completed analysis.")
+    if status not in {"completed", "incomplete"}:
+        named = f" It reported the status {status}." if isinstance(status, str) and status in STATUSES else ""
+        raise GeminiError("response", "The provider did not return a completed analysis." + named)
     steps = data.get("steps")
     texts = []
     if isinstance(steps, list):
@@ -299,7 +345,7 @@ def _answer(data: dict[str, Any], key: str) -> tuple[str, dict[str, Any]]:
                 if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str):
                     texts.append(part["text"])
     answer = "\n\n".join(texts).strip().replace(key, "[redacted]")
-    if not answer:
+    if not answer and status == "completed":
         raise GeminiError("response", "The completed analysis contained no answer text.")
     raw_usage = data.get("usage")
     usage = {}
@@ -317,13 +363,20 @@ def _answer(data: dict[str, Any], key: str) -> tuple[str, dict[str, Any]]:
                     and row.get("modality") in {"text", "image", "audio", "video", "document"}
                     and type(row.get("tokens")) is int and row["tokens"] >= 0
                 ]
+    if status == "incomplete":
+        # The API reports an answer that reached max_output_tokens this way.
+        error = GeminiError("incomplete", _cut_off(max_output_tokens, usage, bool(answer)))
+        error.partial_answer = answer or None
+        error.usage = usage
+        raise error
     return answer, usage
 
 
 def analyze_video(
     source: str | Path, question: str | None = None, *, api_key: str | None = None,
     model: str = DEFAULT_MODEL, start: float | None = None, end: float | None = None,
-    timeout: float = 600, upload_timeout: float = 900, poll_interval: float = 2,
+    timeout: float = 600, upload_timeout: float = DEFAULT_UPLOAD_TIMEOUT, poll_interval: float = 2,
+    max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
 ) -> dict[str, Any]:
     """Analyze a direct YouTube URL or complete local file; never download it.
 
@@ -342,6 +395,8 @@ def analyze_video(
     timeout = _number(timeout, "timeout")
     upload_timeout = _number(upload_timeout, "upload_timeout")
     poll_interval = _number(poll_interval, "poll_interval")
+    if type(max_output_tokens) is not int or max_output_tokens <= 0:
+        raise GeminiError("configuration", "max_output_tokens must be a whole number greater than zero.")
     start = _number(start, "start", zero=True) if start is not None else None
     end = _number(end, "end", zero=True) if end is not None else None
     if end is not None and end <= (start or 0):
@@ -380,13 +435,13 @@ def analyze_video(
             "model": model, "store": False,
             "input": [{"type": "video", **video, "processing": processing},
                       {"type": "text", "text": prompt}],
-            "generation_config": {"max_output_tokens": 8192},
+            "generation_config": {"max_output_tokens": max_output_tokens},
         }
         _, raw = _request(
             "POST", INTERACTIONS_URL, key, body=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"}, timeout=timeout,
         )
-        answer, usage = _answer(_json(raw), key)
+        answer, usage = _answer(_json(raw), key, max_output_tokens)
     except GeminiError as exc:
         error = exc
         raise

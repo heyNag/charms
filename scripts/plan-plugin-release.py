@@ -2,29 +2,40 @@
 """Check that a plugin's manifest version is ready to release and print the plan.
 
 The plan is printed as `key=value` lines for GitHub Actions outputs. A release is
-refused when its tag already exists or when its version is not greater than every
-version already released for that plugin.
+refused when its tag already exists, and when its version is not the
+YEAR.MONTH.RELEASE that follows the plugin's latest release: greater than it,
+naming no month after the current one in UTC, and counting the releases already
+made in its month.
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from plugin_release import (  # noqa: E402
+    BUMP_HELPER,
+    check_next_version,
     manifest_at,
     parse_version,
     release_tag,
     released_versions,
     tag_commit,
+    utc_today,
     validate_plugin_name,
 )
 
 
-def plan_release(root: pathlib.Path, plugin: str, revision: str = "HEAD") -> dict[str, str]:
+def plan_release(
+    root: pathlib.Path,
+    plugin: str,
+    revision: str = "HEAD",
+    today: datetime.date | None = None,
+) -> dict[str, str]:
     validate_plugin_name(plugin)
     manifest = manifest_at(root, revision, plugin)
     if manifest.get("name") != plugin:
@@ -34,14 +45,12 @@ def plan_release(root: pathlib.Path, plugin: str, revision: str = "HEAD") -> dic
 
     tag = release_tag(plugin, version)
     if tag_commit(root, tag) is not None:
-        raise ValueError(
-            f"{tag} already exists; bump the version with scripts/bump-plugin-version.py first"
-        )
+        raise ValueError(f"{tag} already exists; bump the version with {BUMP_HELPER} first")
     previous = released_versions(root, plugin)
-    if previous and parse_version(version) <= parse_version(previous[-1]):
-        raise ValueError(
-            f"version {version} must be greater than the latest release {previous[-1]}"
-        )
+    try:
+        check_next_version(version, previous, today or utc_today())
+    except ValueError as exc:
+        raise ValueError(f"{exc}; set the version with {BUMP_HELPER} first") from exc
     return {
         "version": version,
         "tag": tag,

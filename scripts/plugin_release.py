@@ -2,18 +2,26 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import pathlib
 import re
 import subprocess
+from collections.abc import Iterable
 
 
 PLUGIN_NAME_RE = re.compile(
     r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]{0,62}[a-z0-9])?$"
 )
-SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+# Three plain numbers. Claude Code reads a release tag's version as SemVer and
+# ignores a tag it cannot read that way, so a fourth number has no place. The
+# 1.x releases made before the move to CalVer have this shape too, and their
+# tags and marketplace entries still have to be read.
+VERSION_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+# YEAR.MONTH.RELEASE in UTC, the form of every version set since that move.
+CALVER_RE = re.compile(r"^[1-9][0-9]{3}\.(?:[1-9]|1[0-2])\.(?:0|[1-9][0-9]*)$")
 GIT_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-BUMP_PARTS = ("major", "minor", "patch")
+BUMP_HELPER = "scripts/bump-plugin-version.py"
 
 MARKETPLACE_PATH = pathlib.PurePosixPath(".claude-plugin/marketplace.json")
 MARKETPLACE_NAME = "charms"
@@ -26,22 +34,75 @@ def validate_plugin_name(plugin: str) -> None:
 
 
 def parse_version(value: object) -> tuple[int, int, int]:
-    match = SEMVER_RE.fullmatch(value) if isinstance(value, str) else None
+    """Read a version for comparison: CalVer, or a 1.x release made before it."""
+
+    match = VERSION_RE.fullmatch(value) if isinstance(value, str) else None
     if match is None:
-        raise ValueError(f"version is not MAJOR.MINOR.PATCH semantic versioning: {value!r}")
-    major, minor, patch = (int(part) for part in match.groups())
-    return major, minor, patch
+        raise ValueError(f"version is not three plain numbers such as 2026.11.0: {value!r}")
+    first, second, third = (int(part) for part in match.groups())
+    return first, second, third
 
 
-def bump_version(value: str, part: str) -> str:
-    major, minor, patch = parse_version(value)
-    if part == "major":
-        return f"{major + 1}.0.0"
-    if part == "minor":
-        return f"{major}.{minor + 1}.0"
-    if part == "patch":
-        return f"{major}.{minor}.{patch + 1}"
-    raise ValueError(f"unsupported version part: {part!r}")
+def parse_calver(value: object) -> tuple[int, int, int]:
+    """Read a YEAR.MONTH.RELEASE version as (year, month, release)."""
+
+    if not isinstance(value, str) or CALVER_RE.fullmatch(value) is None:
+        raise ValueError(f"version is not YEAR.MONTH.RELEASE, such as 2026.11.0: {value!r}")
+    return parse_version(value)
+
+
+def utc_today() -> datetime.date:
+    return datetime.datetime.now(datetime.timezone.utc).date()
+
+
+def next_version(released: Iterable[str], today: datetime.date) -> str:
+    """Return the version of a plugin's next release, given the ones it has made.
+
+    The version is the year and month of `today`, then the number of releases
+    the plugin has already made in that month.
+    """
+
+    latest = max(released, key=parse_version, default=None)
+    count = 0
+    if latest is not None:
+        first, second, third = parse_version(latest)
+        if (first, second) > (today.year, today.month):
+            raise ValueError(
+                f"the latest release {latest} names a month after {today.year}.{today.month}, "
+                "the current month in UTC"
+            )
+        if (first, second) == (today.year, today.month):
+            count = third + 1
+    return f"{today.year}.{today.month}.{count}"
+
+
+def check_next_version(version: object, released: Iterable[str], today: datetime.date) -> None:
+    """Raise ValueError unless `version` can be the plugin's next release.
+
+    It must be YEAR.MONTH.RELEASE, name no month after `today`, be greater
+    than every release, and count the releases of its month without a gap.
+    A version set in one month may still be released in a later one.
+    """
+
+    year, month, release = parse_calver(version)
+    if (year, month) > (today.year, today.month):
+        raise ValueError(
+            f"version {version} names a month after {today.year}.{today.month}, "
+            "the current month in UTC"
+        )
+    latest = max(released, key=parse_version, default=None)
+    expected = 0
+    if latest is not None:
+        first, second, third = parse_version(latest)
+        if (year, month, release) <= (first, second, third):
+            raise ValueError(f"version {version} must be greater than the latest release {latest}")
+        if (first, second) == (year, month):
+            expected = third + 1
+    if release != expected:
+        raise ValueError(
+            f"version {version} must be {year}.{month}.{expected}: the third number counts "
+            "the releases the plugin has already made in that month"
+        )
 
 
 def release_tag(plugin: str, version: str) -> str:
@@ -73,12 +134,47 @@ def released_versions(root: pathlib.Path, plugin: str) -> list[str]:
     validate_plugin_name(plugin)
     prefix = f"{plugin}--v"
     # for-each-ref is plumbing, so column.ui and tag.sort cannot reshape its output.
-    result = run_git(root, ["for-each-ref", "--format=%(refname:lstrip=2)", f"refs/tags/{prefix}*"])
+    result = run_git(
+        root, ["for-each-ref", "--format=%(refname:lstrip=2)", f"refs/tags/{prefix}*"], check=False
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"git cannot list the release tags of {plugin}: {result.stderr.strip()}")
     versions = []
     for tag in result.stdout.splitlines():
         version = tag[len(prefix):]
-        if SEMVER_RE.fullmatch(version):
+        if VERSION_RE.fullmatch(version):
             versions.append(version)
+    return sorted(versions, key=parse_version)
+
+
+def marketplace_version(root: pathlib.Path, plugin: str) -> str | None:
+    """Return the version the marketplace lists for a plugin, or None."""
+
+    try:
+        data = json.loads((root / MARKETPLACE_PATH).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    plugins = data.get("plugins") if isinstance(data, dict) else None
+    for entry in plugins if isinstance(plugins, list) else []:
+        if isinstance(entry, dict) and entry.get("name") == plugin:
+            version = entry.get("version")
+            if isinstance(version, str) and VERSION_RE.fullmatch(version):
+                return version
+            return None
+    return None
+
+
+def known_releases(root: pathlib.Path, plugin: str) -> list[str]:
+    """Return the versions this checkout knows the plugin has released, oldest first.
+
+    A release leaves a tag and then a marketplace entry. A checkout whose tags
+    were not fetched still holds the entry, so both are read.
+    """
+
+    versions = set(released_versions(root, plugin))
+    listed = marketplace_version(root, plugin)
+    if listed is not None:
+        versions.add(listed)
     return sorted(versions, key=parse_version)
 
 

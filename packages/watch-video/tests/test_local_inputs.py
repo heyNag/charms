@@ -18,8 +18,10 @@ sys.path.insert(0, str(TESTS_DIR))
 sys.path.insert(0, str(TESTS_DIR.parent / "skills" / "watch-video" / "scripts"))
 
 import network_guard  # noqa: E402
+import unittest_backports  # noqa: E402, F401
 import watch  # noqa: E402
 from groq_transcribe import TranscriptionSegments  # noqa: E402
+from run_contents import unexpected_entries  # noqa: E402
 
 
 def setUpModule() -> None:
@@ -93,7 +95,9 @@ class LocalInputTests(unittest.TestCase):
             "watch.py", str(source), "--out-dir", str(output), *flags,
         ]), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             code = watch.main()
-        return code, next(output.iterdir())
+        run = next(output.iterdir())
+        self.assertEqual(unexpected_entries(run), [])
+        return code, run
 
     def read_json(self, path):
         return json.loads(path.read_text(encoding="utf-8"))
@@ -203,6 +207,7 @@ class LocalInputTests(unittest.TestCase):
         )
         self.assertEqual(timed["text"], srt.read_text())
         metadata = self.read_json(run / "metadata.json")
+        self.assertEqual(metadata["plugin_version"], watch.plugin_version.VERSION)
         self.assertEqual(metadata["supporting_transcripts"]["count"], 2)
         self.assertEqual(metadata["transcriber"], "none")
         self.audio.assert_not_called()
@@ -314,6 +319,7 @@ class LocalInputTests(unittest.TestCase):
 
         self.assertEqual(code, 0)
         self.assertEqual(batch["engine"], "local")
+        self.assertEqual(batch["plugin_version"], watch.plugin_version.VERSION)
         self.assertEqual([entry["source"] for entry in batch["videos"]], [str(first), str(second)])
         self.assertEqual(self.probe.call_count, 2)
         actual_texts = []
