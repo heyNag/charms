@@ -50,6 +50,7 @@ class DoctorRoutingTests(unittest.TestCase):
             ("check_gemini_key", "GEMINI_API_KEY"),
             ("check_config_file", "whisper-config"),
             ("check_run_artifacts", "run-artifacts"),
+            ("check_run_privacy", "run-privacy"),
             ("check_env_local", ".env.local"),
         ):
             self.enterContext(mock.patch.object(doctor, function, return_value=ok_check(name)))

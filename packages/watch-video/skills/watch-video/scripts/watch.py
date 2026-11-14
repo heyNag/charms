@@ -67,6 +67,8 @@ REPORT_MODES = ("general", "tutorial", "ui-bug", "notes")
 DETAIL_MODES = ("transcript", "efficient", "balanced", "full")
 DEFAULT_DETAIL = "balanced"
 RUNS_DIR_ENV = "WATCH_VIDEO_RUNS_DIR"
+# Run folders hold private recordings; only the current user may open them.
+PRIVATE_DIR_MODE = 0o700
 # English-preferred by default. Requesting every language ("all") fans out to
 # 100+ auto-translated tracks and gets the whole download rate-limited by the
 # source site; use --sub-langs for non-English videos instead.
@@ -115,16 +117,30 @@ def safe_run_id(source: str) -> str:
 
 
 def create_run_dir(base_dir: str | Path, source: str) -> Path:
-    """Create a predictable run directory without overwriting prior runs."""
+    """Create a private, predictable run directory without overwriting prior runs.
+
+    A run folder holds downloaded media, transcripts and frames, so it is
+    created for the current user only. A run root that has to be created here
+    is private too. A folder that already exists keeps its permissions: the
+    user may have pointed --out-dir at a place they share on purpose.
+    """
     base = Path(base_dir).expanduser().resolve()
-    run_id = safe_run_id(source)
-    for suffix in ["", *[f"-{index:02d}" for index in range(1, 100)]]:
-        candidate = base / f"{run_id}{suffix}"
-        try:
-            candidate.mkdir(parents=True, exist_ok=False)
-            return candidate
-        except FileExistsError:
-            continue
+    try:
+        if not base.exists():
+            base.parent.mkdir(parents=True, exist_ok=True)
+            base.mkdir(mode=PRIVATE_DIR_MODE, exist_ok=True)
+        run_id = safe_run_id(source)
+        for suffix in ["", *[f"-{index:02d}" for index in range(1, 100)]]:
+            candidate = base / f"{run_id}{suffix}"
+            try:
+                candidate.mkdir(mode=PRIVATE_DIR_MODE)
+                return candidate
+            except FileExistsError:
+                continue
+    except OSError as exc:
+        raise RuntimeError(
+            f"could not create a run directory under {base}: {exc.strerror or exc}"
+        ) from exc
     raise RuntimeError(f"could not create a unique run directory under {base}")
 
 
@@ -1117,7 +1133,10 @@ def run_directory(args, requested_start, requested_end, requested_duration, cue_
     if not videos:
         detail = "; ".join(warnings)
         raise SystemExit(f"No supported local videos found under {root}" + (f": {detail}" if detail else ""))
-    batch_dir = create_run_dir(args.out_dir, str(root))
+    try:
+        batch_dir = create_run_dir(args.out_dir, str(root))
+    except RuntimeError as exc:
+        raise SystemExit(str(exc)) from exc
     batch = {"schema_version": 1, "engine": "local", "source": str(root), "videos": [], "warnings": warnings}
     failed = bool(warnings)
     for video in videos:

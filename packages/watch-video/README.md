@@ -319,6 +319,12 @@ Runs live outside the plugin under `WATCH_VIDEO_RUNS_DIR`, otherwise
 `$XDG_STATE_HOME/watch-video/runs/` or `~/.local/state/watch-video/runs/`.
 `--out-dir` overrides the base directory.
 
+Each run folder is created for the current user only (mode 700), and so is a
+run root the script has to create. A folder that already exists keeps its
+permissions. Doctor's `run-privacy` check reports run folders from older
+versions that other accounts on the computer can still open, with the `chmod`
+command that closes them.
+
 Local model runs additionally save `local_analysis.json`, `local_analysis.md`,
 and per-batch analysis under `local_analysis/`. Native captions are retained
 separately in `native_captions.json` when original audio is transcribed locally;

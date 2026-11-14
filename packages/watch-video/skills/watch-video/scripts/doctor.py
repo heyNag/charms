@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import platform
+import shlex
 import shutil
 import subprocess
 import sys
@@ -31,7 +32,7 @@ ENV_LOCAL = ".env" + ".local"
 # Key checks are advisory: watch-video still works caption/frames-only.
 ADVISORY_CHECKS = {
     "GROQ_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "whisper-config", "run-artifacts",
-    "WATCH_VIDEO_LOCAL_API_KEY", "local-models",
+    "run-privacy", "WATCH_VIDEO_LOCAL_API_KEY", "local-models",
 }
 RUN_ARTIFACTS_WARN_BYTES = 500 * 1024 * 1024
 LOCAL_BINARIES = ("yt-dlp", "ffmpeg", "ffprobe")
@@ -321,6 +322,40 @@ def check_run_artifacts(run_root: Path | None = None) -> dict[str, object]:
     }
 
 
+def check_run_privacy(run_root: Path | None = None) -> dict[str, object]:
+    """Advisory: run folders made by older versions can be open to other accounts.
+
+    New run folders are created for the current user only. This looks at the
+    run root and the folders directly inside it, and never changes a mode.
+    """
+    root = (run_root or default_run_root()).expanduser()
+    check: dict[str, object] = {"name": "run-privacy", "ok": True, "exposed": 0}
+    if os.name != "posix" or not root.is_dir():
+        check["message"] = "no local run artifacts found"
+        return check
+    try:
+        if root.stat().st_mode & 0o077 == 0:
+            check["message"] = "run folders are private to this account"
+            return check
+        exposed = sum(
+            1 for entry in root.iterdir()
+            if entry.is_dir() and not entry.is_symlink() and entry.stat().st_mode & 0o077
+        )
+    except OSError:
+        check["message"] = f"could not inspect {root}"
+        return check
+    if not exposed:
+        check["message"] = "run folders are private to this account"
+        return check
+    check.update(
+        ok=False,
+        exposed=exposed,
+        message=f"{exposed} run folder(s) under {root} can be opened by other accounts on this computer",
+        fix=f"chmod -R go-rwx {shlex.quote(str(root))}",
+    )
+    return check
+
+
 def find_repo_root(start: Path | None = None) -> Path | None:
     current = (start or Path.cwd()).resolve()
     for candidate in [current, *current.parents]:
@@ -394,6 +429,7 @@ def collect_status(
         *check_local_runtime(transcriber, analyzer),
         check_config_file(),
         check_run_artifacts(),
+        check_run_privacy(),
         check_env_local(),
     ]
     required_ok = all(

@@ -145,6 +145,12 @@ must not enter source control or release archives. Local cleanup removes the
 requested media/images while keeping reports and transcripts; delete the run
 directory to remove all local artifacts.
 
+Run folders are created with mode 700, so other accounts on the same computer
+cannot read a recording, its transcript, or its frames. A run root the script
+creates is private as well. Folders that already exist are never changed;
+doctor's advisory `run-privacy` check lists run folders that are still open to
+other accounts and prints the `chmod` command for them.
+
 ### x-bookmarks
 
 Browser cookies and OAuth tokens stay in user-local state. The skill requests

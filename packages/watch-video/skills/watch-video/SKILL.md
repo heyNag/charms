@@ -420,7 +420,8 @@ that limits the answer.
 
 Run artifacts live outside the plugin under `WATCH_VIDEO_RUNS_DIR`, otherwise
 `$XDG_STATE_HOME/watch-video/runs/` or `~/.local/state/watch-video/runs/`.
-`--out-dir` overrides the base. Keep media while follow-ups need it.
+`--out-dir` overrides the base. New run folders are private to the current
+user (mode 700). Keep media while follow-ups need it.
 `--cleanup` removes downloaded media and generated audio/chunks;
 `--cleanup-frames` additionally removes images. Reports, transcripts, and the
 local evidence manifest remain, with availability updated. Delete the run
