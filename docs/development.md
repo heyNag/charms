@@ -13,12 +13,20 @@ The plugins themselves support Python 3.9, so code under `packages/` stays
 within Python 3.9's syntax and standard library. See
 [Python versions](#python-versions).
 
-`requirements-dev.txt` pins the three development tools and every package they
+`requirements-dev.txt` pins the development tools (Ruff, ShellCheck,
+coverage.py, jsonschema and the Agent Skills validator) and every package they
 pull in. CI installs them with `make dev-deps`, which installs those lines and
 nothing else, then runs `pip check`: a tool that starts to need a package the
 file does not list fails the run, so add the package to the file. Dependabot
 opens at most one pull request a month for these pins and one for the actions
 pinned in the workflows; see `.github/dependabot.yml`.
+
+`make check` runs the tests, the Python and shell syntax checks, Ruff,
+ShellCheck on the shell scripts, a check that the links between the documents
+resolve, plugin validation, and a whitespace check. Links to other sites are
+not followed. `make coverage` runs the tests once more under coverage.py,
+child processes included, and prints how much of each script they reach. It
+fails when the total is below the floor in `pyproject.toml`.
 
 Validation uses a vendored copy of the immutable Agent Plugins v1 manifest
 schema and the official Agent Skills reference validator.
@@ -180,7 +188,8 @@ workflow reuses CI on the commit being released, and starts it once more on
 
 - the Ubuntu job runs `make ci` on Python 3.11 and on the newest Python
   release, with the FFmpeg that its runner image packages, and requires the
-  checks to leave the working tree clean;
+  checks to leave the working tree clean. On Python 3.11 it also runs
+  `make coverage`;
 - the Python floor job runs `make test-plugins` on Python 3.9 with nothing
   installed from `requirements-dev.txt`. Its older runner image packages an
   FFmpeg that accepts both `-fps_mode` and `-vsync`. The job asserts that,

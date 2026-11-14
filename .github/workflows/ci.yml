@@ -49,6 +49,12 @@ jobs:
       - name: Test, lint, and validate plugins
         run: make ci
 
+      # The tests run once more, under coverage.py. One Python version is
+      # enough to show the total falling below the floor in pyproject.toml.
+      - name: Measure test coverage
+        if: matrix.python == '3.11'
+        run: make coverage
+
       - name: Require checks to leave the tree clean
         run: |
           changed="$(git status --porcelain)"

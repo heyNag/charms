@@ -66,9 +66,11 @@ make check
 ```
 
 `make check` runs conformance and marketplace validation, offline behavior
-tests, Python and shell syntax checks, linting, secret and artifact checks, and
-a working-tree whitespace check. Marketplace validation needs the release tags,
-so run `git fetch --tags` first if your clone lacks them.
+tests, Python and shell syntax checks, Ruff and ShellCheck, a check of the
+links between the documents, secret and artifact checks, and a working-tree
+whitespace check. Marketplace validation needs the release tags, so run
+`git fetch --tags` first if your clone lacks them. `make coverage` reports
+test coverage.
 
 Changes reach `main` through pull requests that are merged once CI is green,
 because skill-only installs follow `main`. See

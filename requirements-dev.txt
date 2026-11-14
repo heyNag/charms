@@ -1,13 +1,15 @@
-# The tools that `make check` needs, and every package they pull in, so that an
-# install brings the same versions until a commit changes this file. Install
-# them with `make dev-deps`: it installs these lines and nothing else, and
-# fails when a package here needs one that is not listed.
+# The tools that `make check` and `make coverage` need, and every package they
+# pull in, so that an install brings the same versions until a commit changes
+# this file. Install them with `make dev-deps`: it installs these lines and
+# nothing else, and fails when a package here needs one that is not listed.
 
+coverage==7.17.3
 jsonschema==4.26.0
 ruff==0.16.2
+shellcheck-py==0.11.0.1
 skills-ref==0.1.1
 
-# What the three tools depend on.
+# What the tools depend on. coverage, ruff and shellcheck-py need nothing.
 attrs==26.1.0  # jsonschema, referencing
 click==8.5.1  # skills-ref
 jsonschema-specifications==2025.9.1  # jsonschema

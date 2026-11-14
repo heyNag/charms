@@ -85,9 +85,12 @@ dist/
 *.py[cod]
 *.egg-info/
 *.zip
+.coverage
+.coverage.*
 build/
 coverage/
 generated/
+htmlcov/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
