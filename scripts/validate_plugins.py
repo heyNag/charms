@@ -69,6 +69,12 @@ DISALLOWED_PACKAGE_SURFACES = (".claude-plugin", "commands", "tool.json")
 MARKETPLACE_KEYS = {"name", "owner", "metadata", "plugins"}
 MARKETPLACE_ENTRY_KEYS = {"name", "description", "version", "source"}
 # A row of the root README's plugin table: | `name` | description | ...
+# The Agent Skills specification recommends that the instructions loaded with a
+# skill stay under 500 lines and about 5,000 tokens, with the detail in files
+# beside SKILL.md. Characters stand in for tokens here, at four to a token.
+SKILL_MAX_LINES = 500
+SKILL_MAX_BODY_CHARACTERS = 20_000
+SKILL_FRONTMATTER_RE = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
 README_PLUGIN_ROW_RE = re.compile(
     r"^\|\s*`(?P<name>[^`]+)`\s*\|\s*(?P<description>(?:\\\||[^|])*?)\s*\|"
 )
@@ -439,6 +445,31 @@ def _validate_manifest_quality(manifest: dict[str, Any], manifest_path: Path, ro
     return errors
 
 
+def _validate_skill_size(skill_file: Path, report_root: Path) -> list[str]:
+    """Hold SKILL.md to the size the Agent Skills specification recommends."""
+    try:
+        text = skill_file.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        return [f"{_display(skill_file, report_root)}: cannot read SKILL.md: {exc}"]
+
+    errors: list[str] = []
+    advice = "move detail into files under references/"
+    lines = len(text.splitlines())
+    if lines > SKILL_MAX_LINES:
+        errors.append(
+            f"{_display(skill_file, report_root)}: {lines} lines, over the limit of "
+            f"{SKILL_MAX_LINES}; {advice}"
+        )
+    frontmatter = SKILL_FRONTMATTER_RE.match(text)
+    body = text[frontmatter.end():] if frontmatter else text
+    if len(body) > SKILL_MAX_BODY_CHARACTERS:
+        errors.append(
+            f"{_display(skill_file, report_root)}: the instructions are {len(body)} characters, "
+            f"over the limit of {SKILL_MAX_BODY_CHARACTERS} (about 5,000 tokens); {advice}"
+        )
+    return errors
+
+
 def _validate_skill(plugin_root: Path, plugin_name: str, report_root: Path) -> list[str]:
     from skills_ref import validate as validate_skill
 
@@ -506,6 +537,7 @@ def _validate_skill(plugin_root: Path, plugin_name: str, report_root: Path) -> l
 
     for problem in validate_skill(skill_path):
         errors.append(f"{_display(skill_path, report_root)}: {problem}")
+    errors.extend(_validate_skill_size(skill_file, report_root))
 
     nested_skill_files = []
     for current, _directories, files in _walk_without_following_symlinks(skills_path):

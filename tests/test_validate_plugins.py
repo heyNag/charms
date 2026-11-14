@@ -300,6 +300,48 @@ class ValidatePluginsTests(unittest.TestCase):
         errors = self.plugin_errors()
         self.assertTrue(any("Unexpected fields in frontmatter: user-invocable" in error for error in errors))
 
+    def test_skill_instructions_must_stay_within_the_recommended_size(self) -> None:
+        skill_file = self.plugin / "skills" / "demo-plugin" / "SKILL.md"
+        frontmatter = (
+            "---\nname: demo-plugin\n"
+            "description: Use when the user needs demo-plugin for a test.\n---\n"
+        )
+
+        # The frontmatter is not counted as instructions, and the limits themselves pass.
+        at_the_limit = "x" * self.module.SKILL_MAX_BODY_CHARACTERS
+        skill_file.write_text(frontmatter + at_the_limit, encoding="utf-8")
+        self.assertEqual(self.plugin_errors(), [])
+        skill_file.write_text(
+            frontmatter + "\n" * (self.module.SKILL_MAX_LINES - 4), encoding="utf-8"
+        )
+        self.assertEqual(self.plugin_errors(), [])
+
+        skill_file.write_text(frontmatter + at_the_limit + "x", encoding="utf-8")
+        self.assertEqual(
+            self.plugin_errors(),
+            [
+                "packages/demo-plugin/skills/demo-plugin/SKILL.md: the instructions are 20001 "
+                "characters, over the limit of 20000 (about 5,000 tokens); "
+                "move detail into files under references/"
+            ],
+        )
+
+        skill_file.write_text(
+            frontmatter + "\n" * (self.module.SKILL_MAX_LINES - 3), encoding="utf-8"
+        )
+        self.assertEqual(
+            self.plugin_errors(),
+            [
+                "packages/demo-plugin/skills/demo-plugin/SKILL.md: 501 lines, over the limit of "
+                "500; move detail into files under references/"
+            ],
+        )
+
+    def test_the_plugins_in_this_repository_keep_their_instructions_short(self) -> None:
+        for skill_file in sorted(ROOT.glob("packages/*/skills/*/SKILL.md")):
+            with self.subTest(skill=skill_file.parent.name):
+                self.assertEqual(self.module._validate_skill_size(skill_file, ROOT), [])
+
     def test_skills_directory_cannot_escape_plugin_root(self) -> None:
         outside = self.root / "outside-skills"
         outside_skill = outside / "demo-plugin"

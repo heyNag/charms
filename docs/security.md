@@ -85,17 +85,15 @@ use configured local models directly without a cloud-route question, and
 speech-only requests may use suitable existing transcripts directly. Configuration
 can be established from context or presence checks; no secret retrieval is
 needed just to present a route choice.
-Explicit user choices and privacy constraints take priority. Private, local,
-unlisted, login-required, and meeting recordings stay local: use configured
-local ASR and vision models for original audio and frames, or `--transcriber
-none` for supplied captions and extracted evidence. Hosted transcription
-requires approval. Every local file requires consent for the source and
-provider before its video or audio is uploaded. Existing authorization for
-that upload does not need repeated approval; a configured key or approval for
-another source does not authorize it. The CLI defaults to no hosted
-transcription for every source, fresh URLs included, even when API keys are
-present. For sources with uncertain privacy, use `--transcriber local` when
-configured; select Groq or OpenAI only when hosted ASR is already authorized.
+
+Nothing is uploaded without the user's consent for that source and provider.
+That rule is written once, in the skill's
+[Uploads need consent](../packages/watch-video/skills/watch-video/SKILL.md#uploads-need-consent)
+section, which the agent follows: it says what uploads, what counts as
+consent, and what to do without it. The code keeps its side of the rule
+whatever the agent does. The CLI defaults to no hosted transcription for every
+source, fresh URLs included, even when API keys are present, and Gemini runs
+only with `--engine gemini`.
 
 The local engine downloads through `yt-dlp --ignore-config` and
 extracts evidence locally. Every yt-dlp, FFmpeg, and ffprobe call has a time

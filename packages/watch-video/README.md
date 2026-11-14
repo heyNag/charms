@@ -32,17 +32,17 @@ Honor explicit user choices and privacy constraints before these defaults:
 | Other or unclear sources | Local unless the user chooses an authorized cloud route; no automatic hosted audio upload |
 
 Use session context or presence-only checks to determine whether the two routes
-are configured. Do not retrieve secrets simply to present the choice, and do
-not treat a configured key as cloud-upload authorization. An explicit route
-request takes precedence; the script remains noninteractive and defaults to
-local. A route already chosen for this video is not asked again.
+are configured. Do not retrieve secrets simply to present the choice. An
+explicit route request takes precedence; the script remains noninteractive and
+defaults to local. A route already chosen for this video is not asked again.
 
-Every local file defaults to local evidence without cloud uploads. Obtain the
-user's consent for the source and provider before sending its video to Gemini
-or audio to Groq/OpenAI. A configured key or approval for another video is not
-permission to upload this one.
-An already authorized cloud choice needs no repeated approval. The agent can
-verify Gemini findings with targeted local frames. If Gemini was selected only because it was the available configured route and
+Nothing is uploaded without the user's consent for that source and provider,
+and a configured key is not consent. The rule is written once, in the skill's
+[Uploads need consent](skills/watch-video/SKILL.md#uploads-need-consent)
+section, which the agent follows.
+
+The agent can verify Gemini findings with targeted local frames. If Gemini was
+selected only because it was the available configured route and
 fails, the agent may use local evidence with disclosure after at most one
 transient-error retry. When the user chose Gemini, ask before changing routes
 unless fallback was already authorized. An explicit Gemini-only request must

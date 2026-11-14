@@ -62,6 +62,11 @@ The description states both what the skill does and when it should activate.
 Runtime requirements belong in `compatibility`, while detailed operating
 rules belong in the Markdown body.
 
+An agent loads the whole body when the skill activates, so the body holds what
+every run needs and links to files under `references/` for the rest. Validation
+keeps `SKILL.md` to 500 lines and its body to 20,000 characters, about 5,000
+tokens, which is the size the Agent Skills specification recommends.
+
 Agents use their host's normal permission and approval model for every
 operation.
 

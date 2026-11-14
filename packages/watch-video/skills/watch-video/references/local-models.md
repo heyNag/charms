@@ -17,7 +17,8 @@ first. Marketplace installs use the published release; skill-only channels
 follow `main`. Use one channel per host. Run the commands below from the
 installed skill directory containing `SKILL.md` and `scripts/`: this is
 `skills/watch-video` inside a plugin, or the standalone skill directory. Use
-the host's installed skill path rather than a separate checkout or copied scripts.
+the host's installed skill path rather than a separate checkout or copied scripts;
+the user should not have to find a plugin cache or clone this repository.
 
 The user can simply ask **“Set up watch-video on this Mac.”** Start by locating
 the installed skill and running its read-only hardware/prerequisite check:
@@ -34,6 +35,8 @@ OS needs clarification or another compatible runtime, not a guessed installer.
 Python 3.9+ and FFmpeg/ffprobe are required for the local flow; yt-dlp is optional
 until a source needs downloading. The credential environment and local.env are
 checked for presence only. The checker does not read the file or resolve secrets.
+If Python 3 is unavailable, guide installation of Python 3.9+ first, then run
+the preflight.
 
 Briefly report what was detected and the next missing step. Reuse existing
 choices; ask only for information that cannot be detected or is genuinely a
@@ -87,7 +90,8 @@ The setup helper installs these repositories through oMLX's model downloader:
 For authentication, guide the user to create or set an API key in oMLX's app.
 The client must use the same key; a client configuration file does not set the
 server's key. Reuse an existing method if the user already chose one. A secret
-manager is optional, not a prerequisite.
+manager is optional, not a prerequisite: do not assume 1Password or enumerate
+a vault.
 
 The default onboarding creates a protected local template outside the plugin:
 
@@ -305,7 +309,8 @@ it does not repeat audio extraction, ASR, or frame extraction. Review the new
 original `watch.py` metadata/report is not rewritten by this standalone command.
 Inspect recorded coverage, gaps, and truncation; a synthesis cannot recover
 evidence omitted or unreadable in earlier stages. Sampled frames do not prove
-that every transition or brief event was observed.
+that every transition or brief event was observed, and a missing object in one
+batch does not establish its absence from the whole video.
 `status: complete` means processing completed; `quality.status` remains
 `requires_source_review`. Verify consequential conclusions against the frame
 observations and underlying media. Recorded `asr_gaps` describe transcription

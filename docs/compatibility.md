@@ -48,16 +48,13 @@ without an explicit route ask the user to choose once per video or batch. The
 choice is preserved for follow-ups; exact visual work recommends local. Local
 file/folder paths use configured local models directly, without a cloud-route
 question. Speech-only tasks can use local transcript detail with existing
-captions directly. Explicit choices and privacy constraints take priority. Private/local,
-unlisted, login-required, and meeting recordings stay local. Use configured
-local ASR/VLM for original audio and frames, or `--transcriber none` with provided
-captions. Hosted transcription requires approval. Other or unclear sources use local unless Gemini is requested;
-for uncertain privacy, use `--transcriber local` when configured, otherwise
-`--transcriber none` unless hosted ASR is approved.
-The CLI also defaults to no hosted transcription for every source, fresh URLs
-included. Cloud use requires the user's consent for that source and provider;
-a configured API key is not consent. Groq or OpenAI transcription runs only
-with an explicit `--transcriber groq` or `--transcriber openai`.
+captions directly. Explicit choices and privacy constraints take priority.
+Whether anything may be uploaded is decided by one rule, the skill's
+[Uploads need consent](../packages/watch-video/skills/watch-video/SKILL.md#uploads-need-consent)
+section: cloud use needs the user's consent for that source and provider.
+The CLI defaults to no hosted transcription for every source, fresh URLs
+included: Groq or OpenAI transcription runs only with an explicit
+`--transcriber groq` or `--transcriber openai`.
 `--analyzer local` defaults an omitted transcriber to local;
 an explicit `--transcriber none` is respected. Local model failures never
 select a hosted fallback. These clients use loopback endpoints only, with
