@@ -174,7 +174,9 @@ python3 scripts/watch.py ./sample.mp4 --engine local --transcriber local --analy
 
 Check `local_analysis.json` for complete coverage and review the underlying
 evidence. A successful setup check verifies configuration, not transcription or
-visual accuracy. Stop a task-owned server afterward with the app or
+visual accuracy. From a checkout of the repository, `make omlx-test` runs the
+same read-only check against the running server and fails when the helper no
+longer understands oMLX's answers. Stop a task-owned server afterward with the app or
 `~/.omlx/bin/omlx stop`; leave a shared server alone.
 
 ## Linux

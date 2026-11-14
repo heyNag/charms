@@ -1,5 +1,5 @@
 .PHONY: dev-deps test test-tooling test-plugins syntax lint shellcheck links validate whitespace \
-	check coverage ci doctor groq-test
+	check coverage ci doctor groq-test omlx-test
 
 AUDIO ?=
 PYTHON ?= python3
@@ -87,3 +87,9 @@ groq-test:
 		exit 2; \
 	fi
 	./scripts/test-groq.sh "$(AUDIO)"
+
+# Ask a running oMLX server what the setup helper asks it. Read-only, and not
+# part of `make check`: the other tests use a stand-in for oMLX's admin API.
+omlx-test:
+	WATCH_VIDEO_LIVE_OMLX=1 PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m unittest discover \
+		-s packages/watch-video/tests -p 'test_live_omlx.py' -v

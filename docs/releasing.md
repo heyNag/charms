@@ -45,6 +45,27 @@ Commit the bump on a branch, run `make check`, and merge its pull request once
 CI is green, as for any other change. The marketplace does not change until
 the release runs.
 
+## Record what the release was tested with
+
+CI tries each change with the Python and FFmpeg versions it installs. The
+other tools are only tried by hand, so before a release, try the plugin once
+with the real ones and write their versions into the
+[Last tested with](compatibility.md#last-tested-with) table, in the same pull
+request as the version bump:
+
+```sh
+yt-dlp --version
+ffmpeg -version | sed -n '1p'
+deno --version | sed -n '1p'
+bird --version
+make omlx-test        # watch-video, on a Mac with oMLX running
+```
+
+`make omlx-test` puts the read-only questions of `setup_local.py --check` to
+the running oMLX server and fails when the helper no longer understands the
+answers. It changes nothing in oMLX. The oMLX and Splash versions are in the
+app's About window and in `splash --version`.
+
 ## Run a release
 
 Dispatch the `Release Plugin` workflow from `main` with one input, the plugin

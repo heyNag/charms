@@ -31,6 +31,11 @@ fails when the total is below the floor in `pyproject.toml`.
 Validation uses a vendored copy of the immutable Agent Plugins v1 manifest
 schema and the official Agent Skills reference validator.
 
+Two checks need something real and are not part of `make check`:
+`make groq-test AUDIO=path/to/audio.mp3` sends one audio file to Groq with
+your `GROQ_API_KEY`, and `make omlx-test` asks a running oMLX server the
+read-only questions of the local setup helper.
+
 `make check` also validates `.claude-plugin/marketplace.json` against the
 release tags, so it needs them locally. Fetch them if your clone lacks them:
 

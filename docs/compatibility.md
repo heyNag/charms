@@ -98,6 +98,28 @@ an agent needs image-reading capability to inspect local frames. Optional local
 model analysis adds `local_analysis.json`, `local_analysis.md`, and persisted
 batch results. The host must retain their provenance, uncertainty, and gaps.
 
+## Last tested with
+
+A newer version of a tool usually works. This table records the versions a
+release was last tried with, so that it is the first place to look when one
+does not. Update the rows when a plugin is released; the
+[release steps](releasing.md#record-what-the-release-was-tested-with) list the
+commands.
+
+| Tool | Version | How it is tried | Recorded |
+| --- | --- | --- | --- |
+| Python | 3.9, 3.11 and 3.15, and the `python3` of Apple's Command Line Tools | CI, on every change | 2026-11-14 |
+| FFmpeg | 6.1.1 on the Ubuntu 24.04 runner, which still accepts `-vsync`; the build of the latest Ubuntu runner; and the current Homebrew build, which has dropped `-vsync` | CI, on every change. Each run prints the version it used | 2026-11-14 |
+| yt-dlp, and Deno for it | Not recorded yet | A real URL run by hand: `doctor.py "<url>"`, then `watch.py "<url>" --detail transcript` | |
+| oMLX and Splash | Not recorded yet. Splash must be 1.3.0 or later | `make omlx-test` against the running server, then a short `--transcriber local --analyzer local` run | |
+| Bird | 0.8.0, read as source when the incremental fetch was written. No live run is recorded yet | `bird check --plain`, then a small fetch with each helper | 2026-11-14 |
+| X API v2 | Not recorded yet | `x_api_auth.py --status`, then a small fetch | |
+| Claude Code | 2.1.307 | A marketplace install | |
+| Codex CLI | 0.147.0 | A marketplace install | |
+
+"Not recorded yet" means that nobody wrote the version down, not that the
+tool fails.
+
 ## Capability handling
 
 A skill may describe an operation that its current host cannot perform. The
