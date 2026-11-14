@@ -33,11 +33,13 @@ filesystem access, or approval interface.
 
 | Plugin | Required environment |
 | --- | --- |
-| `watch-video` | macOS or Linux, Python 3.11+. Local files need `ffmpeg` and `ffprobe` for local extraction; local URL runs also need `yt-dlp`, which needs a JavaScript runtime such as Deno for YouTube. Gemini needs network access and environment-supplied `GEMINI_API_KEY`, with no local binaries for supported YouTube URLs or local files; other URLs need the downloader toolkit. Remote media and hosted transcription need network access. Optional local ASR/VLM needs a separately configured loopback OpenAI-compatible server. |
-| `x-bookmarks` | Python 3.11+ and either Bird with browser-cookie access or X API v2 OAuth credentials. Live retrieval requires network access. |
+| `watch-video` | macOS or Linux, Python 3.9+. Local files need `ffmpeg` and `ffprobe` for local extraction; local URL runs also need `yt-dlp`, which needs a JavaScript runtime such as Deno for YouTube. Gemini needs network access and environment-supplied `GEMINI_API_KEY`, with no local binaries for supported YouTube URLs or local files; other URLs need the downloader toolkit. Remote media and hosted transcription need network access. Optional local ASR/VLM needs a separately configured loopback OpenAI-compatible server. |
+| `x-bookmarks` | Python 3.9+ and either Bird with browser-cookie access or X API v2 OAuth credentials. Live retrieval requires network access. |
 
 These requirements are also declared in each skill's `compatibility`
-frontmatter and explained in its package README.
+frontmatter and explained in its package README. Each plugin's scripts check
+the Python version before anything else and stop with one line on an older
+`python3`.
 
 `watch-video` uses only Python's standard library for provider adapters. The CLI
 defaults to local; the skill passes an explicit engine based on the task.

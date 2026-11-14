@@ -217,11 +217,15 @@ class PreflightTests(unittest.TestCase):
         self.assertIn("loopback", output.getvalue())
 
     def test_python_version_is_checked_without_changing_interpreter(self):
-        with host(), mock.patch.object(preflight.sys, "version_info", (3, 10, 16)):
+        with host(), mock.patch.object(preflight.sys, "version_info", (3, 8, 20)):
             result = preflight.preflight()
         self.assertEqual(result["status"], "needs_setup")
-        self.assertEqual(result["python"], {"version": "3.10.16", "ok": False})
-        self.assertEqual(result["next_steps"][0]["id"], "python")
+        self.assertEqual(result["python"], {"version": "3.8.20", "ok": False})
+        self.assertIn("Python 3.9 or newer is required.", result["blockers"])
+        self.assertEqual(result["next_steps"][0], {
+            "id": "python", "instruction": "Install Python 3.9 or newer, then rerun preflight."})
+        with host(), mock.patch.object(preflight.sys, "version_info", (3, 9, 6)):
+            self.assertEqual(preflight.preflight()["python"], {"version": "3.9.6", "ok": True})
 
     def test_unsupported_host_does_not_propose_app_or_model_installs(self):
         with host(system="Linux"), contextlib.redirect_stdout(io.StringIO()) as output:

@@ -19,6 +19,7 @@ sys.path.insert(0, str(TESTS.parent / "skills" / "watch-video" / "scripts"))
 import local_analyze  # noqa: E402
 import local_api  # noqa: E402
 import network_guard  # noqa: E402
+import unittest_backports  # noqa: E402, F401
 import watch  # noqa: E402
 
 

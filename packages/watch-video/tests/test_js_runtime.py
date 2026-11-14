@@ -21,6 +21,7 @@ sys.path.insert(0, str(TESTS_DIR))
 import doctor  # noqa: E402
 import network_guard  # noqa: E402
 import timed_process  # noqa: E402
+import unittest_backports  # noqa: E402, F401
 import watch  # noqa: E402
 
 

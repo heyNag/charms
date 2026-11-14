@@ -54,8 +54,9 @@ when speech suffices or balanced when visuals matter.
 
 ## Requirements and credentials
 
-Supported platforms: macOS and Linux, Python 3.11+. Binary requirements depend
-on the selected source and engine:
+Supported platforms: macOS and Linux, Python 3.9+. Every script checks the
+Python version first and stops with one line on an older `python3`. Binary
+requirements depend on the selected source and engine:
 
 | Engine and source | Local binaries |
 | --- | --- |

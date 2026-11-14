@@ -96,7 +96,8 @@ class LocalClientTests(unittest.TestCase):
                 self.assertEqual(caught.exception.http_status, status)
                 self.assertTrue(caught.exception.stop_remaining_chunks)
         with self.assertRaises(HTTPError) as caught:
-            api._RefuseRedirects().redirect_request(mock.Mock(full_url=client.base_url), None, 307, "", {}, "http://example.com")
+            api._RefuseRedirects().redirect_request(
+                mock.Mock(full_url=client.base_url), io.BytesIO(), 307, "", {}, "http://example.com")
         caught.exception.close()
 
     def test_successful_response_echo_is_redacted(self):

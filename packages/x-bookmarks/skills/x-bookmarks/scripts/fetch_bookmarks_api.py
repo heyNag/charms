@@ -15,6 +15,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: F401
 from x_api_auth import AuthError, get_valid_token, open_request
 
 BASE_URL = "https://api.x.com/2"

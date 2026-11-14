@@ -18,6 +18,8 @@ from urllib.parse import urlsplit
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: E402
 from groq_transcribe import (  # noqa: E402
     KEY_NAMES,
     config_env_path,
@@ -35,7 +37,6 @@ from watch import (  # noqa: E402
 )
 
 
-MIN_PYTHON = (3, 11)
 ENV_LOCAL = ".env" + ".local"
 # Key checks are advisory: watch-video still works caption/frames-only.
 ADVISORY_CHECKS = {
@@ -129,14 +130,15 @@ def check_platform(system: str | None = None) -> dict[str, object]:
 
 
 def check_python_version(version_info: tuple[int, int, int] | None = None) -> dict[str, object]:
-    version = version_info or (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)
-    ok = (version[0], version[1]) >= MIN_PYTHON
+    version = tuple((version_info or sys.version_info)[:3])
+    floor = python_floor.version_text()
+    ok = python_floor.problem(version) is None
     return {
         "name": "python",
         "ok": ok,
-        "version": ".".join(str(part) for part in version),
-        "message": "ok" if ok else f"Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]}+ required",
-        "fix": "Use Python 3.11 or newer.",
+        "version": python_floor.version_text(version),
+        "message": "ok" if ok else f"Python {floor}+ required",
+        "fix": f"Use Python {floor} or newer.",
     }
 
 

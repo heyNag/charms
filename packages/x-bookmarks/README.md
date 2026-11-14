@@ -35,6 +35,9 @@ Optional official API backend with saved local OAuth state:
 python3 skills/x-bookmarks/scripts/x_api_auth.py --status
 ```
 
+The Python helpers need Python 3.9 or newer. They check the version first and
+stop with one line on an older `python3`.
+
 The API fetch helper can instead use an existing OAuth user access token from
 `X_API_ACCESS_TOKEN` or `X_API_BEARER_TOKEN`. Do not print either variable.
 `--include-write-scope` is an option of `x_api_auth.py`, not a fetch-helper

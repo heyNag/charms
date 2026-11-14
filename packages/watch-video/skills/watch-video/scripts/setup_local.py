@@ -17,6 +17,8 @@ import math
 import time
 from pathlib import Path
 
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: F401
 from local_api import LocalAPIError, LocalClient
 from local_config import create_config_template
 from local_preflight import preflight, print_preflight

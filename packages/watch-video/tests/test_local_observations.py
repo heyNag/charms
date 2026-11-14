@@ -12,7 +12,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from jsonschema import Draft202012Validator
+try:
+    from jsonschema import Draft202012Validator
+except ImportError:  # A development dependency; the Python floor job runs without it.
+    Draft202012Validator = None
 
 TESTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TESTS))
@@ -20,6 +23,7 @@ sys.path.insert(0, str(TESTS.parent / "skills" / "watch-video" / "scripts"))
 import local_analyze  # noqa: E402
 import local_observations  # noqa: E402
 import network_guard  # noqa: E402
+import unittest_backports  # noqa: E402, F401
 
 
 def setUpModule():
@@ -144,6 +148,7 @@ class ObservationTests(unittest.TestCase):
         result = local_observations.parse_findings(json.dumps({"findings": findings}), observations, records)
         self.assertEqual([finding["text"] for finding in result], [finding["text"] for finding in findings])
 
+    @unittest.skipIf(Draft202012Validator is None, "jsonschema is not installed")
     def test_final_contract_and_parser_enforce_the_same_size_boundaries(self):
         frames = [{"frame_id": f"frame:{i}", "timestamp_seconds": i} for i in range(1, 10)]
         value = {"findings": [{"kind": "visual", "evidence_ids": [f"frame:{i}" for i in range(1, 9)],

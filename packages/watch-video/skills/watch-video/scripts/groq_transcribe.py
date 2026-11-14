@@ -18,6 +18,8 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: F401
 import timed_process
 
 

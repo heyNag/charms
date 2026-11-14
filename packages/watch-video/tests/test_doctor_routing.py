@@ -19,6 +19,7 @@ sys.path.insert(0, str(TESTS_DIR.parent / "skills" / "watch-video" / "scripts"))
 
 import doctor  # noqa: E402
 import network_guard  # noqa: E402
+import unittest_backports  # noqa: E402, F401
 
 
 YOUTUBE = "https://www.youtube.com/watch?v=qSuCPooR3E4"

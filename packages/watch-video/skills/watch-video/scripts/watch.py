@@ -21,6 +21,8 @@ from urllib.parse import urlparse
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: E402, F401
 from extract_frames import (  # noqa: E402
     DEFAULT_INTERVAL_SECONDS,
     DEFAULT_MAX_FRAMES,

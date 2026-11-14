@@ -2,7 +2,7 @@
 name: watch-video
 description: Inspect YouTube URLs, local videos or folders, screen recordings, tutorials, demos, and visible/spoken video evidence. Also guide first-time setup of watch-video and its local models.
 license: MIT
-compatibility: Python 3.11+ on macOS or Linux. Local extraction needs ffmpeg and ffprobe; downloaded URLs also need yt-dlp. Gemini needs network access and GEMINI_API_KEY, but no local binaries for supported YouTube URLs or local files. Hosted Groq/OpenAI transcription also requires network access. Local model analysis requires a separately running OpenAI-compatible loopback server, such as oMLX.
+compatibility: Python 3.9+ on macOS or Linux. Local extraction needs ffmpeg and ffprobe; downloaded URLs also need yt-dlp. Gemini needs network access and GEMINI_API_KEY, but no local binaries for supported YouTube URLs or local files. Hosted Groq/OpenAI transcription also requires network access. Local model analysis requires a separately running OpenAI-compatible loopback server, such as oMLX.
 ---
 
 # watch-video
@@ -24,7 +24,7 @@ installed skill's directory, and run:
 python3 scripts/setup_local.py --preflight --json
 ```
 
-If Python 3 is unavailable, guide installation of Python 3.11+ first, then run
+If Python 3 is unavailable, guide installation of Python 3.9+ first, then run
 the preflight. Resolve the bundled directory from the host's installed skill
 location; do not make the user find a plugin cache or clone this repository.
 

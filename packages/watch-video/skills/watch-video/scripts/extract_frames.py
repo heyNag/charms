@@ -26,6 +26,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: F401
 import timed_process
 
 

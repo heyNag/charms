@@ -54,7 +54,7 @@ Agent Skills specification:
 name: example-plugin
 description: Use when the user needs an example task completed.
 license: MIT
-compatibility: Requires Python 3.11+ and network access.
+compatibility: Requires Python 3.9+ and network access.
 ---
 ```
 

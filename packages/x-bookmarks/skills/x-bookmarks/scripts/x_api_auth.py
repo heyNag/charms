@@ -22,6 +22,9 @@ import urllib.parse
 import urllib.request
 import webbrowser
 
+# Stops here with one clear line when this Python is older than the floor.
+import python_floor  # noqa: F401
+
 AUTHORIZE_URL = "https://x.com/i/oauth2/authorize"
 TOKEN_URL = "https://api.x.com/2/oauth2/token"
 DEFAULT_REDIRECT_URI = "http://localhost:8739/callback"

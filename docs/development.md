@@ -2,12 +2,16 @@
 
 ## Setup
 
-Use Python 3.11 or newer:
+Use Python 3.11 or newer for the repository tooling:
 
 ```sh
 python3 -m pip install -r requirements-dev.txt
 make check
 ```
+
+The plugins themselves support Python 3.9, so code under `packages/` stays
+within Python 3.9's syntax and standard library. See
+[Python versions](#python-versions).
 
 The development dependencies are pinned in `requirements-dev.txt`. Validation
 uses a vendored copy of the immutable Agent Plugins v1 manifest schema and the
@@ -52,6 +56,30 @@ Then run the complete check before committing:
 make check
 ```
 
+## Python versions
+
+Each plugin states its oldest supported Python once, as `MIN_PYTHON` in
+`skills/<name>/scripts/python_floor.py`. Every script that can be run directly
+imports `python_floor` before any other module of the skill, so an older
+`python3` stops with one line instead of a traceback. A package test starts
+each script that way and fails if a new one skips the import.
+
+Three checks keep the plugins inside that floor:
+
+- Ruff treats `packages/` as Python 3.9 code and reports newer syntax as an
+  error. The rest of the repository targets Python 3.11.
+- `make test-plugins` runs only the plugin tests. They need no development
+  dependencies, so they also run on a bare Python 3.9:
+  `make test-plugins PYTHON=python3.9`. Without `jsonschema`, one schema
+  cross-check is skipped.
+- CI runs the plugin tests on Python 3.9 and the complete check on Python 3.11
+  and the newest release.
+
+To raise the floor, change `MIN_PYTHON` in each plugin, the `compatibility`
+line of each `SKILL.md`, the Ruff target in `pyproject.toml`, the Python
+version of the `python-floor` CI job, and the documented requirement in the
+package READMEs and [Compatibility](compatibility.md).
+
 ## Add a plugin
 
 Create one new immediate child directory of `packages/`. The package name must
@@ -67,6 +95,10 @@ packages/<name>/README.md
 packages/<name>/skills/<name>/SKILL.md
 packages/<name>/tests/test_basic.py
 ```
+
+A plugin with Python scripts also carries its own
+`skills/<name>/scripts/python_floor.py`; copy one from an existing plugin and
+change `PLUGIN`.
 
 Set the manifest version to `1.0.0` and keep its `$schema` fixed to the
 supported v1 identifier. The skill description must state its activation
@@ -104,9 +136,16 @@ The CI workflow runs on every push and pull request, and the release workflow
 reuses it on the commit being released:
 
 - the Ubuntu job installs Ubuntu's packaged FFmpeg, which still accepts
-  `-vsync`, and runs `make ci`;
+  `-vsync`, and runs `make ci` on Python 3.11 and on the newest Python release;
+- the Python floor job runs `make test-plugins` on Python 3.9 with nothing
+  installed from `requirements-dev.txt`;
 - the macOS job installs current Homebrew FFmpeg, asserts that it lacks
-  `-vsync` so the `-fps_mode` path is covered, and runs `make test`.
+  `-vsync` so the `-fps_mode` path is covered, and runs `make test` on the
+  newest Python release. It then runs `make test-plugins` on the `python3`
+  that Apple's Command Line Tools provide.
+
+When a new Python release reaches `actions/setup-python`, raise the newest
+version in `.github/workflows/ci.yml`.
 
 ## Review checklist
 

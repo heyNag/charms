@@ -31,7 +31,7 @@ presence, and ordered setup steps without contacting oMLX or a provider. It
 works when the app is absent or stopped. Select Splash M1 for detected M1/M2
 hardware and official Splash for M3 or later. Unknown hardware or an unsupported
 OS needs clarification or another compatible runtime, not a guessed installer.
-Python 3.11+ and FFmpeg/ffprobe are required for the local flow; yt-dlp is optional
+Python 3.9+ and FFmpeg/ffprobe are required for the local flow; yt-dlp is optional
 until a source needs downloading. The credential environment and local.env are
 checked for presence only. The checker does not read the file or resolve secrets.
 

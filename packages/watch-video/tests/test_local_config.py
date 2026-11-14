@@ -15,6 +15,7 @@ from unittest import mock
 
 
 TESTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(TESTS))
 sys.path.insert(0, str(TESTS.parent / "skills/watch-video/scripts"))
 
 import doctor  # noqa: E402
@@ -22,6 +23,7 @@ import local_analyze  # noqa: E402
 import local_api  # noqa: E402
 import local_config as config  # noqa: E402
 import local_transcribe  # noqa: E402
+import unittest_backports  # noqa: E402, F401
 import watch  # noqa: E402
 
 

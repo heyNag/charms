@@ -15,11 +15,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+import python_floor
 from local_api import DEFAULT_BASE_URL, validate_base_url
 from local_config import config_path
 
 
-MIN_PYTHON = (3, 11)
 MIN_SPLASH_MACOS = (26, 4)
 COMMAND_TIMEOUT = 3
 OMLX_RELEASES = "https://github.com/jundot/omlx/releases"
@@ -134,7 +134,8 @@ def preflight(*, base_url=None, model_dir=None):
     preferred = hardware["preferred_splash"]
     launchers = {name: _find_launcher(name, home) for name in ("splash-m1", "splash")}
     binaries = {name: shutil.which(name) for name in ("ffmpeg", "ffprobe", "yt-dlp", "brew", "op")}
-    python_ok = sys.version_info[:2] >= MIN_PYTHON
+    python_ok = python_floor.problem(sys.version_info) is None
+    python_floor_text = python_floor.version_text()
     blockers = []
     next_steps = []
     warnings = []
@@ -142,8 +143,8 @@ def preflight(*, base_url=None, model_dir=None):
         blockers.append(hardware["reason"])
         next_steps.append({"id": "hardware", "instruction": hardware["reason"]})
     if not python_ok:
-        blockers.append("Python 3.11 or newer is required.")
-        next_steps.append({"id": "python", "instruction": "Install Python 3.11 or newer, then rerun preflight."})
+        blockers.append(f"Python {python_floor_text} or newer is required.")
+        next_steps.append({"id": "python", "instruction": f"Install Python {python_floor_text} or newer, then rerun preflight."})
     missing_tools = [name for name in ("ffmpeg", "ffprobe") if not binaries[name]]
     if missing_tools:
         blockers.append("Missing local video tools: " + ", ".join(missing_tools) + ".")
