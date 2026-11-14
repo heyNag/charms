@@ -139,8 +139,9 @@ package's version is lower than its marketplace entry. See
 
 ## CI
 
-The CI workflow runs on every push and pull request, and the release workflow
-reuses it on the commit being released:
+The CI workflow runs on every push and pull request. The release workflow
+reuses it on the commit being released, and starts it once more on `main`
+after it pushes the marketplace commit:
 
 - the Ubuntu job installs Ubuntu's packaged FFmpeg, which still accepts
   `-vsync`, and runs `make ci` on Python 3.11 and on the newest Python release;

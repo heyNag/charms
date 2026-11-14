@@ -32,10 +32,11 @@ ruleset also blocks updates and deletions of `<name>--v<version>` tags; see
 
 Marketplace entries pin the release tag and the full release commit SHA, and
 Claude Code and Codex install from that SHA. The release workflow writes an
-entry only after the release is published and verified, and
-`scripts/update-marketplace.py` refuses a tag that does not point at the
-pinned commit. Skill-only installs through Skillshare or the skills CLI follow
-`main` instead and are not release content.
+entry only after the release is published and verified, and validates the
+marketplace file before pushing it. `scripts/update-marketplace.py` refuses a
+tag that does not point at the pinned commit. Skill-only installs through
+Skillshare or the skills CLI follow `main` instead and are not release
+content.
 
 Verify a release and a downloaded ZIP before extraction:
 

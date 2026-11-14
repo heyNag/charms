@@ -3,7 +3,8 @@
 
 With no arguments, validate the complete repository and require every immediate
 directory under ``packages/`` to be the only kind of plugin root. With one or
-more arguments, validate just those plugin roots.
+more arguments, validate just those plugin roots. With ``--marketplace``,
+validate only the marketplace manifest.
 """
 
 from __future__ import annotations
@@ -15,10 +16,13 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
-from jsonschema import Draft202012Validator
-from skills_ref import validate as validate_skill
+# jsonschema and skills_ref are imported where they are used. The marketplace
+# check needs neither, so the release job that pushes the marketplace commit
+# can run it without installing anything.
+if TYPE_CHECKING:
+    from jsonschema import Draft202012Validator
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -170,6 +174,8 @@ def _resolve_contained(
 
 
 def _load_schema(path: Path) -> tuple[Draft202012Validator | None, list[str]]:
+    from jsonschema import Draft202012Validator
+
     errors: list[str] = []
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -359,6 +365,8 @@ def _validate_manifest_quality(manifest: dict[str, Any], manifest_path: Path, ro
 
 
 def _validate_skill(plugin_root: Path, plugin_name: str, report_root: Path) -> list[str]:
+    from skills_ref import validate as validate_skill
+
     errors: list[str] = []
     skills_path = plugin_root / "skills"
     if not _lexists(skills_path):
@@ -667,6 +675,20 @@ def _validate_marketplace(root: Path, plugin_roots: list[Path]) -> list[str]:
     return errors
 
 
+def validate_marketplace(root: Path) -> list[str]:
+    """Validate only the marketplace manifest, with Git and the standard library alone.
+
+    The release workflow runs this on the marketplace commit before pushing
+    it. That commit changes no other file, and the job that makes it can push
+    to the repository, so it installs no development dependency.
+    """
+
+    root = root.absolute()
+    packages_path = root / "packages"
+    plugin_roots = _plugin_directories(packages_path) if packages_path.is_dir() else []
+    return sorted(dict.fromkeys(_validate_marketplace(root, plugin_roots)))
+
+
 def _plugin_directories(packages_path: Path) -> list[Path]:
     return sorted(
         (
@@ -780,7 +802,22 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Optional plugin roots. With no paths, validate the complete repository.",
     )
+    parser.add_argument(
+        "--marketplace",
+        action="store_true",
+        help="Validate only the marketplace manifest. Needs no development dependency.",
+    )
     args = parser.parse_args(argv)
+
+    if args.marketplace:
+        if args.plugin_roots:
+            parser.error("--marketplace takes no plugin roots")
+        errors = validate_marketplace(REPOSITORY_ROOT)
+        for error in errors:
+            print(f"error: {error}", file=sys.stderr)
+        if not errors:
+            print("validated the marketplace manifest")
+        return 1 if errors else 0
 
     if args.plugin_roots:
         plugin_roots, errors = validate_explicit_plugins(args.plugin_roots)

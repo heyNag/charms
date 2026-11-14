@@ -65,7 +65,7 @@ group, and the marketplace push retries when `main` moves.
 
 ## What the workflow does
 
-The workflow runs five jobs:
+The workflow runs six jobs:
 
 1. `ci` runs the full CI workflow on the exact commit, including macOS.
 2. `validate` is read-only. When the optional `RELEASE_SETTINGS_TOKEN` secret
@@ -85,8 +85,13 @@ The workflow runs five jobs:
    match the validated ZIP, and `gh release verify` and
    `gh release verify-asset` to pass.
 5. `marketplace` runs `scripts/update-marketplace.py` against the latest
-   `main` and pushes one commit that changes only
-   `.claude-plugin/marketplace.json`, retrying if `main` moved.
+   `main`, checks the result with `scripts/validate_plugins.py --marketplace`,
+   and pushes one commit that changes only `.claude-plugin/marketplace.json`,
+   retrying if `main` moved. The job installs nothing: that check needs only
+   Git and the standard library.
+6. `ci-on-main` starts a CI run on `main`. A push made with `GITHUB_TOKEN`
+   starts no workflow, so the marketplace commit would otherwise have no CI
+   result.
 
 `verify` and `marketplace` are separate jobs so that **Re-run failed jobs**
 can finish an interrupted release without publishing it again.
@@ -104,7 +109,8 @@ timestamps and modes.
 
 After the run succeeds, confirm:
 
-- all five jobs passed;
+- all six jobs passed, and so did the CI run that the last one started on
+  `main`;
 - `gh release verify <tag> --repo heyNag/charms` passes;
 - `gh release verify-asset <tag> <zip> --repo heyNag/charms` passes for the
   downloaded ZIP;
@@ -133,6 +139,10 @@ After the run succeeds, confirm:
     .claude-plugin/marketplace.json
   git push
   ```
+
+- `marketplace` refused the new entry: its log has an `error:` line from the
+  marketplace check, and nothing was pushed. Fix what the line names on
+  `main`, then use **Re-run failed jobs**.
 
 - `verify` failed because the release is not immutable: the setting was off
   when the release was published, and turning it on does not change a release

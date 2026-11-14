@@ -10,6 +10,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from release_fixtures import commit_all, git, init_repository, isolate_git, write_marketplace
 
@@ -489,6 +490,82 @@ class ValidatePluginsTests(unittest.TestCase):
             "release tag demo-plugin--v1.1.0 is not available locally; run `git fetch --tags`",
             self.repository_errors(),
         )
+
+    def test_marketplace_alone_is_checked_without_the_development_dependencies(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        # None makes the import fail, as it does where the packages are not installed.
+        with mock.patch.dict(sys.modules, {"jsonschema": None, "skills_ref": None}):
+            module = load_module()
+            self.assertEqual(module.validate_marketplace(self.root), [])
+
+            write_marketplace(self.root, [self.demo_entry(sha, description="Changed.")])
+            self.assert_error_containing(
+                "version and description must match", module.validate_marketplace(self.root)
+            )
+            with self.assertRaises(ImportError):
+                module.validate_repository(self.root)
+
+    def test_marketplace_alone_reports_what_the_repository_check_reports_for_it(self) -> None:
+        sha = self.release_demo()
+        pinned = self.demo_entry(sha)
+        for entries in (
+            [pinned],
+            [self.demo_entry(sha[:12])],
+            [self.demo_entry(sha, name="ghost-plugin")],
+            [pinned, pinned],
+            [{**pinned, "policy": {}}],
+        ):
+            with self.subTest(entries=entries):
+                path = write_marketplace(self.root, entries)
+                self.assertEqual(self.module.validate_marketplace(self.root), self.repository_errors())
+
+                path.write_text("{not json", encoding="utf-8")
+                self.assertEqual(self.module.validate_marketplace(self.root), self.repository_errors())
+
+    def test_marketplace_alone_leaves_the_plugins_to_the_repository_check(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        (self.plugin / "skills" / "demo-plugin" / "SKILL.md").write_text("no frontmatter\n", encoding="utf-8")
+
+        self.assertNotEqual(self.repository_errors(), [])
+        self.assertEqual(self.module.validate_marketplace(self.root), [])
+
+    def test_marketplace_alone_needs_the_packages_it_lists(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        shutil.rmtree(self.root / "packages")
+
+        self.assertEqual(
+            self.module.validate_marketplace(self.root),
+            [".claude-plugin/marketplace.json[plugins][0]: 'demo-plugin' is not a plugin under packages/"],
+        )
+
+    def test_cli_marketplace_option_checks_this_repository_only(self) -> None:
+        sha = self.release_demo()
+        write_marketplace(self.root, [self.demo_entry(sha)])
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with mock.patch.object(self.module, "REPOSITORY_ROOT", self.root):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = self.module.main(["--marketplace"])
+            self.assertEqual((code, stdout.getvalue(), stderr.getvalue()), (0, "validated the marketplace manifest\n", ""))
+
+            write_marketplace(self.root, [self.demo_entry(sha[:12])])
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = self.module.main(["--marketplace"])
+            self.assertEqual((code, stdout.getvalue()), (1, ""))
+            self.assertEqual(
+                stderr.getvalue(),
+                "error: .claude-plugin/marketplace.json[plugins][0]: source.sha must be the full "
+                "40-character release commit SHA\n",
+            )
+
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as refused:
+                self.module.main(["--marketplace", str(self.plugin)])
+            self.assertEqual(refused.exception.code, 2)
+            self.assertIn("--marketplace takes no plugin roots", stderr.getvalue())
 
     def test_package_version_cannot_fall_below_its_release(self) -> None:
         sha = self.release_demo()

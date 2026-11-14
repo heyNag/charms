@@ -4,6 +4,8 @@ on:
   push:
   pull_request:
   workflow_call:
+  # The release workflow starts a run on main after it pushes the marketplace commit.
+  workflow_dispatch:
 
 permissions:
   contents: read
