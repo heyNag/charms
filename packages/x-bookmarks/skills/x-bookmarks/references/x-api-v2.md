@@ -12,13 +12,19 @@
 ## Auth
 
 Use OAuth 2.0 Authorization Code Flow with PKCE. The helper's default local
-callback is:
+callback for a new setup is:
 
 ```text
-http://localhost:8739/callback
+http://127.0.0.1:8739/callback
 ```
 
-Pass `--redirect-uri` when the X Developer app uses another loopback callback.
+X's developer documentation says to use `http://127.0.0.1`, not `localhost`,
+for local development, and that a callback URL must match the app's entry
+exactly. The helper listens on 127.0.0.1 only, so a `localhost` callback also
+depends on the browser resolving that name to IPv4. A setup saved with another
+loopback callback keeps it; `x_api_auth.py --status` shows the saved URL and,
+for a `localhost` one, the command that switches it. Pass `--redirect-uri`
+when the X Developer app uses another loopback callback.
 
 Default scopes:
 
@@ -89,6 +95,7 @@ reports the reset time, when X sends a usable one, instead of waiting silently.
 
 Official docs:
 
+- https://docs.x.com/fundamentals/developer-apps
 - https://docs.x.com/fundamentals/authentication/oauth-2-0/user-access-token
 - https://docs.x.com/x-api/users/get-bookmarks
 - https://docs.x.com/x-api/users/get-bookmark-folders

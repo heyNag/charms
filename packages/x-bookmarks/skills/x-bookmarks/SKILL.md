@@ -125,14 +125,18 @@ browser auth, or no-credit backend behavior.
 
 ## X API Setup
 
-Use OAuth 2.0 Authorization Code Flow with PKCE. The default local callback is:
+Use OAuth 2.0 Authorization Code Flow with PKCE. A new setup uses this local
+callback:
 
 ```text
-http://localhost:8739/callback
+http://127.0.0.1:8739/callback
 ```
 
-Use `--redirect-uri` when the X Developer app is configured with another
-loopback callback.
+X asks for `http://127.0.0.1`, not `localhost`, in local callback URLs, and
+the URL must match the X app's entry exactly. A setup saved earlier keeps the
+callback it was created with, which may be `http://localhost:8739/callback`;
+`x_api_auth.py --status` shows it, and setup prints the one in use. Use
+`--redirect-uri` when the X Developer app lists another loopback callback.
 
 Required read scopes:
 
@@ -172,6 +176,8 @@ If local auth is missing and the user wants the official API path:
    and approve access. Setup waits up to 5 minutes for the callback, then
    exits with an error; rerun it if the user needs more time. A rerun fails
    while an earlier run still holds the callback port, so stop that run first.
+   If X shows "Callback URL not approved", the app does not list the callback
+   URL that setup printed: add it, or pass `--redirect-uri` with one it lists.
 8. Run `python3 scripts/x_api_auth.py --status`, then a small test fetch.
 
 For endpoint, scope, and rate-limit details, read `references/x-api-v2.md`

@@ -29,7 +29,10 @@ import private_files
 
 AUTHORIZE_URL = "https://x.com/i/oauth2/authorize"
 TOKEN_URL = "https://api.x.com/2/oauth2/token"
-DEFAULT_REDIRECT_URI = "http://localhost:8739/callback"
+# X's developer documentation asks for http://127.0.0.1, not localhost, in
+# local callback URLs, and the listener below binds 127.0.0.1 only. A setup
+# saved with another loopback address keeps it; see main().
+DEFAULT_REDIRECT_URI = "http://127.0.0.1:8739/callback"
 DEFAULT_SCOPES = ["tweet.read", "users.read", "bookmark.read", "offline.access"]
 # OAuth 2.0 scopes documented by X; anything else is a typo X would reject.
 KNOWN_SCOPES = frozenset(
@@ -318,8 +321,9 @@ def run_auth_flow(
     server.timeout = min(1.0, timeout)
 
     print("Open this URL to authorize X bookmark access:")
+    print(auth_url)
     # Flush now: piped stdout is block-buffered and the wait below can last minutes.
-    print(auth_url, flush=True)
+    print(f"The X app must list this callback URL exactly: {redirect_uri}", flush=True)
     if open_browser:
         webbrowser.open(auth_url)
 
@@ -331,7 +335,9 @@ def run_auth_flow(
                 detail = f" (last callback rejected: {rejected})" if rejected else ""
                 raise AuthError(
                     f"no OAuth callback on {redirect_uri} within {timeout:g}s{detail}; "
-                    "rerun setup and approve access in the browser"
+                    "rerun setup and approve access in the browser. If X refused the callback "
+                    f"URL, add exactly {redirect_uri} to the app in the X Developer Console, or "
+                    "pass --redirect-uri with a loopback URL the app already lists"
                 )
             server.handle_request()
     finally:
@@ -411,6 +417,14 @@ def status() -> int:
     scopes = " ".join(str(item) for item in config.get("scopes", []))
     expires_at = tokens.get("expires_at")
     print("auth: configured")
+    redirect_uri = str(config.get("redirect_uri") or DEFAULT_REDIRECT_URI)
+    print(f"redirect_uri: {redirect_uri}")
+    if urllib.parse.urlparse(redirect_uri).hostname == "localhost":
+        print(
+            "note: this setup calls back to localhost and keeps working. X asks for 127.0.0.1 "
+            "in local callback URLs; to switch, add the URL to the X app and rerun setup with "
+            f"--redirect-uri {redirect_uri.replace('//localhost', '//127.0.0.1', 1)}"
+        )
     print(f"scopes: {scopes or 'unknown'}")
     extra = [str(item) for item in config.get("scopes", []) if str(item) not in DEFAULT_SCOPES]
     if extra:
@@ -453,7 +467,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Read the X OAuth 2.0 client secret for a confidential client from stdin without printing it.",
     )
-    parser.add_argument("--redirect-uri", help=f"OAuth callback URL. Defaults to {DEFAULT_REDIRECT_URI}.")
+    parser.add_argument(
+        "--redirect-uri",
+        help=f"OAuth callback URL. A saved setup keeps its own; a new one uses {DEFAULT_REDIRECT_URI}.",
+    )
     parser.add_argument(
         "--include-write-scope",
         action="store_true",
@@ -512,6 +529,7 @@ def main(argv: list[str]) -> int:
         if not isinstance(client_secret, str):
             client_secret = None
 
+        # A saved setup keeps the callback URL its X app was registered with.
         redirect_uri = args.redirect_uri or str(existing_config.get("redirect_uri") or DEFAULT_REDIRECT_URI)
 
         config = {

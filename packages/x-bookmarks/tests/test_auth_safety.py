@@ -322,6 +322,87 @@ class ClientSecretTest(HermeticCase):
         self.assertNotIn("client_secret", self.saved_config())
 
 
+class CallbackAddressTest(HermeticCase):
+    NUMERIC = "http://127.0.0.1:8739/callback"
+    NAMED = "http://localhost:8739/callback"
+
+    def run_setup(self, *argv: str) -> tuple[int, mock.Mock]:
+        flow = mock.Mock(return_value={"access_token": "test-access"})
+        with (
+            mock.patch.object(self.auth, "run_auth_flow", flow),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            code = self.auth.main(["--no-browser", *argv])
+        return code, flow
+
+    def save_config(self, **config: object) -> None:
+        self.auth.save_config({"client_id": "test-client", **config})
+
+    def saved_callback(self) -> str:
+        return json.loads(self.auth.CONFIG_FILE.read_text())["redirect_uri"]
+
+    def status(self) -> str:
+        self.auth.save_tokens({"access_token": "test-access"})
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            self.assertEqual(self.auth.status(), 0)
+        return stdout.getvalue()
+
+    def test_a_new_setup_calls_back_to_the_numeric_loopback_address(self) -> None:
+        self.assertEqual(self.auth.DEFAULT_REDIRECT_URI, self.NUMERIC)
+
+        code, flow = self.run_setup("--client-id", "test-client")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(flow.call_args.kwargs["redirect_uri"], self.NUMERIC)
+        self.assertEqual(self.saved_callback(), self.NUMERIC)
+
+    def test_a_config_without_a_callback_gets_the_default(self) -> None:
+        self.save_config()
+
+        code, flow = self.run_setup()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(flow.call_args.kwargs["redirect_uri"], self.NUMERIC)
+
+    def test_a_saved_setup_keeps_its_callback_address(self) -> None:
+        self.save_config(redirect_uri=self.NAMED)
+
+        code, flow = self.run_setup()
+
+        self.assertEqual(code, 0)
+        self.assertEqual(flow.call_args.kwargs["redirect_uri"], self.NAMED)
+        self.assertEqual(self.saved_callback(), self.NAMED)
+
+    def test_the_flag_replaces_a_saved_callback_address(self) -> None:
+        self.save_config(redirect_uri=self.NAMED)
+
+        code, flow = self.run_setup("--redirect-uri", "http://127.0.0.1:9001/done")
+
+        self.assertEqual(code, 0)
+        self.assertEqual(flow.call_args.kwargs["redirect_uri"], "http://127.0.0.1:9001/done")
+        self.assertEqual(self.saved_callback(), "http://127.0.0.1:9001/done")
+
+    def test_status_shows_the_callback_and_how_to_leave_localhost(self) -> None:
+        self.save_config(redirect_uri=self.NAMED)
+        output = self.status()
+        self.assertIn(f"redirect_uri: {self.NAMED}\n", output)
+        self.assertIn(f"rerun setup with --redirect-uri {self.NUMERIC}\n", output)
+
+        self.save_config(redirect_uri=self.NUMERIC)
+        output = self.status()
+        self.assertIn(f"redirect_uri: {self.NUMERIC}\n", output)
+        self.assertNotIn("note:", output)
+
+    def test_the_documents_show_the_default_callback(self) -> None:
+        skill = SCRIPTS.parent
+        shown = f"```text\n{self.auth.DEFAULT_REDIRECT_URI}\n```"
+        for path in (skill / "SKILL.md", skill / "references" / "x-api-v2.md"):
+            with self.subTest(path.name):
+                self.assertEqual(path.read_text(encoding="utf-8").count(shown), 1)
+
+
 class CallbackServerTest(HermeticCase):
     def start_flow(
         self, token_error: Exception | None = None, **flow_kwargs: float
@@ -386,6 +467,11 @@ class CallbackServerTest(HermeticCase):
         self.assertLess(time.monotonic() - started, 5)
         self.assertIsInstance(outcome.get("error"), self.auth.AuthError)
         self.assertIn("no OAuth callback", str(outcome["error"]))
+        # A callback URL the X app does not list ends the same way, so say so.
+        self.assertRegex(
+            str(outcome["error"]),
+            r"If X refused the callback URL, add exactly http://127\.0\.0\.1:\d+/callback to the app",
+        )
 
     def test_slow_client_does_not_hold_flow_past_deadline(self) -> None:
         port, opened, outcome = self.start_flow(timeout=1.0)
@@ -509,12 +595,14 @@ class SetupOutputTest(HermeticCase):
         try:
             lines.get(timeout=10)
             auth_url = lines.get(timeout=10).decode("utf-8").strip()
+            callback = lines.get(timeout=10).decode("utf-8").strip()
         except queue.Empty:
             self.fail("setup did not write the authorization URL while waiting for the callback")
 
         self.assertTrue(auth_url.startswith(self.auth.AUTHORIZE_URL + "?"))
         query = urllib.parse.parse_qs(urllib.parse.urlparse(auth_url).query)
         self.assertEqual(query["redirect_uri"], [redirect_uri])
+        self.assertEqual(callback, f"The X app must list this callback URL exactly: {redirect_uri}")
         self.assertIsNone(process.poll())
 
 

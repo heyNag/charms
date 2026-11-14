@@ -45,8 +45,11 @@ The API fetch helper can instead use an existing OAuth user access token from
 option, and is only for a separate workflow that changes X bookmarks. Each
 setup requests the read-only scopes plus only that run's
 `--include-write-scope` or `--scope` flags, so rerunning setup without them
-drops write access; unknown scope names are rejected. Setup waits up to 5
-minutes for the browser callback and ignores requests to other paths. If
+drops write access; unknown scope names are rejected. A new setup calls back
+to `http://127.0.0.1:8739/callback`, which the X app must list exactly; a
+setup saved earlier keeps its callback URL, and `--status` shows it. Setup
+waits up to 5 minutes for the browser callback and ignores requests to other
+paths. If
 another setup run, or another program listening on 127.0.0.1, holds the
 callback port, setup exits with an error; stop it or pass `--redirect-uri` with
 a free loopback port registered in the X app.
