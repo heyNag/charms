@@ -12,6 +12,7 @@ import json
 import os
 import pathlib
 import socket
+import sys
 import threading
 import unittest
 from unittest import mock
@@ -71,7 +72,15 @@ class FakeGitHub:
             def log_message(self, *_args) -> None:
                 pass
 
-        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        class Server(http.server.ThreadingHTTPServer):
+            def handle_error(self, request, client_address) -> None:
+                # The check may hang up before it has read an answer it has no
+                # use for, and the write above then fails. The default report
+                # of that would land in the stderr a test is reading.
+                if not isinstance(sys.exc_info()[1], OSError):
+                    super().handle_error(request, client_address)
+
+        self.server = Server(("127.0.0.1", 0), Handler)
         self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
         # The default poll makes every shutdown wait half a second.
         thread = threading.Thread(
