@@ -10,13 +10,13 @@
     {
       "name": "pstack",
       "description": "if you want to go fast, go deep first. pstack helps you write less, but higher quality code. rigorous agent workflows you can parallelize with confidence.",
-      "version": "2026.11.0",
+      "version": "2026.11.1",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/heyNag/charms.git",
         "path": "packages/pstack/codex",
-        "ref": "pstack--v2026.11.0",
-        "sha": "f915499d6babf94e999e063c12f7f9483cf3c877"
+        "ref": "pstack--v2026.11.1",
+        "sha": "8e77fe834b6e1fcfe6e4fb41ec799b5031834d64"
       }
     },
     {
