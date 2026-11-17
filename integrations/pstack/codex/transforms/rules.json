@@ -2,6 +2,10 @@
   "schema_version": 1,
   "source_commit": "2f87c854fe3e2fcda44ca86b46ede35aad3c46b7",
   "source_version": "0.15.43",
+  "plugin_interface": {
+    "logo": "./assets/pstack.png",
+    "composerIcon": "./assets/pstack.png"
+  },
   "registered_skills": [
     "architect",
     "arena",
@@ -776,6 +780,11 @@
     }
   ],
   "adapter_files": [
+    {
+      "source": "assets/pstack.png",
+      "output": "assets/pstack.png",
+      "reason": "Bundle the user-supplied Codex plugin logo and composer icon."
+    },
     {
       "source": "watch_pr/codex-transport.ts",
       "output": "skills/poteto-mode/scripts/watch-pr/codex-transport.ts",

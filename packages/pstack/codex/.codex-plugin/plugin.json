@@ -11,5 +11,9 @@
     "subagents",
     "unslop"
   ],
-  "skills": "./skills"
+  "skills": "./skills",
+  "interface": {
+    "logo": "./assets/pstack.png",
+    "composerIcon": "./assets/pstack.png"
+  }
 }

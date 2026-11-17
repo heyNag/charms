@@ -178,9 +178,15 @@ def project_codex(source_root: Path, output_root: Path, adapter_root: Path, cont
             if manifest["version"] != context["upstream_version"]:
                 raise ValueError("source version differs from reviewed context")
             manifest["version"] = context["bundle_version"]
+            if interface := rules.get("plugin_interface"):
+                manifest.setdefault("extensions", {}).setdefault("com.openai", {}).setdefault(
+                    "interface", {}
+                ).update(interface)
             _write_json(output_root / relative, manifest)
             native = {key: manifest[key] for key in ("name", "version", "description", "keywords")}
             native["skills"] = "./skills"
+            if interface := manifest.get("extensions", {}).get("com.openai", {}).get("interface"):
+                native["interface"] = interface
             _write_json(output_root / ".codex-plugin" / "plugin.json", native)
             mapping.append({**record, "output": relative, "transforms": ["host-manifest-overlay"]})
             continue

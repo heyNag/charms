@@ -326,6 +326,52 @@ class PstackBundleTests(unittest.TestCase):
         refresh_codex(self.root)
         self.assert_invalid("unsupported fields or unbound skill root")
 
+    def add_codex_artwork(self):
+        codex = self.package / "codex"
+        interface = {"logo": "./assets/pstack.svg", "composerIcon": "./assets/pstack.svg"}
+        portable = json.loads((codex / "plugin.json").read_text())
+        portable["extensions"] = {"com.openai": {"interface": interface}}
+        write_json(codex / "plugin.json", portable)
+        native = json.loads((codex / ".codex-plugin/plugin.json").read_text())
+        native["interface"] = interface
+        write_json(codex / ".codex-plugin/plugin.json", native)
+        write(codex / "assets/pstack.svg", '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"/>')
+        refresh_codex(self.root)
+
+    def test_matching_packaged_artwork_is_accepted(self):
+        self.add_codex_artwork()
+        self.assertEqual(bundle.validate_bundle(self.root), [])
+
+    def test_native_artwork_must_match_portable_manifest(self):
+        self.add_codex_artwork()
+        path = self.package / "codex/.codex-plugin/plugin.json"
+        native = json.loads(path.read_text())
+        native["interface"]["logo"] = "./assets/other.svg"
+        write_json(path, native)
+        refresh_codex(self.root)
+        self.assert_invalid("unsupported fields or unbound skill root")
+
+    def test_rehashed_payload_cannot_hide_missing_artwork(self):
+        self.add_codex_artwork()
+        (self.package / "codex/assets/pstack.svg").unlink()
+        refresh_codex(self.root)
+        self.assert_invalid("logo artwork is not a packaged file")
+
+    def test_artwork_cannot_reference_files_outside_the_package(self):
+        self.add_codex_artwork()
+        codex = self.package / "codex"
+        for reference in ("../claude-code/README.md", str(self.package / "claude-code/README.md")):
+            with self.subTest(reference=reference):
+                portable = json.loads((codex / "plugin.json").read_text())
+                interface = portable["extensions"]["com.openai"]["interface"]
+                interface["logo"] = reference
+                write_json(codex / "plugin.json", portable)
+                native = json.loads((codex / ".codex-plugin/plugin.json").read_text())
+                native["interface"] = interface
+                write_json(codex / ".codex-plugin/plugin.json", native)
+                refresh_codex(self.root)
+                self.assert_invalid("invalid relative resource path")
+
     def test_deleted_source_cannot_be_hidden_by_removing_it_from_payload_manifest(self):
         path = self.package / "codex/skills/statechart/scripts/test/corpus/Counter/report.md"
         path.unlink()

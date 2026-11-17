@@ -9,13 +9,19 @@
   },
   "bundle_version": "2026.11.0",
   "adapter": {
-    "sha256": "13937dee9fbc271c82a5cdd180c45af8023362f85181d1e61d53ea4c0bf6fee2",
+    "sha256": "6b1a58ce56271598ca2b3669440302b8ea221f1d1b5c5c6eb7cf604312f90951",
     "inputs": [
       {
         "path": "integrations/pstack/codex/adapter.md",
         "sha256": "e9a47d8cb8f0f2ff9b0b03cb8e298a8b2a70ca2554ec8227532fe09233756f7c",
         "mode": "100644",
         "size": 12829
+      },
+      {
+        "path": "integrations/pstack/codex/assets/pstack.png",
+        "sha256": "672f6791589ef758b0ced2c4c477913fa2758623c438e265639a0d539ce90695",
+        "mode": "100644",
+        "size": 361140
       },
       {
         "path": "integrations/pstack/codex/bridge/README.md",
@@ -163,9 +169,9 @@
       },
       {
         "path": "integrations/pstack/codex/transforms/rules.json",
-        "sha256": "3467a741d57543f3e878a7dbd79ea9cdde279d101d6ef114bf6defbf5ed5b23e",
+        "sha256": "ea87200037e4fd458507c5d3493b223746c57236e156bf430545165db2d071d1",
         "mode": "100644",
-        "size": 46167
+        "size": 46440
       },
       {
         "path": "integrations/pstack/codex/watch_pr/README.md",
@@ -211,9 +217,9 @@
       },
       {
         "path": "scripts/pstack_transform.py",
-        "sha256": "d822c99ae174c22f9d65be36442820361958a280e20fa4bb64440302ceb6f83e",
+        "sha256": "55a7b41cf5f7b00d331e7cb6642c919beaaabfaccfbe43c808080988d47bda50",
         "mode": "100644",
-        "size": 13666
+        "size": 14039
       }
     ]
   },
@@ -3906,6 +3912,11 @@
       }
     ],
     "adapter_files": [
+      {
+        "source": "assets/pstack.png",
+        "output": "assets/pstack.png",
+        "reason": "Bundle the user-supplied Codex plugin logo and composer icon."
+      },
       {
         "source": "watch_pr/codex-transport.ts",
         "output": "skills/poteto-mode/scripts/watch-pr/codex-transport.ts",

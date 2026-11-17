@@ -3688,6 +3688,11 @@
   ],
   "adapter_files": [
     {
+      "source": "assets/pstack.png",
+      "output": "assets/pstack.png",
+      "reason": "Bundle the user-supplied Codex plugin logo and composer icon."
+    },
+    {
       "source": "watch_pr/codex-transport.ts",
       "output": "skills/poteto-mode/scripts/watch-pr/codex-transport.ts",
       "reason": "Bounded git/gh transport and revision observations; source policy types unchanged."

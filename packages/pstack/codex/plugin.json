@@ -17,5 +17,13 @@
     "agent-style",
     "subagents",
     "unslop"
-  ]
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "logo": "./assets/pstack.png",
+        "composerIcon": "./assets/pstack.png"
+      }
+    }
+  }
 }

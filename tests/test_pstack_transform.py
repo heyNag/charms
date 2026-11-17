@@ -133,6 +133,32 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual(row["source_sha256"], hashlib.sha256(original.read_bytes()).hexdigest())
         self.assertFalse(row["allow_implicit_invocation"])
 
+    def test_artwork_is_packaged_and_shared_by_both_manifests(self):
+        source_manifest = self.pstack / "plugin.json"
+        manifest = json.loads(source_manifest.read_text())
+        manifest["extensions"] = {"com.openai": {"interface": {"displayName": "Pstack"}}}
+        source_manifest.write_text(json.dumps(manifest))
+        source_before = source_manifest.read_bytes()
+        artwork = self.adapter / "assets/pstack.png"
+        artwork.parent.mkdir()
+        artwork.write_bytes((ROOT / "integrations/pstack/codex/assets/pstack.png").read_bytes())
+        self.rules["plugin_interface"] = {
+            "logo": "./assets/pstack.png", "composerIcon": "./assets/pstack.png",
+        }
+        self.rules["adapter_files"] = [{
+            "source": "assets/pstack.png", "output": "assets/pstack.png",
+        }]
+        self.save_rules()
+        self.project()
+        portable = json.loads((self.output / "plugin.json").read_text())
+        native = json.loads((self.output / ".codex-plugin/plugin.json").read_text())
+        expected = {"displayName": "Pstack", **self.rules["plugin_interface"]}
+        self.assertEqual(portable["extensions"]["com.openai"]["interface"], expected)
+        self.assertEqual(native["interface"], expected)
+        self.assertEqual((self.output / "assets/pstack.png").read_bytes(), artwork.read_bytes())
+        self.assertEqual((self.output / "assets/pstack.png").stat().st_mode & 0o777, 0o644)
+        self.assertEqual(source_manifest.read_bytes(), source_before)
+
     def test_reviewed_edits_require_exact_source_hash_and_anchor_count(self):
         rel = "skills/demo/references/proof.md"
         self.rules["files"][rel] = {

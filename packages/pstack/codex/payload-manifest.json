@@ -8,9 +8,9 @@
   "files": [
     {
       "path": ".codex-plugin/plugin.json",
-      "sha256": "296538f24f7c7466a2029d88d3da6d35f898146d2667a2d34e8d4ccaa9eced57",
+      "sha256": "95d7d87fc5e9f8dd85e0bc4933a91928c651959b02a6efd125a163afea2e2acc",
       "mode": "100644",
-      "size": 385
+      "size": 484
     },
     {
       "path": ".gitignore",
@@ -32,9 +32,9 @@
     },
     {
       "path": "UPSTREAM.json",
-      "sha256": "97d01af6fd5739f03f9125727f711f3ccec45e755943426b0e7b3cd1d56c59ac",
+      "sha256": "2db6d280c9f42e53d4dbf2af1b6ff45128a18ff922c81e812818b50910f0f0b2",
       "mode": "100644",
-      "size": 183246
+      "size": 183638
     },
     {
       "path": "adapters/codex/adapter.md",
@@ -86,9 +86,9 @@
     },
     {
       "path": "adapters/codex/projection.json",
-      "sha256": "90439c63d82dd0bf76fd6d986157d0f6c8c09435493cee345fe5357c47247655",
+      "sha256": "9be6b8485e1f548ffdbb8e5938b36b3a819c0adf4f60d77cc382518da45476ea",
       "mode": "100644",
-      "size": 168045
+      "size": 168212
     },
     {
       "path": "adapters/codex/providers/README.md",
@@ -200,6 +200,12 @@
     },
     {
       "path": "assets/logo.png",
+      "sha256": "672f6791589ef758b0ced2c4c477913fa2758623c438e265639a0d539ce90695",
+      "mode": "100644",
+      "size": 361140
+    },
+    {
+      "path": "assets/pstack.png",
       "sha256": "672f6791589ef758b0ced2c4c477913fa2758623c438e265639a0d539ce90695",
       "mode": "100644",
       "size": 361140
@@ -410,9 +416,9 @@
     },
     {
       "path": "plugin.json",
-      "sha256": "c7310357d90b1eef352b1e5cfb97b21f41df8beebaa08eb5d0a6be7e9d67d6b9",
+      "sha256": "53ba31c5ecc188031426cc1539e5ee0df1c4b2c7e47b2abddf008d6441c73bfb",
       "mode": "100644",
-      "size": 621
+      "size": 784
     },
     {
       "path": "skills/architect/SKILL.md",
@@ -4207,5 +4213,5 @@
       "size": 1487
     }
   ],
-  "tree_sha256": "68b75946e87e9217f8b22dfd5db678c3d1613945603bb2cc0a46b7ff7138d8a2"
+  "tree_sha256": "98f8201add546d1ab926f18062d722658f41bc95ac12afac757656704064b93f"
 }

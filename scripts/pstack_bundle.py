@@ -370,6 +370,21 @@ def _validate_codex_manifests(codex: Path, version: str) -> None:
     native = read_object(codex / ".codex-plugin/plugin.json")
     expected = {key: portable[key] for key in ("name", "version", "description", "keywords")}
     expected["skills"] = "./skills"
+    openai = extensions.get("com.openai", {})
+    if "interface" in openai:
+        interface = openai["interface"]
+        if not isinstance(interface, dict):
+            raise ValueError("Codex portable manifest: invalid OpenAI interface")
+        expected["interface"] = interface
+        for field in ("logo", "composerIcon", "logoDark", "composerIconDark"):
+            if field not in interface:
+                continue
+            value = interface[field]
+            relative = safe_relative(value.removeprefix("./") if isinstance(value, str) else value)
+            try:
+                _regular_file(codex / relative)
+            except (OSError, ValueError) as exc:
+                raise ValueError(f"Codex portable manifest: {field} artwork is not a packaged file") from exc
     if native != expected:
         raise ValueError("Codex native manifest: unsupported fields or unbound skill root")
 
