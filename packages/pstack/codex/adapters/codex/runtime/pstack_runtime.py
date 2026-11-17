@@ -134,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     plan.add_argument("--file", type=Path, default=config_home() / "models.mdc")
     plan.add_argument("--catalog", type=Path, required=True)
     plan.add_argument("--budget", choices=["large", "medium", "small"], required=True)
+    plan.add_argument("--choices", type=Path)
     write = model_commands.add_parser("write")
     write.add_argument("--file", type=Path, default=config_home() / "models.mdc")
     write.add_argument("--plan", type=Path, required=True)
@@ -207,6 +208,9 @@ def main(argv: list[str] | None = None) -> int:
                     policy=args.policy,
                     overrides=_overrides(args),
                     verified=verification,
+                    config=args.config,
+                    surface=args.surface,
+                    locator=args.locator,
                 ),
                 "payload_sha256": verification["manifest_sha256"],
                 "isolation": "requires actual host enforcement",
@@ -215,7 +219,12 @@ def main(argv: list[str] | None = None) -> int:
             result = unavailable_history()
         elif args.model_command == "plan":
             text = args.file.read_text(encoding="utf-8") if _present(args.file) else ""
-            result = model_plan(text, load_json(args.catalog), args.budget)
+            result = model_plan(
+                text,
+                load_json(args.catalog),
+                args.budget,
+                choices=load_json(args.choices) if args.choices is not None else None,
+            )
         else:
             result = write_preferences(
                 args.file, load_json(args.plan), approved_plan=args.approved_plan

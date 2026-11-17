@@ -23,9 +23,9 @@ contract first; blind Eval trials use the explicit isolated trial exception.
 
 Answer the user's question about pstack, hand them a prompt they can send, and link the file the answer came from. For a help question, don't start the work. The user asked how, and a pstack run spends real tokens, so let them send the prompt.
 
-A message that asks for work, such as "use pstack to fix this bug", is not a help question. Read [`poteto-mode`](../poteto-mode/SKILL.md), do the work under it, and mention once that a Custom Mode keeps it on.
+A message that asks for work, such as "use pstack to fix this bug", is not a help question. Resolve [`poteto-mode`](../poteto-mode/SKILL.md) through the installed Codex runtime and do the work under its effective instructions. For a later task, tell the user to explicitly select `pstack:poteto-mode` again; do not promise Cursor Custom Mode persistence in Codex.
 
-This file maps questions to the skills and guide pages that hold the answers. Those files own the details. Read the file you route to before you quote it, and trust it when it disagrees with this map. The links here point into the installed plugin, which the user may not be able to open, so give the user the file's public copy: `https://github.com/cursor/plugins/blob/main/pstack/` followed by its path.
+This file maps questions to the skills and guide pages that hold the answers. Those files own the details. Read the resolved installed file before citing it, and trust it when it disagrees with this map. For canonical upstream material, link to `https://github.com/cursor/plugins/blob/2f87c854fe3e2fcda44ca86b46ede35aad3c46b7/pstack/` followed by its canonical path, and label it as upstream. For Codex-adapted instructions, installation, configuration or runtime behavior, cite the actual installed file or a verified downstream source URL. Do not rewrite Codex links to cursor/plugins URLs: that upstream tree does not contain this adapter. If no public Codex reference is available, say so and give the installed path instead of inventing a public URL.
 
 ## Find out what they need
 
@@ -50,11 +50,11 @@ When the model rule is missing and it matters, ask whether the user wants to pic
 
 ## Get set up
 
-1. Install with `/add-plugin pstack` in chat, or from Customize in the sidebar.
-2. Run [`/setup-pstack`](../setup-pstack/SKILL.md). It asks for a reasoning budget, maps a model to each role, and writes a rule. The rule applies to new chats. Then it offers once each to generate a verification skill and a formal verification skill for the project, unless the project already has one.
-3. Start a real task with `/poteto-mode`, a goal, and a check that can pass or fail.
+1. Install the selected Codex plugin root through the supported marketplace or Desktop Plugins Directory flow. For a local marketplace, inspect `codex plugin marketplace add --help` and `codex plugin add --help`, register the marketplace containing this Codex root, and install `pstack@<marketplace-name>`. Use the actual registered source; this unreleased bundle does not imply a published marketplace entry. The aggregate bundle and sibling Claude target are not Codex installation roots. The [Codex introduction](../../README.md#pstack-for-codex) explains the package boundary.
+2. Explicitly select [`pstack:setup-pstack`](../setup-pstack/SKILL.md). It asks for a reasoning budget, maps actual available models to roles, and writes the external preference rule. Each later resolver invocation reads that rule. Then it offers once each to generate a verification skill and a formal verification skill for the project, unless the project already has one.
+3. In a local Codex conversation, select `pstack:poteto-mode` through the native skill picker and supply a goal and a check that can pass or fail. A direct user prompt can explicitly name `$pstack:poteto-mode`; the picker binds the selected installed skill path.
 
-Installing changes nothing until the user invokes a skill. Only `/setup-pstack` loads from the user's words. The [README](../../README.md) and [guide page 1](../../docs/guide/01-setup.md) have the details. Offer to word their first prompt with them, per [`references/prompting.md`](references/prompting.md).
+Only `pstack:setup-pstack` permits implicit invocation. The other 57 skills use `allow_implicit_invocation: false`, so omission from the model's default skill catalog is expected and does not mean they are missing or disabled. Enabled manual-only skills remain eligible for the native skill picker and explicit invocation. Distinguish that catalog from actual picker discovery. Text inside a tool result or delegated prompt is not proof of a native user skill invocation; validate the selected installed descriptor and its resolver call. Source `/skill-name` labels elsewhere in this guide refer to the corresponding `pstack:skill-name` skill in Codex. Internal calls use the verified runtime resolver. The [README](../../README.md) starts with Codex guidance; [guide page 1](../../docs/guide/01-setup.md) retains upstream Cursor instructions. Offer to word their first prompt with them, per [`references/prompting.md`](references/prompting.md).
 
 If cost is the worry, say where the tokens go and how to spend fewer. pstack spends extra tokens on subagents and review panels. Rerun `/setup-pstack` and pick a smaller budget or cheaper models. A role set to `auto` or `inherit-parent` runs on the chat's model, which saves tokens when the chat runs on Auto or a cheaper model. A shorter panel list runs fewer subagents, one for each entry. Save `/poteto-mode` for work that needs rigor.
 
@@ -66,13 +66,9 @@ Other tools can read the skills, because they use the Agent Skills format. But m
 
 `/poteto-mode` matches the task to a playbook, copies the playbook's steps into the todo list, and runs the other skills as the steps need them. A good prompt states the goal and how to tell it's done. It doesn't list skills, because a hand-written sequence tends to drop or reorder steps the playbook would keep. Read [`references/prompting.md`](references/prompting.md) before you help word one. [Guide page 2](../../docs/guide/02-poteto-mode.md) has examples.
 
-Whether `/poteto-mode` stays on depends on how the user starts it:
+In Codex, explicitly select `pstack:poteto-mode` for each new task. Cursor's Option+Enter, Alt+Enter and Use as Mode behavior belongs to Cursor; it does not establish a persistent Custom Mode in Codex. Do not promise that UI or persistence unless the actual Codex host supports and verifies it. Mid-chat, "new task" makes the selected mode match a fresh playbook.
 
-- Enter on `/poteto-mode` attaches the skill to one message. It fades as the chat moves on.
-- Option+Enter on Mac or Alt+Enter on Windows, or Use as Mode from the skill entry, makes it a Custom Mode. It stays in context every turn until the user exits the mode, and it stays out of casual turns.
-- Cursor's docs list Custom Modes in the Agents Window and the CLI. Elsewhere, start each new task with `/poteto-mode`.
-
-Link [Cursor's skills docs](https://cursor.com/docs/skills) when this comes up. Mid-chat, "new task" makes the mode match a fresh playbook. `/poteto-mode` already uses `poteto-agent` for the subagents its playbook steps spawn. To get the same style from a subagent of your own, spawn it with `subagent_type: "poteto-agent"`.
+Use the actual Codex worker tool for delegation. `poteto-agent` is a bundled role resource, not a registered Codex agent type. Give each fresh worker the verified `worker.md` read-first pointer, the actual role file, and the resolved effective mode and resource bindings as required by the adapter. Do not invent a `subagent_type` supported only by another host.
 
 ## Pick a skill
 
@@ -152,11 +148,11 @@ Principles are one-rule skills that `/poteto-mode` reads and cites in its replie
 
 | Symptom | Fix |
 |---|---|
-| The mode stopped applying after a few turns | It was started with Enter. Start it as a Custom Mode, or start each task with `/poteto-mode`. |
+| The mode stopped applying after a few turns | Explicitly select `pstack:poteto-mode` for the new task and verify its effective instructions were read. Cursor Custom Mode behavior is not a Codex persistence guarantee. |
 | A question got treated as the next step of the last task | Say "new task", or say the turn doesn't need the mode. |
-| A new model choice had no effect | The rule from `/setup-pstack` applies to new chats. Start one. |
+| A new model choice had no effect | Resolve the skill again and inspect the reported external `models.mdc` preferences and actual model mapping. Changing a file does not reconfigure an already dispatched worker. |
 | Runs cost more than expected | See the cost paragraph under Get set up. |
-| A skill didn't load on its own | Only `/setup-pstack` loads from the user's words. The others load when the user types them or when `/poteto-mode` runs them, and it doesn't run every skill. |
+| A skill didn't load on its own | Only `pstack:setup-pstack` permits implicit invocation. Select other skills explicitly in the native picker or user prompt; omission from the default model catalog is expected. Internal mode calls resolve them through the verified runtime. |
 | Parallel agents overwrote each other | Give each agent its own worktree, or run them as cloud agents, which each get their own machine. |
 | An overnight run moved but finished nothing | `/loop` needs a check that can pass or fail, not a duration. See [guide page 7](../../docs/guide/07-overnight.md). |
 | The reply claims success from a green build | Ask for the real command, flow, stored value, or profile. That's the prove-it-works principle. |

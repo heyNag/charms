@@ -21,6 +21,13 @@ raw base files. Keep both the effective path and resource binding in nested
 worker kickoffs, and interpret a role's mode-read instruction through this
 same resolver rather than rereading an unselected base.
 
+The default model catalog may list only `setup-pstack`: the other 57 skills
+are manual-only, not disabled. Native explicit invocation uses an actual user
+message or a path-bound skill-picker selection. A skill name embedded in an
+app-tool delegation output does not establish that this activation path ran.
+For internal workflow calls, use the verified package index and resolver even
+when the sibling skill is absent from the default model catalog.
+
 The resolver automatically reads `~/.config/pstack/overrides.json` when present.
 The selected profile's `override_registry` may supply another absolute external
 registry; `--overrides` selects an explicitly supplied registry. An invalid or
@@ -60,6 +67,13 @@ Preserve all role migration and alias/cardinality rules in setup-pstack; a
 deployment profile is not a global default model. Fable and Opus are one
 vendor. Outside panels, Fable needs the source's explicit user choice or two
 evidenced failed same-brief Opus xhigh attempts, not task difficulty alone.
+
+An absent model-preferences file is not a universal dispatch prohibition.
+Follow the calling workflow's fallback order using observed available models;
+where that workflow permits omitting the model to inherit the parent, disclose
+the fallback. Do not turn that permission into a waiver of another-vendor or
+independent-review requirements. Those branches remain incomplete when their
+required qualified reviewer is unavailable.
 
 ## Tools, workers and task authority
 

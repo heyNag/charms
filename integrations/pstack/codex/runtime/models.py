@@ -261,15 +261,51 @@ def validate_catalog(catalog: object) -> dict[str, dict]:
     return result
 
 
-def model_plan(text: str, catalog: dict, budget: str) -> dict:
+def _role_choices(choices: object, available: dict[str, dict]) -> dict[str, list[str]]:
+    if choices is None:
+        return {}
+    if (
+        not isinstance(choices, dict)
+        or set(choices) != {"schema_version", "roles"}
+        or type(choices["schema_version"]) is not int
+        or choices["schema_version"] != 1
+        or not isinstance(choices["roles"], dict)
+    ):
+        raise RuntimeErrorBase("invalid explicit model choices")
+    result = {}
+    for role, values in choices["roles"].items():
+        if role not in DEFAULTS:
+            raise RuntimeErrorBase("unknown model role in explicit choices")
+        if (
+            not isinstance(values, list)
+            or not values
+            or (role not in PANELS and len(values) != 1)
+        ):
+            raise RuntimeErrorBase("invalid explicit role cardinality")
+        if any(
+            not isinstance(value, str) or (value not in ALIASES and value not in available)
+            for value in values
+        ):
+            raise RuntimeErrorBase("explicit model choice is not an observed model or alias")
+        result[role] = list(values)
+    return result
+
+
+def model_plan(text: str, catalog: dict, budget: str, *, choices: dict | None = None) -> dict:
     if budget not in {"large", "medium", "small"}:
         raise RuntimeErrorBase("unknown model budget")
     migrated = migrate_preferences(parse_preferences(text))
     available = validate_catalog(catalog)
+    explicit = _role_choices(choices, available)
     shift = {"large": 0, "medium": 1, "small": 2}[budget]
     selected = {}
     unresolved = []
     for role, values in migrated["roles"].items():
+        # Setup's explicit role choices follow its budget mapping step. Keep
+        # those observed choices exact; never rewrite the active rule to plan them.
+        if role in explicit:
+            selected[role] = list(explicit[role])
+            continue
         baseline = parse_slug(DEFAULTS[role][0])["effort"]
         target = EFFORTS[max(0, EFFORTS.index(baseline) - shift)]
         selected[role] = []
@@ -322,6 +358,7 @@ def model_plan(text: str, catalog: dict, budget: str) -> dict:
         "defaults": 3,
         "budget": budget,
         "roles": selected,
+        "choices": explicit,
         "changes": migrated["changes"],
         "needs_choice": unresolved,
         "catalog_sha256": digest(canonical(catalog)),

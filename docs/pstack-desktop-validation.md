@@ -94,8 +94,8 @@ substitute for plugin activation.
 
 ## Exercise the installed plugin
 
-First select `pstack:poteto-help` through the skill picker, or explicitly invoke
-it with this prompt:
+First select `pstack:poteto-help` through the skill picker in a new local Codex
+conversation. Alternatively, send this prompt as an actual user message:
 
 ```text
 $pstack:poteto-help
@@ -106,16 +106,34 @@ code investigation. Do not edit files, install dependencies, create commits
 or PRs, or contact external services.
 ```
 
+The model's default skill catalog is not the complete installed inventory.
+Pstack intentionally exposes only `setup-pstack` there; its other 57 skills
+set `allow_implicit_invocation: false`. Those skills remain eligible for explicit
+selection. Their absence from the default catalog is expected and does not
+establish an activation failure. Check the native picker or the host's complete
+skill inventory separately from the model-visible list.
+
+An app-tool `create_thread` prompt can arrive as delegated tool output rather
+than a skill-bearing user input. A literal `$pstack:poteto-help` in that output
+does not test the native explicit-invocation path. Record that transport as an
+untested activation route; do not infer a plugin defect or require a restart
+solely because the new agent's default catalog omits manual-only skills.
+
 Then try a small real read-only investigation with `$pstack:poteto-mode` in a
 disposable project. Keep the deployment profile `default`. If setup is needed,
 use `$pstack:setup-pstack` and review the actual offered model choices; do not
 invent a model catalog or enable providers just to make the test pass.
 
+Missing model preferences alone do not prohibit all delegation. Follow the
+selected workflow's fallback order and disclose any permitted fallback to the
+parent model. Preserve requirements for distinct vendors or independent review;
+parent-model fallback cannot satisfy a caller that requires another vendor.
+
 Record observed tool calls and artifact identities against these criteria:
 
 | Check | Passing evidence |
 | --- | --- |
-| Discovery | One installed pstack plugin, with 58 skill definitions. Its 57 manual-only policies survive installation; only `setup-pstack` permits implicit invocation. Benny's three internal procedures are not registered as additional skills. |
+| Discovery | One installed pstack plugin, with 58 skill definitions. Its 57 manual-only policies survive installation; only `setup-pstack` permits implicit invocation. The default model catalog may therefore list only `setup-pstack`. Check manual skills through the complete host inventory or picker. Benny's three internal procedures are not registered as additional skills. |
 | Native activation | The fresh Desktop conversation can explicitly select and invoke `pstack:poteto-help`. An unrelated conversation does not implicitly start a manual-only pstack mode. |
 | Installed identity | The installed root passes the runtime `verify` command against `PSTACK_EXPECTED_MANIFEST`. Verify the actual installed copy reported by the host, not just the checkout or test source. |
 | Complete instructions | The invocation runs `resolve`, reads the adapter and effective `instructions.md`, and uses the same verified resource root for linked files. Reading only the short `SKILL.md` descriptor is insufficient. |

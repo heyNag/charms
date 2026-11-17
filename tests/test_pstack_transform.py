@@ -210,6 +210,61 @@ class ProjectionTests(unittest.TestCase):
 
 
 class ReviewedRuleTests(unittest.TestCase):
+    def test_help_uses_codex_installation_and_explicit_invocation_guidance(self):
+        relative = "skills/poteto-help/SKILL.md"
+        rules = json.loads((ROOT / "integrations/pstack/codex/transforms/rules.json").read_text())
+        # Recover the exact canonical body from the immutable Claude target;
+        # apply_edits still requires the pinned canonical SHA before editing.
+        data = (ROOT / "packages/pstack/claude-code" / relative).read_bytes().replace(
+            b"In Claude Code, read [the Claude Code adapter]"
+            b"(../../docs/harness/claude-code.md) once per session before you follow this skill. "
+            b"It maps the Cursor names in pstack skills to Claude Code.\n\n", b"")
+        transformed, _ = transform.apply_edits(relative, data, rules["files"][relative])
+        body = transformed.decode()
+        values = transform.split_skill(body)[2]
+        self.assertEqual(values["name"], "poteto-help")
+        self.assertTrue(values["disable-model-invocation"])
+        for expected in (
+            "codex plugin marketplace add --help", "codex plugin add --help",
+            "pstack@<marketplace-name>", "native skill picker", "$pstack:poteto-mode",
+            "omission from the model's default skill catalog is expected",
+            "Enabled manual-only skills remain eligible",
+            "Text inside a tool result or delegated prompt is not proof",
+            f"https://github.com/cursor/plugins/blob/{COMMIT}/pstack/",
+            "cite the actual installed file or a verified downstream source URL",
+            "Do not rewrite Codex links to cursor/plugins URLs",
+            "Each later resolver invocation reads that rule",
+            "does not establish a persistent Custom Mode in Codex",
+            "bundled role resource, not a registered Codex agent type",
+            "verified `worker.md` read-first pointer",
+            "For a help question, don't start the work.",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, body)
+        for obsolete in (
+            "Install with `/add-plugin pstack`", "from Customize in the sidebar",
+            "mention once that a Custom Mode keeps it on",
+            'spawn it with `subagent_type: "poteto-agent"`',
+            "https://github.com/cursor/plugins/blob/main/pstack/",
+            "The rule from `/setup-pstack` applies to new chats. Start one.",
+        ):
+            with self.subTest(obsolete=obsolete):
+                self.assertNotIn(obsolete, body)
+
+    def test_benny_example_map_paths_match_codex_user_configuration(self):
+        relative = "automations/benny/templates/configuration.example.yaml"
+        rules = json.loads((ROOT / "integrations/pstack/codex/transforms/rules.json").read_text())
+        # Benny is not in the upstream Claude target. Recover the two declared
+        # path substitutions from the Codex copy; the canonical SHA guard makes
+        # any unrelated generated/source change fail before transformation.
+        data = (ROOT / "packages/pstack/codex" / relative).read_bytes().replace(
+            b".agents/benny/", b".cursor/benny/")
+        transformed, _ = transform.apply_edits(relative, data, rules["files"][relative])
+        body = transformed.decode()
+        self.assertIn('map_path: ".agents/benny/routing.md"', body)
+        self.assertIn('feature_map_path: ".agents/benny/feature-map.md"', body)
+        self.assertNotIn(".cursor/benny/", body)
+
     def test_effective_body_resource_and_reflect_activation_contract(self):
         adapter = ROOT / "integrations/pstack/codex"
         rules = json.loads((adapter / "transforms/rules.json").read_text())

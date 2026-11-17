@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import tempfile
 
@@ -18,6 +19,7 @@ from integrity import (
     safe_relative,
     verify_payload,
 )
+from profiles import load_profile
 
 FORBIDDEN = (
     "eval",
@@ -45,9 +47,19 @@ def worker_brief(
     policy: str = "ordinary",
     overrides: Path | None = None,
     verified: dict | None = None,
+    config: Path | None = None,
+    surface: str = "desktop",
+    locator: Path | None = None,
 ) -> str:
     if not task.strip():
         raise RuntimeErrorBase("worker task is empty")
+    verified = verified or verify_payload(root)
+    if Path(verified["root"]).resolve() != root.resolve():
+        raise RuntimeErrorBase("verification belongs to another root")
+    if surface not in {"desktop", "cloud", "cli"}:
+        raise RuntimeErrorBase("unknown worker runtime surface")
+    if surface == "cloud" and locator is None:
+        raise RuntimeErrorBase("Cloud workers need the parent's installation locator")
     worker = contained(root, "skills/poteto-mode/worker.md")
     regular(worker)
     if role not in {"poteto-agent", "comment-sicko", "generic"} or policy not in {
@@ -79,6 +91,40 @@ def worker_brief(
         lines.append(
             f"Use the same approved override registry at {overrides.resolve()} for all internal and nested skill resolution."
         )
+    arguments = ["--root", str(root.resolve()), "--surface", surface]
+    if locator is not None:
+        arguments.extend(["--locator", str(locator.resolve())])
+    # Do not turn a self-consistency check into a claim of externally pinned origin.
+    if verified.get("origin_verified"):
+        arguments.extend(["--expected-manifest", verified["manifest_sha256"]])
+    arguments.extend(
+        [
+            "--expected-upstream",
+            verified["upstream"]["commit"],
+            "--expected-version",
+            verified["bundle_version"],
+        ]
+    )
+    if config is not None:
+        arguments.extend(["--config", str(config.resolve())])
+        if config.exists() or config.is_symlink():
+            deployment = load_profile(config)
+            configured_root = deployment["profile"].get("runtime_root")
+            if configured_root is not None and Path(configured_root).resolve() != root.resolve():
+                raise RuntimeErrorBase("selected profile belongs to another runtime root")
+            lines.append(
+                f"Keep deployment profile {deployment['profile_id']} at revision {deployment['profile_revision']}; if that binding changes, stop and reconcile with the coordinator."
+            )
+    if overrides is not None:
+        arguments.extend(["--overrides", str(overrides.resolve())])
+    lines.extend(
+        [
+            "Append these runtime arguments to every resolve, resource and worker command. "
+            "Propagate them unchanged to nested workers; do not substitute the default "
+            "configuration, another surface or an unpinned installation.",
+            "Runtime arguments: " + shlex.join(arguments),
+        ]
+    )
     if policy == "benny":
         lines.append(
             "Explicit kickoff override: you have no PR creation or Slack-write authority. Return findings and evidence to the coordinator. Only the coordinator may open a draft PR under the Benny procedure; this replaces the generic ready-PR instruction for this task."

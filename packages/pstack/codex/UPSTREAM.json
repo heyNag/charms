@@ -9,13 +9,13 @@
   },
   "bundle_version": "2026.11.0",
   "adapter": {
-    "sha256": "e8a431c22de09eea6f8c57e921180eefafa4830b3d4db4e5bf83ab03b69b7c5e",
+    "sha256": "13937dee9fbc271c82a5cdd180c45af8023362f85181d1e61d53ea4c0bf6fee2",
     "inputs": [
       {
         "path": "integrations/pstack/codex/adapter.md",
-        "sha256": "01f894a58d12fef0fdc68d7cdd38ab8bdcf1097b2f4d4691d918103f431af6ad",
+        "sha256": "e9a47d8cb8f0f2ff9b0b03cb8e298a8b2a70ca2554ec8227532fe09233756f7c",
         "mode": "100644",
-        "size": 11948
+        "size": 12829
       },
       {
         "path": "integrations/pstack/codex/bridge/README.md",
@@ -55,9 +55,9 @@
       },
       {
         "path": "integrations/pstack/codex/compatibility.json",
-        "sha256": "f621402816aa01d954903d9299a20cce83a0992da4d244d81c69cef63f1f9211",
+        "sha256": "fac6123ea2cc67126875a307a0b9b09f25d08935695131de09d5d2037548810c",
         "mode": "100644",
-        "size": 9936
+        "size": 10227
       },
       {
         "path": "integrations/pstack/codex/providers/README.md",
@@ -103,9 +103,9 @@
       },
       {
         "path": "integrations/pstack/codex/runtime/README.md",
-        "sha256": "095c666259c7d4ee744b42fcf311ea03dc75bd70d505c20841cbab5029f5e38d",
+        "sha256": "154f4fa406b5b8ce70040bd7f39da952295391da770589a840b6b7371fea3d6a",
         "mode": "100644",
-        "size": 8948
+        "size": 10104
       },
       {
         "path": "integrations/pstack/codex/runtime/history.py",
@@ -121,9 +121,9 @@
       },
       {
         "path": "integrations/pstack/codex/runtime/models.py",
-        "sha256": "21a71c1979cf5edd6a7a982573e967d27bbc7130400b822cf7a28a32bc07c3a4",
+        "sha256": "c326cc532661e3782ecc486bff67e4080f48b7106e9c4ad3399455d4158ce5d5",
         "mode": "100644",
-        "size": 19716
+        "size": 21234
       },
       {
         "path": "integrations/pstack/codex/runtime/profiles.py",
@@ -133,15 +133,15 @@
       },
       {
         "path": "integrations/pstack/codex/runtime/pstack_runtime.py",
-        "sha256": "53eacd8abcb34643c4510b126943bef110336b3f9a88cb81732bcac7363132e4",
+        "sha256": "689f5ebcc5d200fc3caf0a83afd8ca2e0a4b81ac6b91d45393450160d045a451",
         "mode": "100644",
-        "size": 10149
+        "size": 10469
       },
       {
         "path": "integrations/pstack/codex/runtime/workers.py",
-        "sha256": "0f076f9feeb78abf46c62f6bcf127907ae34ca8542b09aa8da8177bdfcb4edd1",
+        "sha256": "6177084a27e93593a7c73a9b2ab38ea117dd9cef1f98e2d32812b80a5db14c2b",
         "mode": "100644",
-        "size": 8473
+        "size": 10737
       },
       {
         "path": "integrations/pstack/codex/templates/codex-readme.md.in",
@@ -163,9 +163,9 @@
       },
       {
         "path": "integrations/pstack/codex/transforms/rules.json",
-        "sha256": "55d9a2024df2895c0704870dea80be4ecc60d0c9e4a5347717f95978630e9d20",
+        "sha256": "3467a741d57543f3e878a7dbd79ea9cdde279d101d6ef114bf6defbf5ed5b23e",
         "mode": "100644",
-        "size": 37375
+        "size": 46167
       },
       {
         "path": "integrations/pstack/codex/watch_pr/README.md",
@@ -421,7 +421,9 @@
         "source": "pstack/automations/benny/templates/configuration.example.yaml",
         "source_sha256": "13e24b4ce9b9a0913916e85fe3b080b88d45f8e55dccfe8ae38e0751a997b6f5",
         "output": "automations/benny/templates/configuration.example.yaml",
-        "transforms": []
+        "transforms": [
+          "codex-benny-user-configuration"
+        ]
       },
       {
         "source": "pstack/automations/benny/templates/reproduce-automation-prompt.md",
@@ -774,7 +776,15 @@
         "transforms": [
           "operative-body-dispatch",
           "native-invocation-policy",
-          "external-model-preferences"
+          "external-model-preferences",
+          "codex-help-host-guidance",
+          "codex-help-host-guidance",
+          "codex-help-host-guidance",
+          "codex-help-host-guidance",
+          "codex-help-host-guidance",
+          "codex-help-host-guidance",
+          "codex-help-host-guidance",
+          "codex-help-host-guidance"
         ]
       },
       {

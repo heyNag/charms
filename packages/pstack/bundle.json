@@ -10,7 +10,7 @@
     "claude_tree": "9f63e68efd0e0de310d8164d7d43b00c549a839f"
   },
   "adapter": {
-    "sha256": "e8a431c22de09eea6f8c57e921180eefafa4830b3d4db4e5bf83ab03b69b7c5e"
+    "sha256": "13937dee9fbc271c82a5cdd180c45af8023362f85181d1e61d53ea4c0bf6fee2"
   },
   "targets": {
     "claude-code": {
@@ -21,8 +21,8 @@
     "codex": {
       "path": "codex",
       "version": "2026.11.0",
-      "tree_sha256": "a78a814222df23aab8af3a7e9d88a6298eb731ffad8ee3debb1b72fa4947f4f2",
-      "payload_manifest_sha256": "72bc94a188b3b15717491eea6159a886801b224b0ed673226034d53d16b60317"
+      "tree_sha256": "4f288af283066dbccf89846a3db3813b64ca55a1567c09375414fddb986c2100",
+      "payload_manifest_sha256": "173b6b85cb624e84cbedcf6bd2025383aed49b3006ae8b57e899ce22d20ca47a"
     }
   }
 }

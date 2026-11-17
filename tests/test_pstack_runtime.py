@@ -6,6 +6,7 @@ import contextlib
 import io
 import json
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -421,6 +422,76 @@ class RuntimeCase(_RuntimeFixture):
         )
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(output)["path"], str(body))
+
+    def test_worker_runtime_binding_survives_fresh_and_nested_resolution(self):
+        home = self.base / "default-home"
+        home.mkdir()
+        (home / "config.toml").write_text(profiles.DEFAULT_CONFIG)
+        registry, body, _ = self.override()
+        config = self.base / "review profile.toml"
+        config.write_text(
+            'schema_version = 1\nactive_profile = "review"\n[profiles.review]\n'
+            f'runtime_root = {json.dumps(str(self.root))}\n'
+            f'override_registry = {json.dumps(str(registry))}\n'
+        )
+        deployment = profiles.load_profile(config)
+        task = self.base / "task.txt"
+        task.write_text("Investigate without editing files.")
+        locator = self.base / "installation locator.json"
+        self.write_json(
+            locator,
+            {
+                "schema_version": 1,
+                "surface": "all",
+                "runtime_root": str(self.root),
+                "manifest_sha256": self.pin,
+            },
+        )
+        for surface in ("desktop", "cloud", "cli"):
+            with self.subTest(surface=surface), mock.patch.object(
+                pstack_runtime, "config_home", return_value=home
+            ):
+                arguments = [
+                    "--root", str(self.root), "--config", str(config),
+                    "--surface", surface, "--locator", str(locator),
+                ]
+                code, out, err = self.cli(
+                    ["worker", "--task-file", str(task), *arguments]
+                )
+                self.assertEqual(code, 0, err)
+                brief = json.loads(out)["kickoff"]
+                self.assertTrue(brief.startswith(f"Read {self.root}/skills/poteto-mode/worker.md"))
+                self.assertIn(deployment["profile_revision"], brief)
+                flags = shlex.split(
+                    next(line.removeprefix("Runtime arguments: ")
+                         for line in brief.splitlines() if line.startswith("Runtime arguments: "))
+                )
+                self.assertEqual(flags[flags.index("--config") + 1], str(config))
+                self.assertEqual(flags[flags.index("--surface") + 1], surface)
+                self.assertEqual(flags[flags.index("--locator") + 1], str(locator))
+                self.assertEqual(flags[flags.index("--expected-manifest") + 1], self.pin)
+                # A fresh worker has a different default configuration; only the
+                # emitted arguments preserve the selected profile and approved body.
+                code, out, err = self.cli(["resolve", "architect", *flags])
+                self.assertEqual(code, 0, err)
+                resolved = json.loads(out)
+                self.assertEqual(resolved["deployment"]["profile_id"], "review")
+                self.assertEqual(resolved["instructions"], str(body))
+                self.assertTrue(resolved["verification"]["origin_verified"])
+                code, out, err = self.cli(
+                    ["resource", "poteto-mode", "../architect/SKILL.md", *flags]
+                )
+                self.assertEqual(code, 0, err)
+                self.assertEqual(json.loads(out)["path"], str(body))
+                code, out, err = self.cli(["worker", "--task-file", str(task), *flags])
+                self.assertEqual(code, 0, err)
+                self.assertEqual(json.loads(out)["kickoff"], brief)
+
+    def test_unpinned_worker_does_not_claim_external_provenance(self):
+        brief = workers.worker_brief(self.root, "Investigate.")
+        self.assertNotIn("--expected-manifest", brief)
+        with self.assertRaisesRegex(integrity.RuntimeErrorBase, "installation locator"):
+            workers.worker_brief(self.root, "Investigate.", surface="cloud")
 
     def test_explicit_override_cannot_bypass_invalid_active_profile(self):
         registry, _, _ = self.override()

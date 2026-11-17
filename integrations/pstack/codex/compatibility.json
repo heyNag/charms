@@ -132,6 +132,10 @@
       "reason": "Explain the selected-root install and unresolved capabilities without altering upstream Claude documentation."
     },
     {
+      "id": "codex-help-host-guidance",
+      "reason": "Adapt the primary help workflow to Codex marketplace installation, explicit skill selection and worker resources; distinguish the implicit catalog from picker discovery and avoid promising Cursor-only UI or persistence."
+    },
+    {
       "id": "actual-model-catalog",
       "reason": "Use actual tool/provider model entitlement and verified effort/speed mappings rather than Cursor model availability."
     },

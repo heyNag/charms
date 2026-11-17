@@ -202,7 +202,9 @@
       "source": "pstack/automations/benny/templates/configuration.example.yaml",
       "source_sha256": "13e24b4ce9b9a0913916e85fe3b080b88d45f8e55dccfe8ae38e0751a997b6f5",
       "output": "automations/benny/templates/configuration.example.yaml",
-      "transforms": []
+      "transforms": [
+        "codex-benny-user-configuration"
+      ]
     },
     {
       "source": "pstack/automations/benny/templates/reproduce-automation-prompt.md",
@@ -555,7 +557,15 @@
       "transforms": [
         "operative-body-dispatch",
         "native-invocation-policy",
-        "external-model-preferences"
+        "external-model-preferences",
+        "codex-help-host-guidance",
+        "codex-help-host-guidance",
+        "codex-help-host-guidance",
+        "codex-help-host-guidance",
+        "codex-help-host-guidance",
+        "codex-help-host-guidance",
+        "codex-help-host-guidance",
+        "codex-help-host-guidance"
       ]
     },
     {
