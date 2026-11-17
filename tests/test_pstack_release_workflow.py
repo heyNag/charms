@@ -34,7 +34,7 @@ class ReleaseAssetWorkflowTests(unittest.TestCase):
         self.assertIn("ARCHIVE_NAME: ${{ needs.validate.outputs.archive_name }}", verification)
         builder = load_script("build-plugin-archive")
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             make_plugin(root)
             make_bundle(root)
             for plugin in ("demo-plugin", "pstack"):

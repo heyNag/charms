@@ -26,7 +26,7 @@ class UpstreamTestRunnerTests(unittest.TestCase):
         spec.loader.exec_module(self.module)
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         self.bundle = self.root / "packages/pstack"
         self.write("packages/pstack/codex/skills/statechart/scripts/test/a.test.ts", "fixture\n")
         self.write("packages/pstack/codex/skills/poteto-mode/scripts/bun.lock", "lock\n")

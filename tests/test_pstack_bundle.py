@@ -238,7 +238,7 @@ class PstackBundleTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.package = make_bundle(self.root)
 
     def assert_invalid(self, text: str):
@@ -256,7 +256,7 @@ class PstackBundleTests(unittest.TestCase):
     def test_changed_claude_bytes_modes_missing_and_extra_paths_fail(self):
         for mutation in ["bytes", "mode", "missing", "extra"]:
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as tmp:
-                root = Path(tmp)
+                root = Path(tmp).resolve()
                 package = make_bundle(root)
                 path = package / "claude-code/skills/statechart/scripts/run.sh"
                 if mutation == "bytes":
@@ -394,7 +394,7 @@ class PstackBundleTests(unittest.TestCase):
             ("private-key", "-----BEGIN OPENSSH PRIVATE KEY-----"),
         ]:
             with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
-                root = Path(tmp)
+                root = Path(tmp).resolve()
                 package = make_bundle(root)
                 write(package / "codex" / name, content)
                 refresh_codex(root)
@@ -499,7 +499,7 @@ class PstackBundleTests(unittest.TestCase):
         ]
         for entries in cases:
             with self.subTest(entries=entries), tempfile.TemporaryDirectory() as tmp:
-                root = Path(tmp)
+                root = Path(tmp).resolve()
                 archive = root / "bad.zip"
                 with zipfile.ZipFile(archive, "w") as zipped:
                     for name, mode in entries:
