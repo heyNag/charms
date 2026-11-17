@@ -39,7 +39,7 @@ Infer the need from the message and the conversation. A named situation, such as
 
 Check the state that changes the answer, and mention it only when it does:
 
-- No `~/.config/pstack/models.mdc` means `/setup-pstack` hasn't run for this user, so every role uses its default model.
+- Inspect the successful resolver's `model_preferences.status` and `model_preferences.path` for the selected runtime configuration. An active profile may select an external `models_rule`, and an explicit `--models` may select another file; absence of `~/.config/pstack/models.mdc` alone does not show that setup never ran. Only `model_preferences.status: not_configured` means the selected model rule is absent. In that case, use the calling workflow's source defaults and permitted fallback with actual observed models; an invalid or unreadable selected rule is an error, not an absent configuration.
 - No `verify-*` skill or other app harness in the project means agents have no scripted way to drive the app. Mention `/create-verification-skill` when the question is about proving a change works.
 - No formal verification skill in the project means no property is checked past what tests reach. Mention `/create-formal-verification-skill` when the question is about a race, an invariant, or another case tests rarely hit. When one exists and the code it covers changed after the commit it records as last in sync, mention `/maintain-formal-verification-skill` if the question touches that code.
 

@@ -1,5 +1,8 @@
 # benny automation intent
 
+> Codex execution context: this dormant pack retains upstream Cursor automation procedures. Before setup or execution, read `adapters/codex/adapter.md` from the selected, verified pstack runtime and preserve that runtime binding in the target project. Cursor's `/automate`, Automations editor, model picker, and named integration actions below are source-host terms, not native Codex tools. A configured native or authenticated bridge/provider route must preserve the workflow's triggers, review and approval gates, thread identity, future wakes, stop behavior, cleanup, and required handoff. If no such route is available, leave the automations disabled and report the missing prerequisite. Copying this pack does not activate an automation.
+
+
 ## what i want to automate
 
 i want two cursor automations that work together in one slack issue channel.
@@ -29,7 +32,7 @@ i want two cursor automations that work together in one slack issue channel.
 - i treat utility and debug bots as evidence, not delegation or fix ownership.
 - i allow subagents to help, but they cannot post to slack or receive slack credentials.
 - i want this entire pack committed at `.agents/automations/benny/` in the target repository. its `instructions.md` files are direct automation instructions, not registered plugin skills.
-- i want pstack enabled through the target repository's committed the committed Codex project activation/runtime binding only for shared dependencies such as `why`, `tdd`, `unslop`, and the required principle skills.
+- i want pstack enabled through the target repository's committed, verified Codex project activation/runtime binding only for shared dependencies such as `why`, `tdd`, `unslop`, and the required principle skills.
 - i want each live automation prompt to read its committed operational file directly. i do not want plugin cache paths, copied excerpts, or slash-skill discovery.
 - i keep user-owned configuration, feature maps, routing maps, and secrets outside `.agents/automations/benny/` so pack refreshes cannot overwrite them.
 - i want both automations to fail closed when channel coordinates, tracker access, the control adapter, or the feature map are missing or uncertain.
@@ -70,7 +73,7 @@ i want verification from a fresh agent rooted in the target repository. confirm 
 
 if project-scoped plugins are unavailable or any shared dependency does not resolve, stop and explain what failed. do not add `.agents/automations/benny/skills/` to a plugin manifest or expect its files to appear in the slash-skill list.
 
-tell me that the committed Codex project activation/runtime binding, `.agents/automations/benny/`, and any referenced secret-free configuration must be committed before either automation is enabled. do not create or update an automation until i explicitly ask.
+tell me that the verified Codex project activation/runtime binding, `.agents/automations/benny/`, and any referenced secret-free configuration must be committed before either automation is enabled. do not create or update an automation until i explicitly ask.
 
 for first-time creation, use built-in `/automate` once for triage and once for repro and fix. complete the draft review, approval, readiness check, and Automations editor handoff for the first automation before starting the second.
 

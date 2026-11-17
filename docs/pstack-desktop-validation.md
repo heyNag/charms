@@ -1,15 +1,15 @@
 # Validate pstack on Desktop
 
-Use a local test marketplace to validate this unreleased bundle in the Desktop
-app. Fetching the repository supplies the files; installation and a fresh
-Desktop conversation establish whether the host actually loads them.
-`pstack@charms` is not published yet.
+Use a local test marketplace to validate a reviewed bundle in the Desktop app.
+Fetching the repository supplies the files; installation and a fresh Desktop
+conversation establish whether the host actually loads them. A public
+`pstack@charms` installation requires a verified release in the host catalog.
 
 These steps follow OpenAI's [local plugin installation guidance](https://developers.openai.com/plugins/build/plugins/):
 add a local marketplace through the CLI, restart the ChatGPT desktop app, then
 install and test from its Plugins Directory in Codex mode. The documented route
-was checked on 2026-11-17. The user's actual app build still needs validation;
-CLI installation alone does not prove Desktop activation.
+was checked on 2026-11-17. Record the app build and validate its actual plugin
+activation; CLI installation alone does not prove Desktop activation.
 
 The current documentation calls the desktop application ChatGPT, while the
 [official Codex launcher](https://github.com/openai/codex/blob/e5839cbc591df02408d5009e287887c7d57a9167/codex-rs/cli/src/desktop_app/mac.rs#L67)
@@ -19,29 +19,33 @@ route. Validate the installed build and its actual plugin activation below;
 an older ChatGPT application with bundle identifier `com.openai.chat` is not
 the application selected by that launcher.
 
-## Get the branch on your Mac
+## Get the reviewed version on your Mac
 
 From an existing `charms` checkout:
 
 ```sh
-git fetch origin
-git switch heyNag/pstack-codex-01543
-git pull --ff-only origin heyNag/pstack-codex-01543
+git fetch origin --tags
+git switch --detach <reviewed-commit-or-tag>
 git rev-parse HEAD
 codex --version
 python3 --version
 ```
 
-`git switch` can create the local tracking branch when that name exists only
-on `origin`. If local edits prevent switching, preserve them before continuing.
-Record the commit, Desktop app version/build from its About screen, and macOS
-version. The runtime requires **Python 3.11 or newer**. The CLI must expose
+Replace `<reviewed-commit-or-tag>` with the exact version being tested. If local
+edits prevent switching, preserve them before continuing. Record the commit,
+Desktop app version/build from its About screen, and macOS version. The runtime requires **Python 3.11 or newer**. The CLI must expose
 `codex plugin marketplace add --help`; no Desktop minimum build has been
 certified here.
 
 This test targets bundle `2026.11.0`, based on pstack `0.15.43` at upstream
 commit `2f87c854fe3e2fcda44ca86b46ede35aad3c46b7`. No regeneration is needed
-after pulling the committed bundle.
+after checking out the committed bundle.
+
+On 2026-11-17, local testing observed native explicit help activation in an
+existing restarted Desktop chat, verified instruction/resource reads, worker
+handoff, and `default` profile resolution for this baseline. Native explicit
+activation in a brand-new chat and refreshed artwork rendering were not observed.
+The temporary test installation was removed after those checks.
 
 ## Create an isolated test source
 
@@ -89,7 +93,7 @@ Desktop test**, install **pstack**, then start a **new local Codex conversation*
 Select only the Codex target; the aggregate `packages/pstack/` directory and
 the sibling Claude target are not Codex installation roots. If the app has no
 local marketplace source or this directory does not appear, record its build
-and that failure before proceeding; shell access to the checkout is not a
+and that failure before testing activation; shell access to the checkout is not a
 substitute for plugin activation.
 
 ## Exercise the installed plugin
@@ -135,6 +139,7 @@ Record observed tool calls and artifact identities against these criteria:
 | --- | --- |
 | Discovery | One installed pstack plugin, with 58 skill definitions. Its 57 manual-only policies survive installation; only `setup-pstack` permits implicit invocation. The default model catalog may therefore list only `setup-pstack`. Check manual skills through the complete host inventory or picker. Benny's three internal procedures are not registered as additional skills. |
 | Native activation | The fresh Desktop conversation can explicitly select and invoke `pstack:poteto-help`. An unrelated conversation does not implicitly start a manual-only pstack mode. |
+| Artwork | The plugin directory or installed-plugin view renders the bundled icon rather than a stale placeholder. File integrity alone does not establish rendering. |
 | Installed identity | The installed root passes the runtime `verify` command against `PSTACK_EXPECTED_MANIFEST`. Verify the actual installed copy reported by the host, not just the checkout or test source. |
 | Complete instructions | The invocation runs `resolve`, reads the adapter and effective `instructions.md`, and uses the same verified resource root for linked files. Reading only the short `SKILL.md` descriptor is insufficient. |
 | Internal routing and workers | A read-only mode task resolves its selected playbook and any sibling skills from that payload. If delegation is used, a fresh worker receives the verified `worker.md` pointer first and the actual role/mode resources. Record this separately as blocked if the required model or worker capability is unavailable. |

@@ -2,7 +2,7 @@
 
 This Python 3.11+ standard-library adapter resolves the one generated Codex payload. It does not install a plugin, authenticate a Codex account, deploy a provider, change Git settings, or create a native history API.
 
-Run the installed module at `adapters/codex/runtime/pstack_runtime.py`. It sets bytecode writing off so executing it leaves the immutable runtime unchanged.
+Run these examples from the installed Codex root, where the module is at `adapters/codex/runtime/pstack_runtime.py`, or use that module's absolute path. It disables bytecode writing so execution leaves the immutable runtime unchanged.
 
 ```sh
 python3 adapters/codex/runtime/pstack_runtime.py verify --root /absolute/installed/codex
@@ -13,7 +13,7 @@ python3 adapters/codex/runtime/pstack_runtime.py profile --config /external/psta
 
 `verify` checks every path, SHA-256, byte length and executable mode against the complete non-circular manifest; unexpected files also fail. Without an externally pinned manifest hash, it establishes installed-root consistency, not origin. `--expected-upstream` and `--expected-version` reject the wrong release, but are not substitutes for an exact artifact pin. A trusted host installation or verified release transport establishes origin.
 
-Cloud requires `--surface cloud --locator /external/installation.json`. The installation record lives outside the payload and contains `schema_version: 1`, `surface: "cloud"`, absolute `runtime_root`, and `manifest_sha256` (the SHA-256 of the exact manifest bytes). The setup mechanism must obtain that pin from a verified release, not from an untrusted runtime advertising itself. An optional explicit `--expected-manifest` must agree with the locator.
+Cloud requires `--surface cloud --locator /external/installation.json`. The installation record lives outside the payload and contains `schema_version: 1`, `surface: "cloud"` (or `"all"`), absolute `runtime_root`, and `manifest_sha256` (the SHA-256 of the exact manifest bytes). The setup mechanism must obtain that pin from a trusted installation or verified artifact transport, not from an untrusted runtime advertising itself. An optional explicit `--expected-manifest` must agree with the locator. This locator verifies the provisioned files; it does not establish native Cloud activation.
 
 Every `resolve` performs the same verification and body selection for direct and internal invocations. It also explicitly reads external `~/.config/pstack/models.mdc` and `~/.config/pstack/config.toml` when present. Codex is not assumed to automatically apply an MDC file. Per-skill descriptions and manual invocation policy remain host metadata; changing an operative body does not falsely claim to reactivate host-visible descriptions.
 
@@ -25,12 +25,19 @@ A resolved body includes immutable `payload_root` and `resource_root` bindings. 
 
 Ordinary resolution preserves existing model choices and reports a setup reminder for old defaults; it does not migrate them. Both model writes and configuration initialization reject installed plugin/cache destinations. The explicit setup path is the only rule writer.
 
-Actual host/provider drivers call `profiles.bind_run` with an authenticated observation verifier. The returned binding pins profile content, account/workspace, surface, repository, payload, observed capability states, and authorization scope. Raw JSON or a profile name cannot authenticate capability claims. Resume requires the exact original binding. The bridge independently qualifies provider operations; profile selection cannot enable them.
+A host/provider integration must call `profiles.bind_run` with its authenticated observation verifier to establish a run binding. The returned binding pins profile content, account/workspace, surface, repository, payload, observed capability states, and authorization scope. Raw JSON or a profile name cannot authenticate capability claims. Resume requires the exact original binding. The bridge requires a separately qualified provider registration; profile selection cannot enable provider operations.
 
-For model setup, export the actual host's discovered catalog and use:
+For model setup, export the actual host's discovered catalog and save the plan
+JSON outside the payload:
 
 ```sh
-python3 adapters/codex/runtime/pstack_runtime.py models plan --file /external/pstack/models.mdc --catalog /external/discovered-models.json --budget large
+python3 adapters/codex/runtime/pstack_runtime.py models plan --file /external/pstack/models.mdc --catalog /external/discovered-models.json --budget large > /external/accepted-plan.json
+```
+
+Present the saved plan's role choices and `plan_sha256` for the applicable
+operator approval. Once that exact plan is approved, write it with:
+
+```sh
 python3 adapters/codex/runtime/pstack_runtime.py models write --file /external/pstack/models.mdc --plan /external/accepted-plan.json --approved-plan THE_DISPLAYED_PLAN_SHA256
 ```
 
@@ -43,15 +50,17 @@ proposed rule over the active file to make planning succeed. The choices file is
 {"schema_version": 1, "roles": {"bug-fix": ["inherit-parent"], "arena runners": ["auto", "auto"]}}
 ```
 
-Only supplied roles change. Real models must appear in the observed catalog;
-`auto` and `inherit-parent` are always valid. Single-worker roles take one entry;
-panel and judge-pool roles take nonempty lists. Review and approve the newly
-generated plan before calling `models write`.
+Supplied roles override the normal migration and budget mapping; omitted roles
+still follow that planning process. Real models must appear in the observed
+catalog; `auto` and `inherit-parent` are valid preference aliases, subject to
+the calling workflow's dispatch and reviewer requirements. Single-worker roles
+take one entry; panel and judge-pool roles take nonempty lists. Review the newly
+generated plan under the applicable approval before calling `models write`.
 
-The second command records the operator's approval of that exact displayed table; do not fabricate approval. A changed existing rule or unresolved real model choice blocks writing. The catalog has `schema_version: 1`, an actual discovery `observation_id`, and a `models` list with `slug`, `family`, originating `vendor`, source-relative `effort`, `fast`, and actual `provider_model`. The catalog validator does not authenticate an arbitrary file: the integration must obtain the export from real discovery and qualify every source-to-provider effort/speed mapping. Unknown API effort names are not invented. Native names without Cursor effort suffixes are valid when discovery explicitly supplies their family/effort/speed mapping. Vendor comparison normalizes known manufacturer aliases; transport labels cannot qualify another vendor. Judge selection tries an observed same-family model at or below the requested effort before moving to the next ordered pool entry, and the caller passes already rejected selections so they are not retried. The returned receipt discloses a fallback. Model selection preserves the nine roles, aliases and panel cardinality; deployment profiles are separate.
+`models write` checks that `--approved-plan` matches the saved plan's digest; the caller must establish the operator's applicable approval rather than fabricate it. A changed existing rule or unresolved real model choice blocks writing. The catalog has `schema_version: 1`, an actual discovery `observation_id`, and a `models` list with `slug`, `family`, originating `vendor`, source-relative `effort`, `fast`, and actual `provider_model`. The catalog validator does not authenticate an arbitrary file: the integration must obtain the export from real discovery and qualify every source-to-provider effort/speed mapping. Unknown API effort names are not invented. Native names without Cursor effort suffixes are valid when discovery explicitly supplies their family/effort/speed mapping. Vendor comparison normalizes known manufacturer aliases; transport labels cannot qualify another vendor. Judge selection tries an observed same-family model at or below the requested effort before moving to the next ordered pool entry, and the caller passes already rejected selections so they are not retried. The returned receipt discloses a fallback. Model selection preserves the nine roles, aliases and panel cardinality; deployment profiles are separate.
 
 Observed `family` identifies the actual model/version. Source recovery separately uses Arena's longest-prefix groups: `claude-fable`, `claude`, and `gemini` after removing `cursor-`; other models use the text before the first hyphen. Thus an unavailable Opus can recover to an observed Sonnet while Fable remains a separate source family. Fast-route rules apply to the model actually chosen, not an unavailable original model. Recognized source slugs must agree with the discovered model identity, effort, speed and manufacturer; catalog metadata cannot relabel a Claude source model as OpenAI. Native opaque names use the observed mapping. Generated preferences retain the source MDC frontmatter, including `alwaysApply: true`, as source-format data; Codex still reads the file explicitly.
 
 Ordinary worker briefs propagate the first-line absolute common-worker pointer and role/mode resources. They also carry the exact root, surface, locator, configuration path, approved override registry, and externally verified manifest pin into nested `resolve`, `resource` and `worker` calls. A selected deployment profile is identified by name and revision; a changed binding requires reconciliation, not a switch to the worker's default configuration. A consistency-only parent verification is never promoted to externally pinned origin. Benny's explicit no-worker-publication boundary overrides the generic ready-PR rule. `workers.project_trial` requires the parent's `payload_root` and external `expected_manifest_sha256`, verifies that complete artifact, and takes the common worker only from its fixed package path. It can prepare a neutral input tree with frozen treatment bytes; it never certifies tool, filesystem, credential or history isolation. The only lexical common-worker change is `pass its own tests` to `pass the checks for its own change`; it is a declared dependency adaptation, not a treatment rewrite. Incompatible treatment paths/content or full-mode exposure are rejected for explicit experiment redesign. The coordinator receipt binds the parent payload, upstream, original worker and projection hashes; neither it nor the full payload manifest is exposed to the worker.
 
-`history` reports unavailable. `history.inspect_history` is a validator for a future qualified original-record producer, requiring an authenticated packet callback and exact account/workspace/conversation/cutoff matching. It checks ancestry, gaps, whole-transcript Reflect and requested historical scope. It never converts an assistant journal, supplied unauthenticated JSON, or managed child's conversation into original native history. Structurally valid chronology does not mean claim evidence passed or an independent reviewer ran. No native Cloud producer has been established or enabled by this implementation.
+`history` reports unavailable. `history.inspect_history` is a validator for a future qualified original-record producer, requiring an authenticated packet callback and exact account/workspace/conversation/cutoff matching. It checks ancestry, gaps, whole-transcript Reflect and requested historical scope. It never converts an assistant journal, supplied unauthenticated JSON, or managed child's conversation into original native history. Structurally valid chronology does not mean claim evidence passed or an independent reviewer ran. This implementation supplies no qualified original native-history producer for Desktop, Cloud or CLI.

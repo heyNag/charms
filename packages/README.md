@@ -1,7 +1,7 @@
 # Plugin packages
 
 Each immediate child is a product release boundary. Native products are
-complete Agent Plugin v1 roots; pstack is a bundle with two selected roots:
+complete Agent Plugin v1 roots; pstack is a bundle with separate host roots:
 
 ```text
 packages/
@@ -28,19 +28,20 @@ The native watch-video and x-bookmarks plugins follow this contract:
 └── tests/
 ```
 
-`plugin.json` is the only plugin manifest and version source. Versions are
-`YEAR.MONTH.RELEASE`, such as `2026.11.0`, and releases are tagged
+For native packages, `plugin.json` is the only plugin manifest and version
+source. Versions are `YEAR.MONTH.RELEASE`, such as `2026.11.0`, and releases are tagged
 `<name>--v<version>`. The sole skill is an immediate child of `skills/` and
 has the same name as the plugin. Charms currently bundles no MCP servers, so
 its plugin roots do not contain `mcp.json`.
 
-Packages carry no `.claude-plugin/` directory. After a plugin's first release,
-the repository's `.claude-plugin/marketplace.json` lists it, pinned to its
-latest release commit, for Claude Code and Codex installs.
+Native packages carry no `.claude-plugin/` directory. After a release is
+published and verified, the repository's `.claude-plugin/marketplace.json` and
+`.agents/plugins/marketplace.json` list the plugin at its latest release commit
+for Claude Code and Codex respectively.
 
 Pstack uses a trusted bundle profile: exact upstream Claude plus generated Codex,
-one upstream lock and a separate bundle version. Its 58 skills, dormant
-resources, fixtures and native manifests are validated without weakening the
+one upstream lock and a separate bundle version. Its skills, dormant
+resources, fixtures and host manifests are validated without weakening the
 native plugin contract. See [pstack integration](../docs/pstack.md).
 
 See [Plugin format](../docs/plugin-format.md) for the complete package

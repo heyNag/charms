@@ -1,5 +1,8 @@
 # Build the change and clean the diff
 
+> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.
+
+
 The build playbooks share one discipline. Say what you observed, and let the playbook demand the evidence. This page shows what to put in the prompt for each common build task, then the cleanup habit that keeps diffs reviewable.
 
 ## Prompt each build playbook with what you know

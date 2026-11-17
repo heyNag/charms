@@ -1,5 +1,8 @@
 # Recipes and pitfalls
 
+> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.
+
+
 Prompts worth copying, then the mistakes everyone makes once. Swap in your own paths and finish conditions. The recipes are deliberately informal. That's how they get typed in practice, and the skills read intent fine.
 
 ![She tastes a finished dish while robots cook from a recipe box, with pinned cards reading /how, /tdd, and /loop above the counter.](./images/recipes.jpg)

@@ -101,15 +101,33 @@
         },
         {
           "id": "actual-project-activation-record",
-          "before": "`.cursor/settings.json`",
-          "after": "the committed Codex project activation/runtime binding",
-          "count": 2
+          "before": "Tell the user that `.cursor/settings.json`,",
+          "after": "Tell the user that the verified Codex project activation/runtime binding,",
+          "count": 1
+        },
+        {
+          "id": "actual-project-activation-record",
+          "before": "the target repository's `.cursor/settings.json`,",
+          "after": "the target repository's verified Codex project activation/runtime binding,",
+          "count": 1
         },
         {
           "id": "dormant-resource-references",
           "before": "SKILL.md",
           "after": "instructions.md",
           "count": 6
+        },
+        {
+          "id": "codex-benny-host-context",
+          "before": "# Set up Benny\n",
+          "after": "# Set up Benny\n\n> Codex execution context: this dormant pack retains upstream Cursor automation procedures. Before setup or execution, read `adapters/codex/adapter.md` from the selected, verified pstack runtime and preserve that runtime binding in the target project. Cursor's `/automate`, Automations editor, model picker, and named integration actions below are source-host terms, not native Codex tools. A configured native or authenticated bridge/provider route must preserve the workflow's triggers, review and approval gates, thread identity, future wakes, stop behavior, cleanup, and required handoff. If no such route is available, leave the automations disabled and report the missing prerequisite. Copying this pack does not activate an automation.\n\n",
+          "count": 1
+        },
+        {
+          "id": "codex-benny-host-context",
+          "before": "For new automations, the only finish path is the built-in `automate` skill's reviewed Automations editor handoff.",
+          "after": "For new Codex automations, completion requires a supported equivalent of the reviewed Automations editor handoff, including draft review, explicit approval and readiness checks. If it is unavailable, leave setup incomplete; a direct backend call does not satisfy that handoff.",
+          "count": 1
         }
       ]
     },
@@ -136,15 +154,27 @@
         },
         {
           "id": "actual-project-activation-record",
-          "before": "`.cursor/settings.json`",
-          "after": "the committed Codex project activation/runtime binding",
-          "count": 2
+          "before": "the target repository's committed `.cursor/settings.json`",
+          "after": "the target repository's committed, verified Codex project activation/runtime binding",
+          "count": 1
+        },
+        {
+          "id": "actual-project-activation-record",
+          "before": "tell me that `.cursor/settings.json`,",
+          "after": "tell me that the verified Codex project activation/runtime binding,",
+          "count": 1
         },
         {
           "id": "dormant-resource-references",
           "before": "SKILL.md",
           "after": "instructions.md",
           "count": 5
+        },
+        {
+          "id": "codex-benny-host-context",
+          "before": "# benny automation intent\n",
+          "after": "# benny automation intent\n\n> Codex execution context: this dormant pack retains upstream Cursor automation procedures. Before setup or execution, read `adapters/codex/adapter.md` from the selected, verified pstack runtime and preserve that runtime binding in the target project. Cursor's `/automate`, Automations editor, model picker, and named integration actions below are source-host terms, not native Codex tools. A configured native or authenticated bridge/provider route must preserve the workflow's triggers, review and approval gates, thread identity, future wakes, stop behavior, cleanup, and required handoff. If no such route is available, leave the automations disabled and report the missing prerequisite. Copying this pack does not activate an automation.\n\n",
+          "count": 1
         }
       ]
     },
@@ -171,19 +201,14 @@
         },
         {
           "id": "actual-project-activation-record",
-          "before": "`.cursor/settings.json`",
-          "after": "the committed Codex project activation/runtime binding",
+          "before": "5. commit `.cursor/settings.json`,",
+          "after": "5. commit the verified Codex project activation/runtime binding,",
           "count": 1
-        }
-      ]
-    },
-    "README.md": {
-      "source_sha256": "cbe5a826afedbd396d9ee5845d850ccbd0f7f801fca728129fc90153ea70a015",
-      "edits": [
+        },
         {
-          "id": "codex-benny-project-resource",
-          "before": ".cursor/automations/benny/",
-          "after": ".agents/automations/benny/",
+          "id": "codex-benny-host-context",
+          "before": "# benny\n",
+          "after": "# benny\n\n> Codex execution context: this dormant pack retains upstream Cursor automation procedures. Before setup or execution, read `adapters/codex/adapter.md` from the selected, verified pstack runtime and preserve that runtime binding in the target project. Cursor's `/automate`, Automations editor, model picker, and named integration actions below are source-host terms, not native Codex tools. A configured native or authenticated bridge/provider route must preserve the workflow's triggers, review and approval gates, thread identity, future wakes, stop behavior, cleanup, and required handoff. If no such route is available, leave the automations disabled and report the missing prerequisite. Copying this pack does not activate an automation.\n\n",
           "count": 1
         }
       ]
@@ -247,6 +272,18 @@
           "before": "SKILL.md",
           "after": "instructions.md",
           "count": 1
+        },
+        {
+          "id": "codex-benny-trigger-contract",
+          "before": "\"message_ts\": \"{{SLACK_MESSAGE_TS}}\"",
+          "after": "\"ts\": \"{{SLACK_MESSAGE_TS}}\"",
+          "count": 1
+        },
+        {
+          "id": "codex-benny-host-context",
+          "before": "# Reproduce automation prompt\n",
+          "after": "# Reproduce automation prompt\n\n> Codex execution context: this dormant pack retains upstream Cursor automation procedures. Before setup or execution, read `adapters/codex/adapter.md` from the selected, verified pstack runtime and preserve that runtime binding in the target project. Cursor's `/automate`, Automations editor, model picker, and named integration actions below are source-host terms, not native Codex tools. A configured native or authenticated bridge/provider route must preserve the workflow's triggers, review and approval gates, thread identity, future wakes, stop behavior, cleanup, and required handoff. If no such route is available, leave the automations disabled and report the missing prerequisite. Copying this pack does not activate an automation.\n\n",
+          "count": 1
         }
       ]
     },
@@ -264,62 +301,18 @@
           "before": "SKILL.md",
           "after": "instructions.md",
           "count": 1
-        }
-      ]
-    },
-    "docs/guide/01-setup.md": {
-      "source_sha256": "86f1343beb84df874b9f31b9ad53dc85852a68b004cd974fb37ee130f252de0c",
-      "edits": [
+        },
         {
-          "id": "external-model-preferences",
-          "before": "~/.cursor/rules/pstack-models.mdc",
-          "after": "~/.config/pstack/models.mdc",
+          "id": "codex-benny-trigger-contract",
+          "before": "\"message_ts\": \"{{SLACK_MESSAGE_TS}}\"",
+          "after": "\"ts\": \"{{SLACK_MESSAGE_TS}}\"",
           "count": 1
         },
         {
-          "id": "codex-owned-skill-destination",
-          "before": ".cursor/skills/",
-          "after": ".agents/skills/",
+          "id": "codex-benny-host-context",
+          "before": "# Triage automation prompt\n",
+          "after": "# Triage automation prompt\n\n> Codex execution context: this dormant pack retains upstream Cursor automation procedures. Before setup or execution, read `adapters/codex/adapter.md` from the selected, verified pstack runtime and preserve that runtime binding in the target project. Cursor's `/automate`, Automations editor, model picker, and named integration actions below are source-host terms, not native Codex tools. A configured native or authenticated bridge/provider route must preserve the workflow's triggers, review and approval gates, thread identity, future wakes, stop behavior, cleanup, and required handoff. If no such route is available, leave the automations disabled and report the missing prerequisite. Copying this pack does not activate an automation.\n\n",
           "count": 1
-        }
-      ]
-    },
-    "docs/guide/06-verify-and-ship.md": {
-      "source_sha256": "31ab46936950c78989a51cffaebf2e321858580d286a83d92a504528fce24d2d",
-      "edits": [
-        {
-          "id": "codex-owned-skill-destination",
-          "before": ".cursor/skills/",
-          "after": ".agents/skills/",
-          "count": 1
-        }
-      ]
-    },
-    "docs/guide/09-make-it-yours.md": {
-      "source_sha256": "4df83ef7dc44364921a9663c7d426a1b4d0acab6a0490ef1769257b51b74e65a",
-      "edits": [
-        {
-          "id": "codex-owned-skill-destination",
-          "before": ".cursor/skills/",
-          "after": ".agents/skills/",
-          "count": 1
-        }
-      ]
-    },
-    "docs/harness/claude-code.md": {
-      "source_sha256": "5f859ef4fa39664b1ccdff521bcb15854f8805394191da509e68ce625b97cba6",
-      "edits": [
-        {
-          "id": "external-model-preferences",
-          "before": "~/.cursor/rules/pstack-models.mdc",
-          "after": "~/.config/pstack/models.mdc",
-          "count": 1
-        },
-        {
-          "id": "codex-owned-skill-destination",
-          "before": ".cursor/skills/",
-          "after": ".agents/skills/",
-          "count": 2
         }
       ]
     },
@@ -389,9 +382,9 @@
       "source_sha256": "d6d72057e5cdfa5cebeec88ee50d1ebf8f46f2e64788f5580968a73a16aba08d",
       "edits": [
         {
-          "id": "external-model-preferences",
-          "before": "~/.cursor/rules/pstack-models.mdc",
-          "after": "~/.config/pstack/models.mdc",
+          "id": "codex-help-host-guidance",
+          "before": "- No `~/.cursor/rules/pstack-models.mdc` means `/setup-pstack` hasn't run for this user, so every role uses its default model.",
+          "after": "- Inspect the successful resolver's `model_preferences.status` and `model_preferences.path` for the selected runtime configuration. An active profile may select an external `models_rule`, and an explicit `--models` may select another file; absence of `~/.config/pstack/models.mdc` alone does not show that setup never ran. Only `model_preferences.status: not_configured` means the selected model rule is absent. In that case, use the calling workflow's source defaults and permitted fallback with actual observed models; an invalid or unreadable selected rule is an error, not an absent configuration.",
           "count": 1
         },
         {
@@ -657,6 +650,12 @@
           "before": "different model family",
           "after": "different originating model vendor",
           "count": 1
+        },
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# Run work while you sleep\n",
+          "after": "# Run work while you sleep\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
         }
       ]
     },
@@ -752,6 +751,149 @@
           "id": "babysit-queued-merge-ready",
           "before": "In `check` mode pass `--status-only`.",
           "after": "In `check` mode pass `--status-only`. For a Codex queued `drive` attempt, pass `--until-merge-ready` with `--queued-stack` and the frozen `--stack-prs` list. The wrapper stops at a freshly verified blocker-free merge-queue wait and preserves the raw WAITING record; MERGE_READY is an adapter result, not upstream READY or an observed merge. Deadline, interruption, output-limit and stale-snapshot outcomes remain incomplete.",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/01-setup.md": {
+      "source_sha256": "86f1343beb84df874b9f31b9ad53dc85852a68b004cd974fb37ee130f252de0c",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# Set up pstack\n",
+          "after": "# Set up pstack\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/02-poteto-mode.md": {
+      "source_sha256": "4fd0f84bd539283d6d6973fd231c4b2f155128aa3c83ab62be457cc02ac2bc3b",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# Route work through `/poteto-mode`\n",
+          "after": "# Route work through `/poteto-mode`\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/03-understand.md": {
+      "source_sha256": "4486cf55f20b1a351b25a06b2a19f6a7081d6af4748a4178946907c2b7861392",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# Understand the code before changing it\n",
+          "after": "# Understand the code before changing it\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/04-design.md": {
+      "source_sha256": "e41952810df24c07a21ad10ebc2674a3350a03d4961a273fb6f681de87150a13",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# Design before you write code\n",
+          "after": "# Design before you write code\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/05-build-and-clean.md": {
+      "source_sha256": "4a0538dc0e52632a8871be9957e8177adaca6f5fa254f0bbb31d30b921d0cd1c",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# Build the change and clean the diff\n",
+          "after": "# Build the change and clean the diff\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/06-verify-and-ship.md": {
+      "source_sha256": "31ab46936950c78989a51cffaebf2e321858580d286a83d92a504528fce24d2d",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# Verify the result and open a PR\n",
+          "after": "# Verify the result and open a PR\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/08-principles.md": {
+      "source_sha256": "0b26b85292f0c09768abe727c9e92987dbf81f5b439a4871034c2fd1c4cb1723",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# Steer with principle names\n",
+          "after": "# Steer with principle names\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/09-make-it-yours.md": {
+      "source_sha256": "4df83ef7dc44364921a9663c7d426a1b4d0acab6a0490ef1769257b51b74e65a",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# Make it yours\n",
+          "after": "# Make it yours\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/10-recipes-and-pitfalls.md": {
+      "source_sha256": "287815da2cbebe9b867d4da7d0a3632f069a32b6481815be9d6cad43b12b5fbf",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# Recipes and pitfalls\n",
+          "after": "# Recipes and pitfalls\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/README.md": {
+      "source_sha256": "5c888d034d38f380789fad57c2c6fa7307ace803a0622cdde9e57fa2afe182de",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# The pstack guide\n",
+          "after": "# The pstack guide\n\n> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "docs/harness/claude-code.md": {
+      "source_sha256": "5f859ef4fa39664b1ccdff521bcb15854f8805394191da509e68ce625b97cba6",
+      "edits": [
+        {
+          "id": "codex-upstream-guide-context",
+          "before": "# pstack in Claude Code\n",
+          "after": "# pstack in Claude Code\n\n> This is the upstream Cursor-to-Claude Code reference. Its tables describe the preserved Claude target, not Codex configuration. For this Codex root, follow the [Codex adapter](../../adapters/codex/adapter.md).\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "automations/benny/skills/triage-issue-reports/SKILL.md": {
+      "source_sha256": "e88bb1ccc619f93d4b787bd9156fba5159f061c653fca00b6f08c65b6c77701a",
+      "edits": [
+        {
+          "id": "codex-benny-host-context",
+          "before": "# Triage issue reports\n",
+          "after": "# Triage issue reports\n\n> Codex execution context: this dormant pack retains upstream Cursor automation procedures. Before setup or execution, read `adapters/codex/adapter.md` from the selected, verified pstack runtime and preserve that runtime binding in the target project. Cursor's `/automate`, Automations editor, model picker, and named integration actions below are source-host terms, not native Codex tools. A configured native or authenticated bridge/provider route must preserve the workflow's triggers, review and approval gates, thread identity, future wakes, stop behavior, cleanup, and required handoff. If no such route is available, leave the automations disabled and report the missing prerequisite. Copying this pack does not activate an automation.\n\n",
+          "count": 1
+        }
+      ]
+    },
+    "automations/benny/skills/reproduce-and-fix-issues/SKILL.md": {
+      "source_sha256": "809659da0bbd0303d2a42dbe380dd117ae06b6fa3e19e4a31832a2756ae841fe",
+      "edits": [
+        {
+          "id": "codex-benny-host-context",
+          "before": "# Reproduce and fix issues\n",
+          "after": "# Reproduce and fix issues\n\n> Codex execution context: this dormant pack retains upstream Cursor automation procedures. Before setup or execution, read `adapters/codex/adapter.md` from the selected, verified pstack runtime and preserve that runtime binding in the target project. Cursor's `/automate`, Automations editor, model picker, and named integration actions below are source-host terms, not native Codex tools. A configured native or authenticated bridge/provider route must preserve the workflow's triggers, review and approval gates, thread identity, future wakes, stop behavior, cleanup, and required handoff. If no such route is available, leave the automations disabled and report the missing prerequisite. Copying this pack does not activate an automation.\n\n",
           "count": 1
         }
       ]

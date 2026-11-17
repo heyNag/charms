@@ -79,8 +79,8 @@ until the release runs.
 
 ## Pstack bundle releases
 
-`pstack` is currently **unreleased**. Its release will contain two complete
-host roots. Its downstream version is owned by
+`pstack` releases contain the complete Claude Code and Codex host roots.
+Its downstream version is owned by
 `integrations/pstack/projection.json` and generated into
 `packages/pstack/bundle.json`. Codex uses that downstream version. Claude keeps
 its exact upstream native version, currently `0.15.43`; it must never be
@@ -126,10 +126,11 @@ promotion is a no-op; failed/interrupted local catalog writes are rolled back
 before the next attempt. The repository commit publishes the three-file set
 as one change.
 
-Artifact checks do not certify live Codex host capabilities. Desktop and native
-Cloud activation, original-history access and configured provider integrations
-still require actual qualification before claiming those workflows are
-supported. See the [pstack support boundary](pstack.md#support-boundary).
+Artifact checks do not certify live Codex host capabilities. Desktop workflows
+beyond the recorded smoke checks, native Cloud activation, original-history
+access and configured provider integrations require actual qualification
+before claiming those workflows are supported. See the
+[pstack support boundary](pstack.md#support-boundary).
 
 ## Record what the release was tested with
 

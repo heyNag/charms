@@ -1,8 +1,8 @@
 # Charms
 
-Charms contains two portable [Agent Plugins v1](https://agent-plugins.org/specification)
-and an upstream-aligned pstack bundle. Native plugins have one skill each;
-pstack contains separate Claude Code and Codex roots in one release.
+Charms is a collection of independently released
+[Agent Plugins v1](https://agent-plugins.org/specification) and plugin bundles.
+The pstack bundle contains separate Claude Code and Codex plugin roots.
 
 | Plugin | Purpose | Plugin root |
 | --- | --- | --- |
@@ -15,7 +15,8 @@ and release tooling; it is not itself a plugin. Each product has its own release
 boundary. The pstack container is not an installation root: select its
 `claude-code/` or `codex/` child. See [pstack integration](docs/pstack.md) for
 the pinned baseline, local development, and current capability limits.
-Pstack is unreleased and is not yet advertised by the marketplaces.
+A plugin becomes available through the marketplace only after its release is
+published, verified, and added to the host catalog.
 
 ## Install a plugin
 
@@ -50,7 +51,7 @@ skillshare install github.com/heyNag/charms/packages/watch-video/skills/watch-vi
 npx skills add heyNag/charms
 ```
 
-Use one channel per machine. A skill installed both ways loads twice.
+Use one channel per host. A skill installed both ways in the same host loads twice.
 
 Each GitHub release also carries the plugin as a ZIP with a SHA-256 checksum
 for archival or offline use.

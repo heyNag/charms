@@ -9,6 +9,7 @@ Use the shortest guide that matches the task:
 | Install or update a plugin in Claude Code, Codex, or another host | [Installation](installing.md) |
 | Check supported clients and runtime requirements | [Compatibility](compatibility.md) |
 | Maintain the upstream pstack bundle and Codex adapter | [pstack integration](pstack.md) |
+| Validate pstack discovery and activation in Desktop | [Desktop validation](pstack-desktop-validation.md) |
 | Change or add a plugin | [Development](development.md) |
 | Review trust, credentials, and artifact safety | [Security](security.md) |
 | Bump a version, publish a release, or configure release settings | [Releasing](releasing.md) |

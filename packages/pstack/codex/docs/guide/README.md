@@ -1,5 +1,8 @@
 # The pstack guide
 
+> This page retains upstream Cursor-oriented workflow guidance. For Codex installation and invocation, use the [Codex introduction](../../README.md#pstack-for-codex) and [adapter guide](../../adapters/codex/adapter.md). Cursor commands, UI, model slugs, paths, and marketplace instructions below describe the source host. Apply the workflow through the verified Codex runtime and its supported capabilities; unavailable capabilities remain unmet prerequisites.
+
+
 pstack works best when you stop micromanaging the agent. You describe what you want and how you'll know it's done. `/poteto-mode` picks the playbook, runs the other skills as the steps need them, and shows you the evidence. This guide teaches that habit with realistic prompts.
 
 Here's what you'll learn:

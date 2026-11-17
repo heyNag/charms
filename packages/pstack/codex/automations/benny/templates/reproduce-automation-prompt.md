@@ -1,5 +1,8 @@
 # Reproduce automation prompt
 
+> Codex execution context: this dormant pack retains upstream Cursor automation procedures. Before setup or execution, read `adapters/codex/adapter.md` from the selected, verified pstack runtime and preserve that runtime binding in the target project. Cursor's `/automate`, Automations editor, model picker, and named integration actions below are source-host terms, not native Codex tools. A configured native or authenticated bridge/provider route must preserve the workflow's triggers, review and approval gates, thread identity, future wakes, stop behavior, cleanup, and required handoff. If no such route is available, leave the automations disabled and report the missing prerequisite. Copying this pack does not activate an automation.
+
+
 > Source material for the copied setup workflow. Paraphrase this intent into a built-in `automate` draft after `automate` confirms that the copied pack is committed in the repository where the automation will run.
 
 Read and follow `.agents/automations/benny/skills/reproduce-and-fix-issues/instructions.md` for this run.
@@ -15,7 +18,7 @@ Trigger:
 ```json
 {
 	"source_channel_id": "{{SLACK_CHANNEL_ID}}",
-	"message_ts": "{{SLACK_MESSAGE_TS}}",
+	"ts": "{{SLACK_MESSAGE_TS}}",
 	"thread_ts": "{{SLACK_THREAD_TS_OR_EMPTY}}"
 }
 ```

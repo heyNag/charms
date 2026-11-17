@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -236,6 +237,37 @@ class ProjectionTests(unittest.TestCase):
 
 
 class ReviewedRuleTests(unittest.TestCase):
+    def test_inherited_guides_keep_host_paths_and_explain_codex_boundary(self):
+        codex = ROOT / "packages/pstack/codex"
+        guides = sorted((codex / "docs/guide").glob("*.md"))
+        self.assertEqual(len(guides), 11)
+        for path in guides:
+            with self.subTest(path=path.name):
+                self.assertIn("upstream Cursor-oriented workflow guidance", path.read_text())
+                self.assertIn("../../adapters/codex/adapter.md", path.read_text())
+        setup = (codex / "docs/guide/01-setup.md").read_text()
+        self.assertIn("~/.cursor/rules/pstack-models.mdc", setup)
+        self.assertNotIn("~/.config/pstack/models.mdc", setup)
+        harness = (codex / "docs/harness/claude-code.md").read_text()
+        self.assertIn("upstream Cursor-to-Claude Code reference", harness)
+        self.assertIn("~/.cursor/rules/pstack-models.mdc", harness)
+        self.assertNotIn("~/.config/pstack/models.mdc", harness)
+
+    def test_dormant_benny_resources_preserve_required_host_handoff(self):
+        benny = ROOT / "packages/pstack/codex/automations/benny"
+        entries = [benny / "README.md", benny / "FOR_AGENTS.md",
+                   *sorted((benny / "skills").glob("*/instructions.md")),
+                   *sorted((benny / "templates").glob("*-automation-prompt.md"))]
+        self.assertEqual(len(entries), 7)
+        for path in entries:
+            with self.subTest(path=str(path.relative_to(benny))):
+                self.assertIn("Codex execution context", path.read_text())
+                self.assertIn("leave the automations disabled", path.read_text())
+        setup = (benny / "skills/setup-benny/instructions.md").read_text()
+        self.assertIn("draft review, explicit approval and readiness checks", setup)
+        self.assertIn("a direct backend call does not satisfy that handoff", setup)
+        self.assertIn("Never call a direct automation backend service", setup)
+
     def test_help_uses_codex_installation_and_explicit_invocation_guidance(self):
         relative = "skills/poteto-help/SKILL.md"
         rules = json.loads((ROOT / "integrations/pstack/codex/transforms/rules.json").read_text())
@@ -260,6 +292,12 @@ class ReviewedRuleTests(unittest.TestCase):
             "cite the actual installed file or a verified downstream source URL",
             "Do not rewrite Codex links to cursor/plugins URLs",
             "Each later resolver invocation reads that rule",
+            "`model_preferences.status` and `model_preferences.path`",
+            "An active profile may select an external `models_rule`",
+            "an explicit `--models` may select another file",
+            "Only `model_preferences.status: not_configured`",
+            "invalid or unreadable selected rule is an error",
+            "calling workflow's source defaults and permitted fallback",
             "does not establish a persistent Custom Mode in Codex",
             "bundled role resource, not a registered Codex agent type",
             "verified `worker.md` read-first pointer",
@@ -273,9 +311,80 @@ class ReviewedRuleTests(unittest.TestCase):
             'spawn it with `subagent_type: "poteto-agent"`',
             "https://github.com/cursor/plugins/blob/main/pstack/",
             "The rule from `/setup-pstack` applies to new chats. Start one.",
+            "No `~/.config/pstack/models.mdc` means `/setup-pstack` hasn't run",
         ):
             with self.subTest(obsolete=obsolete):
                 self.assertNotIn(obsolete, body)
+
+        # Selecting a nondefault model rule must not remove the source's
+        # once-per-chat setup offer or turn a help answer into task execution.
+        for prompt in (
+            "Ask at most once per chat.",
+            "- Now: give them `/setup-pstack` to type, and answer their question too.",
+            "- Later: answer their question,",
+        ):
+            self.assertIn(prompt, body)
+
+    def test_benny_activation_guidance_is_grammatical_and_keeps_commit_gate(self):
+        pack = ROOT / "packages/pstack/codex/automations/benny"
+        expected = {
+            "FOR_AGENTS.md": (
+                "the target repository's committed, verified Codex project activation/runtime binding",
+                "tell me that the verified Codex project activation/runtime binding,",
+                "must be committed before either automation is enabled",
+            ),
+            "skills/setup-benny/instructions.md": (
+                "Tell the user that the verified Codex project activation/runtime binding,",
+                "the target repository's verified Codex project activation/runtime binding,",
+                "are committed on the branch used by the automation checkout",
+            ),
+            "README.md": (
+                "5. commit the verified Codex project activation/runtime binding,",
+                "before enabling either automation",
+            ),
+        }
+        for relative, requirements in expected.items():
+            with self.subTest(relative=relative):
+                body = (pack / relative).read_text()
+                for requirement in requirements:
+                    self.assertIn(requirement, body)
+                for malformed in (
+                    "committed the committed", "repository's the committed",
+                    "commit the committed", "`.cursor/settings.json`",
+                ):
+                    self.assertNotIn(malformed, body)
+
+    def test_benny_trigger_templates_supply_operational_thread_fallback_fields(self):
+        pack = ROOT / "packages/pstack/codex/automations/benny"
+        for template, skill in (
+            ("triage", "triage-issue-reports"),
+            ("reproduce", "reproduce-and-fix-issues"),
+        ):
+            with self.subTest(template=template):
+                body = (pack / f"templates/{template}-automation-prompt.md").read_text()
+                procedure = (pack / f"skills/{skill}/instructions.md").read_text()
+                block = re.search(r"Trigger:\s*```json\s*(.*?)\s*```", body, re.S)
+                self.assertIsNotNone(block)
+                trigger = json.loads(block.group(1))
+                fields = set(re.findall(r"`trigger\.(\w+)`", procedure))
+                self.assertEqual(fields, {"thread_ts", "ts"})
+                self.assertTrue(fields <= trigger.keys())
+                self.assertEqual(trigger["source_channel_id"], "{{SLACK_CHANNEL_ID}}")
+                self.assertEqual(trigger["ts"], "{{SLACK_MESSAGE_TS}}")
+                self.assertNotIn("message_ts", trigger)
+                self.assertIn("Otherwise use `trigger.ts`.", procedure)
+                # Exercise both coordinates described by the operational contract:
+                # a top-level report and a report already bound to a root thread.
+                for thread_ts, expected in (("", "report-ts"), ("root-ts", "root-ts")):
+                    values = {
+                        "{{SLACK_CHANNEL_ID}}": "source-channel",
+                        "{{SLACK_MESSAGE_TS}}": "report-ts",
+                        "{{SLACK_THREAD_TS_OR_EMPTY}}": thread_ts,
+                    }
+                    event = {key: values[value] for key, value in trigger.items()}
+                    self.assertEqual(event["thread_ts"] or event["ts"], expected)
+                self.assertIn("The coordinator is the only Slack poster.", body)
+                self.assertIn("Never post a root message in the source channel.", body)
 
     def test_benny_example_map_paths_match_codex_user_configuration(self):
         relative = "automations/benny/templates/configuration.example.yaml"

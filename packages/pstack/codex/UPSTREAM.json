@@ -9,13 +9,13 @@
   },
   "bundle_version": "2026.11.0",
   "adapter": {
-    "sha256": "6b1a58ce56271598ca2b3669440302b8ea221f1d1b5c5c6eb7cf604312f90951",
+    "sha256": "0bdb8a37cfd2e99f0860a51258f01f587badd25e260d8aa3668783d06d06b749",
     "inputs": [
       {
         "path": "integrations/pstack/codex/adapter.md",
-        "sha256": "e9a47d8cb8f0f2ff9b0b03cb8e298a8b2a70ca2554ec8227532fe09233756f7c",
+        "sha256": "6a7b243a8954ebec28cdc11bd2c6dd7d950a38cefb0717bf0349a480ed1c340c",
         "mode": "100644",
-        "size": 12829
+        "size": 12864
       },
       {
         "path": "integrations/pstack/codex/assets/pstack.png",
@@ -25,9 +25,9 @@
       },
       {
         "path": "integrations/pstack/codex/bridge/README.md",
-        "sha256": "4d74b504a3abd5c102a4e5b83ae390c08ac07a8563d58baef2acd7154f29f8f6",
+        "sha256": "f94af4766420088a06b449e6e06ee139c1d05a9e19fd95dd60f587fd547d0c92",
         "mode": "100644",
-        "size": 6900
+        "size": 6905
       },
       {
         "path": "integrations/pstack/codex/bridge/__init__.py",
@@ -61,15 +61,15 @@
       },
       {
         "path": "integrations/pstack/codex/compatibility.json",
-        "sha256": "fac6123ea2cc67126875a307a0b9b09f25d08935695131de09d5d2037548810c",
+        "sha256": "8b4f6ba6ec46ce4f1f2a237f0de482b17ee59c05734cecd9e0c2dca693369ed3",
         "mode": "100644",
-        "size": 10227
+        "size": 10872
       },
       {
         "path": "integrations/pstack/codex/providers/README.md",
-        "sha256": "694c4c6d4284a903587b3717b57ffc4da7d9972d28e50aadb97f25e600d09fc0",
+        "sha256": "ea96f00b3ca8aad3f18c7f633be5dd47268f7d435544f42bdbc513826aeef6a1",
         "mode": "100644",
-        "size": 6543
+        "size": 6570
       },
       {
         "path": "integrations/pstack/codex/providers/__init__.py",
@@ -109,9 +109,9 @@
       },
       {
         "path": "integrations/pstack/codex/runtime/README.md",
-        "sha256": "154f4fa406b5b8ce70040bd7f39da952295391da770589a840b6b7371fea3d6a",
+        "sha256": "18d5f122004e627e5c6ce02ce23c29c9ed6f2651c36829b81e8bd4d18116630f",
         "mode": "100644",
-        "size": 10104
+        "size": 10864
       },
       {
         "path": "integrations/pstack/codex/runtime/history.py",
@@ -151,9 +151,9 @@
       },
       {
         "path": "integrations/pstack/codex/templates/codex-readme.md.in",
-        "sha256": "1566dae960255efacfc28508ffe851aa76395ec45c8794807f9b92361efcdd4a",
+        "sha256": "4cee805c930dd2888ff0522bd2edd8cb632d5d37263beb4acc04442f4798d696",
         "mode": "100644",
-        "size": 1801
+        "size": 1890
       },
       {
         "path": "integrations/pstack/codex/templates/descriptor.md",
@@ -169,15 +169,15 @@
       },
       {
         "path": "integrations/pstack/codex/transforms/rules.json",
-        "sha256": "ea87200037e4fd458507c5d3493b223746c57236e156bf430545165db2d071d1",
+        "sha256": "5e49f201b03e05571ed7c5f5b69e479d33bc1a93d7318c59eb51bd0ba6fa63ad",
         "mode": "100644",
-        "size": 46440
+        "size": 62951
       },
       {
         "path": "integrations/pstack/codex/watch_pr/README.md",
-        "sha256": "98dac253b157a02aa2e8cf96a496678fa5ddee4365b4e15112f7fceb8d6c7bae",
+        "sha256": "1b84c4b0fd27522a79b925b0c5a3b6a34b85e660e3e0faed37a368bc35c15c6f",
         "mode": "100644",
-        "size": 4008
+        "size": 4239
       },
       {
         "path": "integrations/pstack/codex/watch_pr/codex-main.ts",
@@ -211,9 +211,9 @@
       },
       {
         "path": "scripts/pstack_sync.py",
-        "sha256": "64ca401fc2e0bd2c0e1d8e4bf1bacd467508d53ee46c4acaa4cc0ec6eb959224",
+        "sha256": "19e5cbe3dc80d9378b65eee6624f0b928eab578b37f5109e1326e5ccefbe6a23",
         "mode": "100644",
-        "size": 56227
+        "size": 56323
       },
       {
         "path": "scripts/pstack_transform.py",
@@ -314,7 +314,6 @@
         "source_sha256": "cbe5a826afedbd396d9ee5845d850ccbd0f7f801fca728129fc90153ea70a015",
         "output": "README.md",
         "transforms": [
-          "codex-benny-project-resource",
           "codex-installation-introduction"
         ]
       },
@@ -348,7 +347,9 @@
           "codex-benny-project-resource",
           "codex-benny-user-configuration",
           "actual-project-activation-record",
-          "dormant-resource-references"
+          "actual-project-activation-record",
+          "dormant-resource-references",
+          "codex-benny-host-context"
         ]
       },
       {
@@ -359,7 +360,8 @@
           "supported-project-activation",
           "codex-benny-project-resource",
           "codex-benny-user-configuration",
-          "actual-project-activation-record"
+          "actual-project-activation-record",
+          "codex-benny-host-context"
         ]
       },
       {
@@ -367,7 +369,8 @@
         "source_sha256": "809659da0bbd0303d2a42dbe380dd117ae06b6fa3e19e4a31832a2756ae841fe",
         "output": "automations/benny/skills/reproduce-and-fix-issues/instructions.md",
         "transforms": [
-          "dormant-automation-resource"
+          "dormant-automation-resource",
+          "codex-benny-host-context"
         ]
       },
       {
@@ -403,7 +406,10 @@
           "codex-benny-project-resource",
           "codex-benny-user-configuration",
           "actual-project-activation-record",
-          "dormant-resource-references"
+          "actual-project-activation-record",
+          "dormant-resource-references",
+          "codex-benny-host-context",
+          "codex-benny-host-context"
         ]
       },
       {
@@ -411,7 +417,8 @@
         "source_sha256": "e88bb1ccc619f93d4b787bd9156fba5159f061c653fca00b6f08c65b6c77701a",
         "output": "automations/benny/skills/triage-issue-reports/instructions.md",
         "transforms": [
-          "dormant-automation-resource"
+          "dormant-automation-resource",
+          "codex-benny-host-context"
         ]
       },
       {
@@ -437,7 +444,9 @@
         "output": "automations/benny/templates/reproduce-automation-prompt.md",
         "transforms": [
           "codex-benny-project-resource",
-          "dormant-resource-references"
+          "dormant-resource-references",
+          "codex-benny-trigger-contract",
+          "codex-benny-host-context"
         ]
       },
       {
@@ -446,7 +455,9 @@
         "output": "automations/benny/templates/triage-automation-prompt.md",
         "transforms": [
           "codex-benny-project-resource",
-          "dormant-resource-references"
+          "dormant-resource-references",
+          "codex-benny-trigger-contract",
+          "codex-benny-host-context"
         ]
       },
       {
@@ -454,40 +465,47 @@
         "source_sha256": "86f1343beb84df874b9f31b9ad53dc85852a68b004cd974fb37ee130f252de0c",
         "output": "docs/guide/01-setup.md",
         "transforms": [
-          "external-model-preferences",
-          "codex-owned-skill-destination"
+          "codex-upstream-guide-context"
         ]
       },
       {
         "source": "pstack/docs/guide/02-poteto-mode.md",
         "source_sha256": "4fd0f84bd539283d6d6973fd231c4b2f155128aa3c83ab62be457cc02ac2bc3b",
         "output": "docs/guide/02-poteto-mode.md",
-        "transforms": []
+        "transforms": [
+          "codex-upstream-guide-context"
+        ]
       },
       {
         "source": "pstack/docs/guide/03-understand.md",
         "source_sha256": "4486cf55f20b1a351b25a06b2a19f6a7081d6af4748a4178946907c2b7861392",
         "output": "docs/guide/03-understand.md",
-        "transforms": []
+        "transforms": [
+          "codex-upstream-guide-context"
+        ]
       },
       {
         "source": "pstack/docs/guide/04-design.md",
         "source_sha256": "e41952810df24c07a21ad10ebc2674a3350a03d4961a273fb6f681de87150a13",
         "output": "docs/guide/04-design.md",
-        "transforms": []
+        "transforms": [
+          "codex-upstream-guide-context"
+        ]
       },
       {
         "source": "pstack/docs/guide/05-build-and-clean.md",
         "source_sha256": "4a0538dc0e52632a8871be9957e8177adaca6f5fa254f0bbb31d30b921d0cd1c",
         "output": "docs/guide/05-build-and-clean.md",
-        "transforms": []
+        "transforms": [
+          "codex-upstream-guide-context"
+        ]
       },
       {
         "source": "pstack/docs/guide/06-verify-and-ship.md",
         "source_sha256": "31ab46936950c78989a51cffaebf2e321858580d286a83d92a504528fce24d2d",
         "output": "docs/guide/06-verify-and-ship.md",
         "transforms": [
-          "codex-owned-skill-destination"
+          "codex-upstream-guide-context"
         ]
       },
       {
@@ -495,34 +513,41 @@
         "source_sha256": "5bd1a4336b09947832d3b58afb22bcdfbe698ff76c1bdaab23af545f04cf8e60",
         "output": "docs/guide/07-overnight.md",
         "transforms": [
-          "owning-show-me-vendor-contract"
+          "owning-show-me-vendor-contract",
+          "codex-upstream-guide-context"
         ]
       },
       {
         "source": "pstack/docs/guide/08-principles.md",
         "source_sha256": "0b26b85292f0c09768abe727c9e92987dbf81f5b439a4871034c2fd1c4cb1723",
         "output": "docs/guide/08-principles.md",
-        "transforms": []
+        "transforms": [
+          "codex-upstream-guide-context"
+        ]
       },
       {
         "source": "pstack/docs/guide/09-make-it-yours.md",
         "source_sha256": "4df83ef7dc44364921a9663c7d426a1b4d0acab6a0490ef1769257b51b74e65a",
         "output": "docs/guide/09-make-it-yours.md",
         "transforms": [
-          "codex-owned-skill-destination"
+          "codex-upstream-guide-context"
         ]
       },
       {
         "source": "pstack/docs/guide/10-recipes-and-pitfalls.md",
         "source_sha256": "287815da2cbebe9b867d4da7d0a3632f069a32b6481815be9d6cad43b12b5fbf",
         "output": "docs/guide/10-recipes-and-pitfalls.md",
-        "transforms": []
+        "transforms": [
+          "codex-upstream-guide-context"
+        ]
       },
       {
         "source": "pstack/docs/guide/README.md",
         "source_sha256": "5c888d034d38f380789fad57c2c6fa7307ace803a0622cdde9e57fa2afe182de",
         "output": "docs/guide/README.md",
-        "transforms": []
+        "transforms": [
+          "codex-upstream-guide-context"
+        ]
       },
       {
         "source": "pstack/docs/guide/images/design.jpg",
@@ -565,8 +590,7 @@
         "source_sha256": "5f859ef4fa39664b1ccdff521bcb15854f8805394191da509e68ce625b97cba6",
         "output": "docs/harness/claude-code.md",
         "transforms": [
-          "external-model-preferences",
-          "codex-owned-skill-destination"
+          "codex-upstream-guide-context"
         ]
       },
       {
@@ -782,7 +806,7 @@
         "transforms": [
           "operative-body-dispatch",
           "native-invocation-policy",
-          "external-model-preferences",
+          "codex-help-host-guidance",
           "codex-help-host-guidance",
           "codex-help-host-guidance",
           "codex-help-host-guidance",

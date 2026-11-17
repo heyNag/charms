@@ -119,7 +119,8 @@ Codex storage convention. Use only an actually supported and authorized
 producer for the exact native conversation/workspace/window. Never guess a
 Cursor path, scan unrelated account history, equate an inner managed session
 with its native outer conversation, or use an assistant journal as its own
-proof. The current package has no certified native Cloud producer.
+proof. This package supplies no qualified original native-history producer
+for Desktop, Cloud or CLI.
 
 Reflect requires the whole current transcript, including the original prefix;
 it has no digest fallback. Show-me requires the actual run chronology and

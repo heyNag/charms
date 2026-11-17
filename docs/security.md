@@ -31,8 +31,9 @@ safe to execute. See the [pstack support boundary](pstack.md#support-boundary).
 
 ## Release integrity
 
-Every Charms GitHub release is immutable: once published, its assets cannot
-change and its tag name cannot be reused, even after the release is deleted.
+Marketplace entries must reference verified, immutable GitHub releases. Once
+an immutable release is published, its assets cannot change and its tag name
+cannot be reused, even after the release is deleted.
 The release workflow fails, and leaves the marketplace unchanged, unless the
 release is immutable and its attestation verifies. With an optional read-only
 token it also refuses to publish while immutability is turned off. A tag
@@ -87,12 +88,12 @@ override, keeps its permissions.
 
 ### pstack
 
-The bundle is unreleased. Claude remains the exact upstream distribution;
-Codex-specific controls live in the adapter. Installing either root does not
+Claude remains the exact upstream distribution; Codex-specific controls live
+in the adapter. Installing either root does not
 provision providers, supply credentials, or certify Desktop or Cloud
 activation. Missing original-history access or provider capabilities must
-remain explicit failures, not successful verification. See
-[pstack runtime configuration](pstack.md#runtime-and-configuration) and the
+remain explicit unavailable or incomplete outcomes, not successful
+verification. See [pstack runtime configuration](pstack.md#runtime-and-configuration) and the
 [support boundary](pstack.md#support-boundary).
 
 ### watch-video

@@ -76,6 +76,18 @@
   ],
   "codex_deviations": [
     {
+      "id": "codex-upstream-guide-context",
+      "reason": "Label inherited Cursor and Claude guides as upstream references and route Codex readers to the adapter without mixing host-specific installation paths."
+    },
+    {
+      "id": "codex-benny-trigger-contract",
+      "reason": "Serialize the source message timestamp as ts so dormant operational procedures retain the trigger root when thread_ts is empty."
+    },
+    {
+      "id": "codex-benny-host-context",
+      "reason": "Bind dormant automation resources to qualified Codex capabilities while preserving source review, approval, readiness and handoff requirements."
+    },
+    {
       "id": "operative-body-dispatch",
       "reason": "Separate host-discoverable descriptor from complete effective instructions and use one resolver for direct/internal calls."
     },

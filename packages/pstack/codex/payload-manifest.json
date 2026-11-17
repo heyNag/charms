@@ -26,27 +26,27 @@
     },
     {
       "path": "README.md",
-      "sha256": "515cd77362a174a19ee1cbd7b130b1805cea858fb273bc4adbd4b41cc94e2ab9",
+      "sha256": "53cffced39852b4c5343dc76145cf5f4f5c2a53bcbd7b7487a04d12658d83295",
       "mode": "100644",
-      "size": 29781
+      "size": 29870
     },
     {
       "path": "UPSTREAM.json",
-      "sha256": "2db6d280c9f42e53d4dbf2af1b6ff45128a18ff922c81e812818b50910f0f0b2",
+      "sha256": "a003189c2db3031f0ab99ab2d9b9813fbb8c5768f4532a34e5f87aa0ca908b74",
       "mode": "100644",
-      "size": 183638
+      "size": 184382
     },
     {
       "path": "adapters/codex/adapter.md",
-      "sha256": "e9a47d8cb8f0f2ff9b0b03cb8e298a8b2a70ca2554ec8227532fe09233756f7c",
+      "sha256": "6a7b243a8954ebec28cdc11bd2c6dd7d950a38cefb0717bf0349a480ed1c340c",
       "mode": "100644",
-      "size": 12829
+      "size": 12864
     },
     {
       "path": "adapters/codex/bridge/README.md",
-      "sha256": "4d74b504a3abd5c102a4e5b83ae390c08ac07a8563d58baef2acd7154f29f8f6",
+      "sha256": "f94af4766420088a06b449e6e06ee139c1d05a9e19fd95dd60f587fd547d0c92",
       "mode": "100644",
-      "size": 6900
+      "size": 6905
     },
     {
       "path": "adapters/codex/bridge/__init__.py",
@@ -80,21 +80,21 @@
     },
     {
       "path": "adapters/codex/compatibility.json",
-      "sha256": "fac6123ea2cc67126875a307a0b9b09f25d08935695131de09d5d2037548810c",
+      "sha256": "8b4f6ba6ec46ce4f1f2a237f0de482b17ee59c05734cecd9e0c2dca693369ed3",
       "mode": "100644",
-      "size": 10227
+      "size": 10872
     },
     {
       "path": "adapters/codex/projection.json",
-      "sha256": "9be6b8485e1f548ffdbb8e5938b36b3a819c0adf4f60d77cc382518da45476ea",
+      "sha256": "974be50a58d56946763178790670ccd1b54810b920313c464cac6d401f96a448",
       "mode": "100644",
-      "size": 168212
+      "size": 168908
     },
     {
       "path": "adapters/codex/providers/README.md",
-      "sha256": "694c4c6d4284a903587b3717b57ffc4da7d9972d28e50aadb97f25e600d09fc0",
+      "sha256": "ea96f00b3ca8aad3f18c7f633be5dd47268f7d435544f42bdbc513826aeef6a1",
       "mode": "100644",
-      "size": 6543
+      "size": 6570
     },
     {
       "path": "adapters/codex/providers/__init__.py",
@@ -134,9 +134,9 @@
     },
     {
       "path": "adapters/codex/runtime/README.md",
-      "sha256": "154f4fa406b5b8ce70040bd7f39da952295391da770589a840b6b7371fea3d6a",
+      "sha256": "18d5f122004e627e5c6ce02ce23c29c9ed6f2651c36829b81e8bd4d18116630f",
       "mode": "100644",
-      "size": 10104
+      "size": 10864
     },
     {
       "path": "adapters/codex/runtime/history.py",
@@ -176,9 +176,9 @@
     },
     {
       "path": "adapters/codex/watch_pr/README.md",
-      "sha256": "98dac253b157a02aa2e8cf96a496678fa5ddee4365b4e15112f7fceb8d6c7bae",
+      "sha256": "1b84c4b0fd27522a79b925b0c5a3b6a34b85e660e3e0faed37a368bc35c15c6f",
       "mode": "100644",
-      "size": 4008
+      "size": 4239
     },
     {
       "path": "adapters/codex/watch_pr/supervisor.py",
@@ -212,21 +212,21 @@
     },
     {
       "path": "automations/benny/FOR_AGENTS.md",
-      "sha256": "557a0dae38991a6a1416460b35f17a510a5513ae2075abb0e1d7aeaf6758c964",
+      "sha256": "2da30eb6143ce3955795e0284126e8c85b00fc368b6919fba73eb8152c9457d9",
       "mode": "100644",
-      "size": 7614
+      "size": 8354
     },
     {
       "path": "automations/benny/README.md",
-      "sha256": "7e2a1f99fe1f6fc6709acf6920093e923716a623db6081d38018fa3264f3ef76",
+      "sha256": "1d556b6efbf9c788bbe6a6f1a731e4f521d393c7eeb24b4dc40c05735be74993",
       "mode": "100644",
-      "size": 1415
+      "size": 2159
     },
     {
       "path": "automations/benny/skills/reproduce-and-fix-issues/instructions.md",
-      "sha256": "809659da0bbd0303d2a42dbe380dd117ae06b6fa3e19e4a31832a2756ae841fe",
+      "sha256": "c5825c46e55ae3b639e886b6e2b34445c5b35e5f9b73e235802e57c8bb8b3529",
       "mode": "100644",
-      "size": 14225
+      "size": 14970
     },
     {
       "path": "automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md",
@@ -248,15 +248,15 @@
     },
     {
       "path": "automations/benny/skills/setup-benny/instructions.md",
-      "sha256": "f1ad87c24d36cdbeafe15642441580277cb76693cd68c0b1b6a5b4a2575a4fbb",
+      "sha256": "cc2229827b7f36904ee48360a21aa08d218bd088a286a72d88a36a68534996b3",
       "mode": "100644",
-      "size": 14006
+      "size": 14908
     },
     {
       "path": "automations/benny/skills/triage-issue-reports/instructions.md",
-      "sha256": "e88bb1ccc619f93d4b787bd9156fba5159f061c653fca00b6f08c65b6c77701a",
+      "sha256": "92d040760974750d33d623988ee89864387e3e6ac875b02e69526fc0fbc5c888",
       "mode": "100644",
-      "size": 10307
+      "size": 11052
     },
     {
       "path": "automations/benny/skills/triage-issue-reports/references/routing.example.md",
@@ -272,15 +272,15 @@
     },
     {
       "path": "automations/benny/templates/reproduce-automation-prompt.md",
-      "sha256": "9c0a28f574b04d9f9f5415eb899d94c895f8541df54ca7b9d1949220e4daf852",
+      "sha256": "29401a33f83b90e6dec1bb27301995e8cc3d79609a8ddd111f16fc64474590fd",
       "mode": "100644",
-      "size": 1829
+      "size": 2566
     },
     {
       "path": "automations/benny/templates/triage-automation-prompt.md",
-      "sha256": "c5e5ce57dd4a5c2fed493c77c8f1ca7a88265b4c3bbd873222e743f9ddfbd02e",
+      "sha256": "3424761ff38afcb4e01e8460367fde0b9e8316145ab099e72fa8e9fc6a078d0f",
       "mode": "100644",
-      "size": 1576
+      "size": 2313
     },
     {
       "path": "dependencies/cursor-team-kit/LICENSE",
@@ -308,69 +308,69 @@
     },
     {
       "path": "docs/guide/01-setup.md",
-      "sha256": "5e15124be5c609702c1232ac2b85a13e4f62aa544e529724ae9548768a859fdf",
+      "sha256": "ab59e5ab97abe5d731cd73adc1d949d281df4e8e0a93b0581072d2012e5c3480",
       "mode": "100644",
-      "size": 5595
+      "size": 6064
     },
     {
       "path": "docs/guide/02-poteto-mode.md",
-      "sha256": "4fd0f84bd539283d6d6973fd231c4b2f155128aa3c83ab62be457cc02ac2bc3b",
+      "sha256": "f462902359fcf3609f5d72e50fecfde8d934caaaa00d5fc4e862f6b64b1221c5",
       "mode": "100644",
-      "size": 7958
+      "size": 8421
     },
     {
       "path": "docs/guide/03-understand.md",
-      "sha256": "4486cf55f20b1a351b25a06b2a19f6a7081d6af4748a4178946907c2b7861392",
+      "sha256": "59a198bad0b2e90715b741b87440bcf92c8f55bb925e99170614c7df8df026e2",
       "mode": "100644",
-      "size": 5062
+      "size": 5525
     },
     {
       "path": "docs/guide/04-design.md",
-      "sha256": "e41952810df24c07a21ad10ebc2674a3350a03d4961a273fb6f681de87150a13",
+      "sha256": "6f2fcc1c47d18b00e9451f69137162a7f0059d4fcb09b6e8e5fc91586a892b1e",
       "mode": "100644",
-      "size": 8553
+      "size": 9016
     },
     {
       "path": "docs/guide/05-build-and-clean.md",
-      "sha256": "4a0538dc0e52632a8871be9957e8177adaca6f5fa254f0bbb31d30b921d0cd1c",
+      "sha256": "b9a266090d7f497b43b232364253086ad2ebcaa551513629764dee87eaffaec7",
       "mode": "100644",
-      "size": 5720
+      "size": 6183
     },
     {
       "path": "docs/guide/06-verify-and-ship.md",
-      "sha256": "476bc18cacc1422c2f6c5e50407057ac35b1bf1bad9b4d792d7967745cca1332",
+      "sha256": "a3b6ff611f605751dc294c7e6c1a73267b2af24f2ca97413a5e63d74e9c305e3",
       "mode": "100644",
-      "size": 13331
+      "size": 13794
     },
     {
       "path": "docs/guide/07-overnight.md",
-      "sha256": "f9ab3f533a852668c3a3cde8b0d4e162be78c68d3a690d73c1b9a1a765c2da22",
+      "sha256": "9e0bea06f0d9c1062d9aee9959d34d30ecfc0ca50bd648e6e63b389591d03d3f",
       "mode": "100644",
-      "size": 9518
+      "size": 9981
     },
     {
       "path": "docs/guide/08-principles.md",
-      "sha256": "0b26b85292f0c09768abe727c9e92987dbf81f5b439a4871034c2fd1c4cb1723",
+      "sha256": "9e509bb7764880e18ae237fbd6e7e9c3010f385e6c6b50e65ef5c24bea5531be",
       "mode": "100644",
-      "size": 5868
+      "size": 6331
     },
     {
       "path": "docs/guide/09-make-it-yours.md",
-      "sha256": "7d748498e0d23c9fd1f3deb89bcc5cee3d8c4a70d8506b0899a1cad50f269adb",
+      "sha256": "5625e15d70b9bffa5cc17c6f9ce10b49bfd7608a261eed4869b13789c0fa1ab1",
       "mode": "100644",
-      "size": 7989
+      "size": 8452
     },
     {
       "path": "docs/guide/10-recipes-and-pitfalls.md",
-      "sha256": "287815da2cbebe9b867d4da7d0a3632f069a32b6481815be9d6cad43b12b5fbf",
+      "sha256": "9440795dce098ac94cb4dd2edc66d9335a2167592a0e5f62f23804ae59a59d42",
       "mode": "100644",
-      "size": 8784
+      "size": 9247
     },
     {
       "path": "docs/guide/README.md",
-      "sha256": "5c888d034d38f380789fad57c2c6fa7307ace803a0622cdde9e57fa2afe182de",
+      "sha256": "35abae663dc31272d35e690dd81710a0f2e2072a8a72f4c8d97c5f11c18edb35",
       "mode": "100644",
-      "size": 2649
+      "size": 3112
     },
     {
       "path": "docs/guide/images/design.jpg",
@@ -410,9 +410,9 @@
     },
     {
       "path": "docs/harness/claude-code.md",
-      "sha256": "53d828a68e9015b83ca86529c6543b04d9c1d77dd22db76bece72f6c8cd14902",
+      "sha256": "1cd5ddd79a669ee21c10623f70df41b3b2f36ec3fa3cdbc8b40ae34843bd499d",
       "mode": "100644",
-      "size": 6015
+      "size": 6235
     },
     {
       "path": "plugin.json",
@@ -800,9 +800,9 @@
     },
     {
       "path": "skills/poteto-help/instructions.md",
-      "sha256": "100ba789141f6e52138517e8eb0f698e7f64ad62d6968d4c8c34fccc0990ae08",
+      "sha256": "c0907abe270235b9deeba099580aa9cb090055b106ef5e1a7f91fb5b75d7f248",
       "mode": "100644",
-      "size": 18442
+      "size": 18923
     },
     {
       "path": "skills/poteto-help/references/prompting.md",
@@ -4213,5 +4213,5 @@
       "size": 1487
     }
   ],
-  "tree_sha256": "98f8201add546d1ab926f18062d722658f41bc95ac12afac757656704064b93f"
+  "tree_sha256": "861ab4ed53883d39db304bfd46a3b56495432a9362b628b3949e30037aeaf446"
 }

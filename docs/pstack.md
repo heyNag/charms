@@ -3,8 +3,10 @@
 Pstack is one versioned bundle with two installation roots. Claude Code is
 copied exactly from upstream; Codex is generated directly from the canonical
 pstack source. Desktop, native Cloud and CLI share the same Codex payload.
-This first bundle is **unreleased**. Existing marketplace entries remain pinned
-to their released native plugins; no pstack publication is implied by this checkout.
+A marketplace installation becomes available only after a bundle release is
+published, verified, and added to the host catalogs. Generated files in a
+checkout do not establish publication; `published.json` records the verified
+release separately from the working bundle.
 
 ```text
 integrations/pstack/
@@ -33,8 +35,8 @@ are dormant resources. The new `worker.md` is a required resource, not another s
 Never edit the generated bundle or either upstream snapshot. Edit maintained
 Codex adapter inputs, then regenerate. Both snapshots are replaced completely,
 so upstream deletions and renames leave no old files behind. Canonical source
-and Claude always use the same commit; Claude's version remains `0.15.43`.
-The pending bundle and Codex version is independently `2026.11.0`.
+and Claude always use the same commit. At this baseline, Claude's version is
+`0.15.43`; the independent bundle and Codex version is `2026.11.0`.
 
 The community pstack-claude repository is a reference only. No fork code or
 second synchronization source is used. Original authorship and licenses are
@@ -72,7 +74,7 @@ only the selected child through the host's supported mechanism; do not register
 the aggregate container or both children in Codex. Actual native Cloud
 instruction activation and complete runtime provisioning are separate steps.
 
-For a local Desktop trial before publication, follow the
+For a local Desktop trial of a reviewed checkout, follow the
 [Desktop validation steps](pstack-desktop-validation.md). They create an isolated
 test marketplace and distinguish file integrity from actual host activation.
 

@@ -3,7 +3,8 @@
 This is the Codex root of the Charms pstack bundle. The sibling `claude-code/`
 is the exact committed upstream Claude target; this root is generated directly
 from canonical pstack plus the maintained Codex adapter. Register only this
-root with Codex. Desktop, native Cloud and CLI use this same content.
+root with Codex. The same payload targets Desktop, native Cloud and CLI;
+activation and capability support must be verified on each host.
 
 There are 58 registered skills; only setup-pstack is eligible for implicit
 invocation. The three Benny automation procedures are dormant resources,
@@ -20,9 +21,9 @@ The [adapter guide](adapters/codex/adapter.md) explains dispatch, configuration,
 model and capability boundaries. The runtime's `--help` documents its concrete
 CLI. [Compatibility status](adapters/codex/compatibility.json) distinguishes
 implemented local mechanisms from integrations needing actual-host evidence.
-Native Cloud original-history access remains unresolved; no full support
-claim is made for history-dependent workflows. No services or credentials
-are installed by copying this package.
+Original native-history access remains unqualified on Desktop, Cloud and CLI;
+no full support claim is made for history-dependent workflows. No services or
+credentials are installed by copying this package.
 
 The canonical guide below describes upstream Cursor behavior. Its external
 marketplace, model slugs and host UI references remain source documentation;
@@ -318,7 +319,7 @@ when a default changes, a rule written before the change still pins the old defa
 
 pstack also ships a dormant [benny automation pack](./automations/benny/). benny triages slack issue reports, then reproduces and fixes confirmed bugs with real ui evidence. its files are not registered as slash skills.
 
-to set it up, point cursor at [`FOR_AGENTS.md`](./automations/benny/FOR_AGENTS.md). setup copies the pack into the target repository at `.agents/automations/benny/`, enables pstack there for shared skills, and keeps user configuration outside the copied pack. benny runs on cursor automations, so it is cursor-only.
+to set it up, point cursor at [`FOR_AGENTS.md`](./automations/benny/FOR_AGENTS.md). setup copies the pack into the target repository at `.cursor/automations/benny/`, enables pstack there for shared skills, and keeps user configuration outside the copied pack. benny runs on cursor automations, so it is cursor-only.
 
 ## license
 

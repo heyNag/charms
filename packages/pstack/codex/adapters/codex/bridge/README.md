@@ -42,7 +42,7 @@ a second proposed production control plane.
   fences work but does not claim the user pressed Stop. A deadline requests cancellation;
   it does not certify provider termination. No background coordinator heartbeat is started.
 - Scheduled registration remains `registered_unobserved` until a provider tick is observed.
-  Stop requests disable registrations and waits for associated readback. The kernel does
+  A stop requests registration disablement and waits for associated readback. The kernel does
   not create a native schedule or infer that an idle event completed work.
 - Scoped provider event ingestion rejects changed duplicate payloads, preserves originals,
   and records stale observations without reviving obsolete ownership.

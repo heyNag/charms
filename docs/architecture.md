@@ -1,6 +1,6 @@
 # Architecture
 
-Charms contains two independent native Agent Plugins and one pstack bundle.
+Charms contains independently released Agent Plugins and host-specific plugin bundles.
 The repository root owns the shared marketplace and the development,
 validation, documentation, and release tooling. It is not a plugin root.
 
@@ -39,14 +39,13 @@ Each native `packages/<name>/` directory is a self-contained plugin root with:
 Each native plugin has its own calendar version, release tag, GitHub release,
 archive, marketplace entry, runtime prerequisites, trust boundary, and failure
 surface. Host clients control permissions for each installation. Installing
-one plugin never requires loading the other.
+one plugin never requires loading another.
 
-Pstack is one bundle containing two selected host roots, currently unreleased.
+Pstack uses one bundle with separate Claude Code and Codex plugin roots.
 Canonical pstack and the committed Claude tree come from one immutable upstream
-commit. Claude is
-copied in full; Codex is generated from canonical pstack plus maintained
-adapter inputs. No downstream changes enter either upstream snapshot. Its
-lock, projection, publication record and candidate-update procedure live in
+commit. Claude is copied in full; Codex is generated from canonical pstack plus
+maintained adapter inputs. No downstream changes enter either upstream snapshot.
+Its lock, projection, publication record and candidate-update procedure live in
 `integrations/pstack/`; see [pstack integration](pstack.md).
 
 ## Discovery
@@ -91,7 +90,8 @@ Each entry pins one released plugin with a `git-subdir` source:
 Both clients install from the pinned `sha`, so marketplace installs only see
 released, immutable content. Commits on `main` reach them only through a new
 release. Only the release workflow writes entries, after the release is
-published and verified. A plugin has no entry until its first release.
+published and verified. A plugin becomes installable through the marketplace
+only when that verified release has an entry in the selected host catalog.
 
 For native packages, skill-only channels such as Skillshare and the skills CLI
 read `packages/<name>/skills/<name>/` from `main` and do not use the marketplace.

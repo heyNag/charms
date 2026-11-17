@@ -29,9 +29,10 @@ The child SDK environment is not relied upon to remove inherited secrets. Driver
 input, SDK buffer, cost, turns and wall-clock lifetime are bounded; unknown outcomes are
 not retried. Stderr and raw provider errors are not exported.
 
-`python process_supervisor.py -- COMMAND [ARG ...]` is also a standalone helper, independent
-of provider SDK imports. It inherits the caller's environment and streams; the provider
-runner supplies its sanitized environment and budgets externally. The helper preserves
+`python3 process_supervisor.py -- COMMAND [ARG ...]`, run from this directory, is
+also a standalone helper, independent of provider SDK imports. It inherits the caller's
+environment and streams; the provider runner supplies its sanitized environment and
+budgets externally. The helper preserves
 the command's exit status, continuously reaps adopted children, and terminates and reaps
 remaining descendants before returning, including detached children after their original
 leader exits. A caller should send TERM to the helper and allow three seconds for cleanup.

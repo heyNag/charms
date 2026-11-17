@@ -2,8 +2,8 @@
 
 Native Charms packages target Agent Plugins v1.0.0 and provide one Agent Skill.
 The client table below describes those existing native plugins. Pstack uses
-a separate multi-skill bundle; its Codex desktop and native Cloud activation
-and provider capabilities are not yet runtime-certified. See the
+a separate multi-skill bundle. Its local Desktop smoke checks do not certify
+every workflow, native Cloud activation, or provider deployment. See the
 [pstack support boundary](pstack.md#support-boundary).
 
 ## Clients
@@ -37,7 +37,7 @@ filesystem access, or approval interface.
 | --- | --- |
 | `watch-video` | macOS or Linux, Python 3.9+. Local files need `ffmpeg` and `ffprobe` for local extraction; local URL runs also need `yt-dlp`, which needs a JavaScript runtime such as Deno for YouTube. Gemini needs network access and environment-supplied `GEMINI_API_KEY`, with no local binaries for supported YouTube URLs or local files; other URLs need the downloader toolkit. Remote media and hosted transcription need network access. Optional local ASR/VLM needs a separately configured loopback OpenAI-compatible server. |
 | `x-bookmarks` | Python 3.9+ and either Bird with browser-cookie access or X API v2 OAuth credentials. Live retrieval requires network access. |
-| `pstack` (unreleased) | The Codex adapter and repository tooling require Python 3.11+. Individual skills need their own host tools and configured providers. Generation also needs Node for the upstream harness check. See the [pstack support boundary](pstack.md#support-boundary); these prerequisites do not certify Desktop or Cloud workflows. |
+| `pstack` | The Codex adapter and repository tooling require Python 3.11+. Individual skills need their own host tools and configured providers. Generation also needs Node for the upstream harness check. See the [pstack support boundary](pstack.md#support-boundary); these prerequisites do not certify Desktop or Cloud workflows. |
 
 For the native plugins, these requirements are also declared in each skill's
 `compatibility` frontmatter and explained in its package README. Their scripts check

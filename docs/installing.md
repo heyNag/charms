@@ -8,11 +8,12 @@ native plugins.
 Each marketplace entry pins one released plugin to its release tag and full
 release commit SHA. Marketplace installs therefore only receive released,
 immutable content; unreleased commits on `main` never reach them. A plugin
-appears in the marketplace after its first release.
+becomes installable through the marketplace after a published release is
+verified and added to the selected host catalog.
 
-The examples use the released native plugin `watch-video`. The
-[pstack bundle](pstack.md) is **unreleased** and has no marketplace entry;
-its local installation roots and capability limits are described separately.
+The examples use the native plugin `watch-video`; substitute another plugin
+listed in the selected host catalog. The [pstack bundle](pstack.md) uses
+separate host roots, with local validation and capability limits described there.
 
 ## Claude Code
 
@@ -127,7 +128,8 @@ containing `pstack/claude-code/` and `pstack/codex/`. Select one of those child
 roots. A locally built transport archive can instead contain just the selected
 host subtree inside one `pstack/` folder. See
 [pstack generation and inspection](pstack.md#generate-and-inspect) for the build
-commands. No pstack release is published yet.
+commands. Check the verified release and host catalog before using a
+marketplace installation command for pstack.
 
 ## Use a local checkout
 

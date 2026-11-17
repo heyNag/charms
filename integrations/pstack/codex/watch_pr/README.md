@@ -13,9 +13,11 @@ are installed, with lifecycle scripts disabled. The cache identity binds all
 helper inputs, install options, runtime identity and platform. A receipt records
 the installed dependency files, hashes, modes and contained relative file links;
 reuse verifies that inventory and rejects extra files or directory/external
-symlinks. The ready marker binds the receipt digest within the private user-owned
-cache. It becomes ready only after the frozen install and input verification
-succeed. The consumer repository remains the execution working directory. The
+symlinks. Use a private, user-owned cache directory; a newly created cache root
+uses mode `0700`, but existing directory ownership and permissions are not
+revalidated. The ready marker binds the receipt digest. It becomes ready only
+after the frozen install and input verification succeed. The consumer repository
+remains the execution working directory. The
 installed plugin is not written, and cannot be selected as the cache location.
 
 Every Git/gh operation uses a generated bounded transport. One remaining
@@ -23,13 +25,15 @@ monotonic deadline covers the entire command sequence and pagination; captured
 command output and supervisor output each have an 8 MiB attempt cap, tunable
 with `--output-limit` up to 64 MiB. Linux commands run under the shared dedicated
 subreaper, which kills and reaps owned descendants, including detached sessions
-and grandchildren whose leader exited. Timeout and interruption permit up to
-three seconds of cleanup grace beyond the attempt budget. Other POSIX hosts use
-process-group termination and require host-specific descendant qualification.
+and grandchildren whose leader exited. Timeout and interruption allow three
+seconds for supervisor cleanup beyond the attempt budget; a forced supervisor
+kill can add a further one-second wait and produces an incomplete cleanup
+outcome. Other POSIX hosts use process-group termination and require
+host-specific descendant qualification.
 Success is withheld when the supervised exit disagrees with the final record.
 
 The upstream verdict policy, types and rendering remain the baseline. Guarded
-snapshot edits bracket each real evidence read with actual head/base OID,
+snapshot edits bracket each real PR evidence snapshot with actual head/base OID,
 ref and state observations, then recheck all bound PRs before a readiness or
 completed-queue handoff. A changed or missing identity produces incomplete
 `STALE_SNAPSHOT` or `SNAPSHOT_UNAVAILABLE`, never accepted mixed-head readiness.
