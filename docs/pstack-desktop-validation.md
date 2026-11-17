@@ -11,9 +11,13 @@ install and test from its Plugins Directory in Codex mode. The documented route
 was checked on 2026-11-17. The user's actual app build still needs validation;
 CLI installation alone does not prove Desktop activation.
 
-If you use the standalone **Codex desktop app**, its loading UI and build must
-be checked separately; the verified documentation above names **Codex in the
-ChatGPT desktop app**. Do not assume those products expose the same directory.
+The current documentation calls the desktop application ChatGPT, while the
+[official Codex launcher](https://github.com/openai/codex/blob/e5839cbc591df02408d5009e287887c7d57a9167/codex-rs/cli/src/desktop_app/mac.rs#L67)
+recognizes both `Codex.app` and `ChatGPT.app` with the same `com.openai.codex`
+bundle identifier. The standalone app's name therefore does not rule out this
+route. Validate the installed build and its actual plugin activation below;
+an older ChatGPT application with bundle identifier `com.openai.chat` is not
+the application selected by that launcher.
 
 ## Get the branch on your Mac
 
