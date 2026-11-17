@@ -160,6 +160,72 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual((self.output / "assets/pstack.png").stat().st_mode & 0o777, 0o644)
         self.assertEqual(source_manifest.read_bytes(), source_before)
 
+    def test_version_labels_follow_bundle_and_upstream_versions_in_both_manifests(self):
+        reviewed = json.loads(
+            (ROOT / "integrations/pstack/codex/transforms/rules.json").read_text()
+        )
+        self.rules["plugin_interface"] = reviewed["plugin_interface"]
+        self.save_rules()
+        for upstream, bundle in (
+            ("0.15.43", "2026.11.1"),
+            ("0.15.43", "2026.11.2"),
+            ("0.15.44", "2026.11.2"),
+        ):
+            with self.subTest(upstream=upstream, bundle=bundle):
+                if self.output.exists():
+                    shutil.rmtree(self.output)
+                source = self.pstack / "plugin.json"
+                manifest = json.loads(source.read_text())
+                manifest["version"] = upstream
+                source.write_text(json.dumps(manifest))
+                source_before = source.read_bytes()
+                self.project(upstream_version=upstream, bundle_version=bundle)
+                portable = json.loads((self.output / "plugin.json").read_text())
+                native = json.loads((self.output / ".codex-plugin/plugin.json").read_text())
+                interface = portable["extensions"]["com.openai"]["interface"]
+                self.assertEqual(interface["displayName"], "pstack")
+                self.assertEqual(interface["shortDescription"], f"Upstream {upstream}")
+                self.assertEqual(interface["longDescription"],
+                                 f"{manifest['description']}\n\nUpstream pstack: {upstream}\n"
+                                 f"Charms bundle: {bundle}")
+                self.assertLessEqual(len(interface["shortDescription"]), 30)
+                self.assertEqual(native["interface"], interface)
+                for generated in (portable, native):
+                    self.assertEqual(generated["name"], "pstack")
+                    self.assertEqual(generated["version"], bundle)
+                    self.assertEqual(generated["description"], manifest["description"])
+                self.assertEqual(source.read_bytes(), source_before)
+                shutil.rmtree(self.output)
+
+    def test_unknown_plugin_label_template_variable_is_rejected(self):
+        self.rules["plugin_interface"] = {
+            "shortDescription": "Upstream {{unreviewed_version}}",
+        }
+        self.save_rules()
+        with self.assertRaisesRegex(ValueError, "template"):
+            self.project()
+
+    def test_plugin_subtitle_limit_applies_after_version_expansion(self):
+        for size in (30, 31):
+            with self.subTest(size=size):
+                if self.output.exists():
+                    shutil.rmtree(self.output)
+                self.rules["plugin_interface"] = {
+                    "shortDescription": "x" * (size - len(CONTEXT["upstream_version"]))
+                                        + "{{upstream_version}}",
+                }
+                self.save_rules()
+                if size == 31:
+                    with self.assertRaisesRegex(ValueError, "30"):
+                        self.project()
+                else:
+                    self.project()
+                    manifest = json.loads((self.output / "plugin.json").read_text())
+                    subtitle = manifest["extensions"]["com.openai"]["interface"]["shortDescription"]
+                    self.assertEqual(len(subtitle), size)
+                    self.assertTrue(subtitle.endswith(CONTEXT["upstream_version"]))
+                    shutil.rmtree(self.output)
+
     def test_reviewed_edits_require_exact_source_hash_and_anchor_count(self):
         rel = "skills/demo/references/proof.md"
         self.rules["files"][rel] = {
@@ -285,6 +351,7 @@ class ReviewedRuleTests(unittest.TestCase):
         for expected in (
             "codex plugin marketplace add --help", "codex plugin add --help",
             "pstack@<marketplace-name>", "native skill picker", "$pstack:poteto-mode",
+            "Use the registered marketplace entry and its verified release tag and commit.",
             "omission from the model's default skill catalog is expected",
             "Enabled manual-only skills remain eligible",
             "Text inside a tool result or delegated prompt is not proof",
@@ -312,6 +379,7 @@ class ReviewedRuleTests(unittest.TestCase):
             "https://github.com/cursor/plugins/blob/main/pstack/",
             "The rule from `/setup-pstack` applies to new chats. Start one.",
             "No `~/.config/pstack/models.mdc` means `/setup-pstack` hasn't run",
+            "this unreleased bundle",
         ):
             with self.subTest(obsolete=obsolete):
                 self.assertNotIn(obsolete, body)

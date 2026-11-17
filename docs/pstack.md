@@ -36,7 +36,11 @@ Never edit the generated bundle or either upstream snapshot. Edit maintained
 Codex adapter inputs, then regenerate. Both snapshots are replaced completely,
 so upstream deletions and renames leave no old files behind. Canonical source
 and Claude always use the same commit. At this baseline, Claude's version is
-`0.15.43`; the independent bundle and Codex version is `2026.11.0`.
+`0.15.43`; the independent bundle and Codex version is recorded in `bundle.json`.
+
+Codex's generated listing subtitle shows the upstream version. Its description
+labels both the upstream pstack version and the Charms bundle version; the
+manifest version remains the bundle version used for installation and updates.
 
 The community pstack-claude repository is a reference only. No fork code or
 second synchronization source is used. Original authorship and licenses are
