@@ -1,0 +1,731 @@
+{
+  "schema_version": 1,
+  "source_commit": "2f87c854fe3e2fcda44ca86b46ede35aad3c46b7",
+  "source_version": "0.15.43",
+  "registered_skills": [
+    "architect",
+    "arena",
+    "automate-me",
+    "benchmark-checklist",
+    "blast-radius",
+    "bro",
+    "correct",
+    "create-formal-verification-skill",
+    "create-verification-skill",
+    "figure-it-out",
+    "how",
+    "in-your-own-words",
+    "interrogate",
+    "ketchup",
+    "ketchup-video",
+    "maintain-formal-verification-skill",
+    "maintain-verification-skill",
+    "make-bot-ui",
+    "no-comments",
+    "poteto-help",
+    "poteto-mode",
+    "principle-attack-the-premise",
+    "principle-boundary-discipline",
+    "principle-build-the-lever",
+    "principle-encode-lessons-in-structure",
+    "principle-exhaust-the-design-space",
+    "principle-experience-first",
+    "principle-explain-the-number",
+    "principle-fix-root-causes",
+    "principle-foundational-thinking",
+    "principle-guard-the-context-window",
+    "principle-laziness-protocol",
+    "principle-make-operations-idempotent",
+    "principle-migrate-callers-then-delete-legacy-apis",
+    "principle-minimize-reader-load",
+    "principle-model-the-domain",
+    "principle-never-block-on-the-human",
+    "principle-outcome-oriented-execution",
+    "principle-prove-it-works",
+    "principle-redesign-from-first-principles",
+    "principle-separate-before-serializing-shared-state",
+    "principle-sequence-verifiable-units",
+    "principle-subtract-before-you-add",
+    "principle-test-behavior-not-implementation",
+    "principle-type-system-discipline",
+    "recall",
+    "reflect",
+    "setup-pstack",
+    "sharpen",
+    "show-me-your-work",
+    "statechart",
+    "swarm",
+    "tdd",
+    "teach",
+    "technical-writing",
+    "typescript-best-practices",
+    "unslop",
+    "why"
+  ],
+  "files": {
+    "automations/benny/skills/setup-benny/SKILL.md": {
+      "source_sha256": "1b1298536804eef289718f497a42f48aec135c8f4175b03e5ecfa11075758c59",
+      "edits": [
+        {
+          "id": "supported-project-activation",
+          "before": "Add pstack to the target repository's `.cursor/settings.json`. If the file or `.cursor` directory does not exist, create it.\n\nMerge this entry into the existing JSON or JSONC:\n\n```json\n{\n\t\"plugins\": {\n\t\t\"pstack\": { \"enabled\": true }\n\t}\n}\n```\n\nPreserve every unrelated top-level setting and every other plugin entry. If `plugins.pstack` already exists, change only its `enabled` value. Preserve comments and valid JSONC syntax when the file uses JSONC. Validate the file after editing it.\n\n",
+          "after": "Use the actual supported Codex project-scoped plugin activation and complete runtime provisioning route for the target repository. Record its secret-free binding to the selected payload and profile. Do not create a settings file that merely resembles Cursor's configuration; it cannot activate Codex. If that route is unavailable, stop before enabling automation. Preserve unrelated project configuration.\n\n",
+          "count": 1
+        },
+        {
+          "id": "codex-benny-project-resource",
+          "before": ".cursor/automations/benny/",
+          "after": ".agents/automations/benny/",
+          "count": 12
+        },
+        {
+          "id": "codex-benny-user-configuration",
+          "before": ".cursor/benny/",
+          "after": ".agents/benny/",
+          "count": 3
+        },
+        {
+          "id": "actual-project-activation-record",
+          "before": "`.cursor/settings.json`",
+          "after": "the committed Codex project activation/runtime binding",
+          "count": 2
+        },
+        {
+          "id": "dormant-resource-references",
+          "before": "SKILL.md",
+          "after": "instructions.md",
+          "count": 6
+        }
+      ]
+    },
+    "automations/benny/FOR_AGENTS.md": {
+      "source_sha256": "17d370bf1d97e12924a5b291fa183f2270c310836c3355617fcc97d65b0b2bd1",
+      "edits": [
+        {
+          "id": "supported-project-activation",
+          "before": "i want you to merge this entry into the target repository's `.cursor/settings.json`:\n\n```json\n{\n\t\"plugins\": {\n\t\t\"pstack\": { \"enabled\": true }\n\t}\n}\n```\n\npreserve every unrelated setting and plugin. preserve comments and valid jsonc syntax when the existing file uses jsonc.\n\n",
+          "after": "i want pstack activated through the actual supported Codex project-scoped installation route with a complete, verified runtime binding. record its secret-free activation and payload identity; do not invent a settings file to enable Codex. preserve unrelated project configuration. if this route is unavailable, stop before enabling automation.\n\n",
+          "count": 1
+        },
+        {
+          "id": "codex-benny-project-resource",
+          "before": ".cursor/automations/benny/",
+          "after": ".agents/automations/benny/",
+          "count": 8
+        },
+        {
+          "id": "codex-benny-user-configuration",
+          "before": ".cursor/benny/",
+          "after": ".agents/benny/",
+          "count": 1
+        },
+        {
+          "id": "actual-project-activation-record",
+          "before": "`.cursor/settings.json`",
+          "after": "the committed Codex project activation/runtime binding",
+          "count": 2
+        },
+        {
+          "id": "dormant-resource-references",
+          "before": "SKILL.md",
+          "after": "instructions.md",
+          "count": 5
+        }
+      ]
+    },
+    "automations/benny/README.md": {
+      "source_sha256": "ca3c42cbb7f0bf7068f7407eb355815e6c234d5c2786942f3cbe751a3690024b",
+      "edits": [
+        {
+          "id": "supported-project-activation",
+          "before": "3. let setup enable pstack in the target repository's `.cursor/settings.json` for shared dependencies:\n\n```json\n{\n\t\"plugins\": {\n\t\t\"pstack\": { \"enabled\": true }\n\t}\n}\n```\n\n",
+          "after": "3. use an actual supported Codex project-scoped activation route and provision the complete verified runtime for shared dependencies. preserve unrelated settings. if that route is unavailable, stop setup before enabling automation.\n\n",
+          "count": 1
+        },
+        {
+          "id": "codex-benny-project-resource",
+          "before": ".cursor/automations/benny/",
+          "after": ".agents/automations/benny/",
+          "count": 2
+        },
+        {
+          "id": "codex-benny-user-configuration",
+          "before": ".cursor/benny/",
+          "after": ".agents/benny/",
+          "count": 1
+        },
+        {
+          "id": "actual-project-activation-record",
+          "before": "`.cursor/settings.json`",
+          "after": "the committed Codex project activation/runtime binding",
+          "count": 1
+        }
+      ]
+    },
+    "README.md": {
+      "source_sha256": "cbe5a826afedbd396d9ee5845d850ccbd0f7f801fca728129fc90153ea70a015",
+      "edits": [
+        {
+          "id": "codex-benny-project-resource",
+          "before": ".cursor/automations/benny/",
+          "after": ".agents/automations/benny/",
+          "count": 1
+        }
+      ]
+    },
+    "automations/benny/skills/reproduce-and-fix-issues/references/control-adapter.md": {
+      "source_sha256": "58b0615d2fca895f9a20df83266e280042b0d585b5f2fd324e2094a682fd846b",
+      "edits": [
+        {
+          "id": "codex-benny-project-resource",
+          "before": ".cursor/automations/benny/",
+          "after": ".agents/automations/benny/",
+          "count": 1
+        }
+      ]
+    },
+    "automations/benny/skills/reproduce-and-fix-issues/references/feature-map.example.md": {
+      "source_sha256": "1e5c7c8522daec3e43fcc2e73ceb97289ded65b552949ce65a11cc8eb3d2b6ee",
+      "edits": [
+        {
+          "id": "codex-benny-project-resource",
+          "before": ".cursor/automations/benny/",
+          "after": ".agents/automations/benny/",
+          "count": 1
+        },
+        {
+          "id": "codex-benny-user-configuration",
+          "before": ".cursor/benny/",
+          "after": ".agents/benny/",
+          "count": 1
+        }
+      ]
+    },
+    "automations/benny/skills/triage-issue-reports/references/routing.example.md": {
+      "source_sha256": "e5e53013692568cf69da8e8b302fff929fe2fbc9aec1a4651fd7997e2c7a4025",
+      "edits": [
+        {
+          "id": "codex-benny-project-resource",
+          "before": ".cursor/automations/benny/",
+          "after": ".agents/automations/benny/",
+          "count": 1
+        },
+        {
+          "id": "codex-benny-user-configuration",
+          "before": ".cursor/benny/",
+          "after": ".agents/benny/",
+          "count": 1
+        }
+      ]
+    },
+    "automations/benny/templates/reproduce-automation-prompt.md": {
+      "source_sha256": "71ec574f1844e379394ae4ef14c48d7df10afbaa319d395c788d7f856f0e6899",
+      "edits": [
+        {
+          "id": "codex-benny-project-resource",
+          "before": ".cursor/automations/benny/",
+          "after": ".agents/automations/benny/",
+          "count": 1
+        },
+        {
+          "id": "dormant-resource-references",
+          "before": "SKILL.md",
+          "after": "instructions.md",
+          "count": 1
+        }
+      ]
+    },
+    "automations/benny/templates/triage-automation-prompt.md": {
+      "source_sha256": "e0bba594547834f013ec805915610eb597e7929efe3ffbe85ae00339ee16d474",
+      "edits": [
+        {
+          "id": "codex-benny-project-resource",
+          "before": ".cursor/automations/benny/",
+          "after": ".agents/automations/benny/",
+          "count": 1
+        },
+        {
+          "id": "dormant-resource-references",
+          "before": "SKILL.md",
+          "after": "instructions.md",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/01-setup.md": {
+      "source_sha256": "86f1343beb84df874b9f31b9ad53dc85852a68b004cd974fb37ee130f252de0c",
+      "edits": [
+        {
+          "id": "external-model-preferences",
+          "before": "~/.cursor/rules/pstack-models.mdc",
+          "after": "~/.config/pstack/models.mdc",
+          "count": 1
+        },
+        {
+          "id": "codex-owned-skill-destination",
+          "before": ".cursor/skills/",
+          "after": ".agents/skills/",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/06-verify-and-ship.md": {
+      "source_sha256": "31ab46936950c78989a51cffaebf2e321858580d286a83d92a504528fce24d2d",
+      "edits": [
+        {
+          "id": "codex-owned-skill-destination",
+          "before": ".cursor/skills/",
+          "after": ".agents/skills/",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/09-make-it-yours.md": {
+      "source_sha256": "4df83ef7dc44364921a9663c7d426a1b4d0acab6a0490ef1769257b51b74e65a",
+      "edits": [
+        {
+          "id": "codex-owned-skill-destination",
+          "before": ".cursor/skills/",
+          "after": ".agents/skills/",
+          "count": 1
+        }
+      ]
+    },
+    "docs/harness/claude-code.md": {
+      "source_sha256": "5f859ef4fa39664b1ccdff521bcb15854f8805394191da509e68ce625b97cba6",
+      "edits": [
+        {
+          "id": "external-model-preferences",
+          "before": "~/.cursor/rules/pstack-models.mdc",
+          "after": "~/.config/pstack/models.mdc",
+          "count": 1
+        },
+        {
+          "id": "codex-owned-skill-destination",
+          "before": ".cursor/skills/",
+          "after": ".agents/skills/",
+          "count": 2
+        }
+      ]
+    },
+    "skills/arena/SKILL.md": {
+      "source_sha256": "04f79ee8239251bc0c8a9e92f895ebe7bff42e785a5f6ef8ed2dc34dae18e85d",
+      "edits": [
+        {
+          "id": "external-model-preferences",
+          "before": "~/.cursor/rules/pstack-models.mdc",
+          "after": "~/.config/pstack/models.mdc",
+          "count": 2
+        }
+      ]
+    },
+    "skills/automate-me/SKILL.md": {
+      "source_sha256": "ffdb2db6d56b29518f50837d4e5d9194034bb3a767d77eb76efe82351ab1489c",
+      "edits": [
+        {
+          "id": "codex-owned-skill-destination",
+          "before": ".cursor/skills/",
+          "after": ".agents/skills/",
+          "count": 6
+        },
+        {
+          "id": "original-history-producer",
+          "before": "Locate the active workspace's transcripts before fanning out. The system prompt names the workspace's `agent-transcripts/` directory. Use only that path. Don't glob across `~/.cursor/projects/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.",
+          "after": "Obtain the active workspace's original transcripts from a supported authorized history producer before fanning out. Bind the actual workspace and requested time window. Use only that supplied corpus; never glob across unrelated workspace/account history. Report missing scope explicitly. The native Cloud history producer remains uncertified.",
+          "count": 1
+        },
+        {
+          "id": "portable-skill-authoring",
+          "before": "Cursor's built-in `create-skill`",
+          "after": "the actual supported skill-authoring capability described in the Codex adapter",
+          "count": 2
+        },
+        {
+          "id": "authored-native-invocation-policy",
+          "before": "- Frontmatter `disable-model-invocation: true` by default. Opt out only if the user explicitly wants their mode to apply on every turn.",
+          "after": "- Keep the source manual-by-default choice, and express it in the authored Codex skill's native `agents/openai.yaml` as `policy: { allow_implicit_invocation: false }`. Codex does not enforce `disable-model-invocation` in Markdown alone. Set the native value to true only if the user explicitly requests implicit invocation; do not promise that it forces every turn. Validate the actual authored skill's discovery policy and preserve this choice through subsequent edits.",
+          "count": 1
+        }
+      ]
+    },
+    "skills/create-verification-skill/SKILL.md": {
+      "source_sha256": "d353973547bf8ad8977eca645f4cd4feaed0d32f4b43d1448f906b0a76c4d694",
+      "edits": [
+        {
+          "id": "codex-owned-skill-destination",
+          "before": ".cursor/skills/",
+          "after": ".agents/skills/",
+          "count": 3
+        }
+      ]
+    },
+    "skills/maintain-verification-skill/SKILL.md": {
+      "source_sha256": "515c0eaa054b3f6be1b1fb06f2c2f173c80fddb58bbcac57576f89c479bc68e8",
+      "edits": [
+        {
+          "id": "codex-owned-skill-destination",
+          "before": ".cursor/skills/",
+          "after": ".agents/skills/",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-help/SKILL.md": {
+      "source_sha256": "d6d72057e5cdfa5cebeec88ee50d1ebf8f46f2e64788f5580968a73a16aba08d",
+      "edits": [
+        {
+          "id": "external-model-preferences",
+          "before": "~/.cursor/rules/pstack-models.mdc",
+          "after": "~/.config/pstack/models.mdc",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-mode/SKILL.md": {
+      "source_sha256": "67fd2c54fd25ebfae1e46db62c4b2e54f806a7ea9dfb6c83922de37e9b9635ea",
+      "edits": [
+        {
+          "id": "external-model-preferences",
+          "before": "~/.cursor/rules/pstack-models.mdc",
+          "after": "~/.config/pstack/models.mdc",
+          "count": 1
+        },
+        {
+          "id": "bundled-teamkit-procedures",
+          "before": "`/deslop` from the `cursor-team-kit` plugin",
+          "after": "the bundled `dependencies/cursor-team-kit/deslop.md` procedure, resolved from the verified Codex root",
+          "count": 1
+        },
+        {
+          "id": "bundled-teamkit-procedures",
+          "before": "`control-ui` or `control-cli` from `cursor-team-kit`",
+          "after": "the bundled `dependencies/cursor-team-kit/control-ui.md` or `control-cli.md` procedure, resolved from the verified Codex root",
+          "count": 1
+        },
+        {
+          "id": "effective-resource-root",
+          "before": "Bundled skills live at `../<name>/SKILL.md` from this file, so put this file's absolute path in every `poteto-agent` prompt.",
+          "after": "Bundled skills and helpers resolve from the verified resource_root returned for poteto-mode, even when its effective body is an external approved override. Pass that effective instructions path, resource_root, payload root and selected override registry to every poteto-agent. Resolve sibling skills and relative helpers through runtime resource/resolve; never use the relocated body's directory as the package root.",
+          "count": 1
+        }
+      ]
+    },
+    "skills/reflect/SKILL.md": {
+      "source_sha256": "6f6952f91514dc86257830da93a446c732a1af906f6acd5e5783dc587a29031e",
+      "edits": [
+        {
+          "id": "codex-owned-skill-destination",
+          "before": ".cursor/skills/",
+          "after": ".agents/skills/",
+          "count": 2
+        },
+        {
+          "id": "approved-reflection-activation",
+          "before": "Never edit a skill under `plugins/cache/`. Before approval, show its destination, `.agents/skills/<skill>/` or `~/.agents/skills/<skill>/`. After approval, copy the skill folder there and edit the copy. Never open a PR or push.",
+          "after": "Never edit a plugin-cache file. Before approval, show the owned destination outside cache, such as `~/.config/pstack/overrides/<skill>/`, and the proposed body or metadata change. After approval, copy and edit the effective operative body there, preserving its full frontmatter and using the resolver's resource_root for existing dependencies. Activate an approved body through the external override registry at `~/.config/pstack/overrides.json` or the active profile's override_registry: bind the selected payload manifest digest, original base_sha256, approved body_path/body_sha256 and actual approval_id. Do not invent an approval. Verify that fresh direct and internal resolves select the same approved body. Copying a generated descriptor to a standalone skill folder does not activate an override and must not create a duplicate namespace. Description/discovery changes additionally require a supported host-visible same-identity replacement or precedence route; report unverified activation rather than claim it succeeded. Never open a PR or push.",
+          "count": 1
+        }
+      ]
+    },
+    "skills/setup-pstack/SKILL.md": {
+      "source_sha256": "54ff000a23b5c7e2277be11a0ee1d6a2049a64fb1f59027288cf87ffc8759415",
+      "edits": [
+        {
+          "id": "external-model-preferences",
+          "before": "~/.cursor/rules/pstack-models.mdc",
+          "after": "~/.config/pstack/models.mdc",
+          "count": 3
+        },
+        {
+          "id": "explicit-model-rule-loading",
+          "before": "Write `~/.config/pstack/models.mdc`, an always-applied rule that sets pstack's model per role.",
+          "after": "Use the runtime models plan/write commands described in the verified adapter guide to maintain `~/.config/pstack/models.mdc`. Every pstack resolver invocation reads this rule explicitly; Codex does not natively auto-load MDC files. Preserve the nine-role defaults and migration below, discover actual entitled models, show the resulting plan, and write only after the applicable confirmation.",
+          "count": 1
+        },
+        {
+          "id": "actual-model-catalog",
+          "before": "If Cursor also exposes a models API or CLI that lists the user's entitled models, prefer it for completeness.",
+          "after": "If an actual configured provider or native tool exposes an entitled model catalog, use its observed catalog and verified family/effort/speed mapping; source Cursor slugs are not automatically Codex API model names.",
+          "count": 1
+        },
+        {
+          "id": "model-rule-writer",
+          "before": "Write `~/.config/pstack/models.mdc` with `alwaysApply: true`, the `# defaults: 3` line,",
+          "after": "Use the runtime approved-plan writer for `~/.config/pstack/models.mdc`, retaining the source-format `alwaysApply: true` marker as data (explicitly loaded by the resolver), the `# defaults: 3` line,",
+          "count": 1
+        }
+      ]
+    },
+    "skills/swarm/SKILL.md": {
+      "source_sha256": "8558089df5320e4ddf61126ca3d638404341584c8307dd6d20f8984e5ae3bbd1",
+      "edits": [
+        {
+          "id": "external-model-preferences",
+          "before": "~/.cursor/rules/pstack-models.mdc",
+          "after": "~/.config/pstack/models.mdc",
+          "count": 1
+        }
+      ]
+    },
+    "agents/poteto-agent.md": {
+      "source_sha256": "369065b46c217a5898cb1a400652c3399449252f4d5dbf8937eb8d4922d3cf6b",
+      "edits": [
+        {
+          "id": "bound-runtime-no-cache-scan",
+          "before": "With no path, before any other work, search `~/.cursor/plugins/` for a file whose path ends in `skills/poteto-mode/SKILL.md`. If more than one file matches, use the copy whose `.cursor-plugin/plugin.json` has the highest `version`. Your skill catalog hides this skill, so a missing catalog entry does not mean pstack is absent. If no such file exists, stop and tell your parent.",
+          "after": "With no verified path, stop and ask the coordinator for the selected runtime binding before doing work. Do not scan plugin caches or select a highest version. Resolve poteto-mode through the verified Codex runtime, read its returned operative instructions in full, and apply the adapter guide. The catalog can hide manual skills; it is not the runtime index.",
+          "count": 1
+        },
+        {
+          "id": "effective-resource-root",
+          "before": "Read the `poteto-mode` skill's `SKILL.md` in full before doing any work, including its inline Principles index. Use the absolute path your parent gave you.",
+          "after": "Resolve poteto-mode with the parent's verified payload and selected override registry, then read the returned effective operative instructions in full, including its inline Principles index. Preserve the returned resource_root for relative dependencies; do not reread the descriptor or pinned base as a replacement for an approved override.",
+          "count": 1
+        }
+      ]
+    },
+    "skills/recall/SKILL.md": {
+      "source_sha256": "1f4eda450650a7bd3948f44489a94f6c692f6a14ab9ce56ab9ed6f60c50e2258",
+      "edits": [
+        {
+          "id": "original-history-producer",
+          "before": "Transcripts live at `~/.cursor/projects/<slug>/agent-transcripts/<uuid>/<uuid>.jsonl`, where `<slug>` is the workspace path with the leading slash dropped and each \"/\" turned into \"-\" (so `/Users/you/proj` becomes `Users-you-proj`). Every line is one chat message.",
+          "after": "Obtain original transcripts through a supported authorized history producer for the exact requested native workspace, conversation identities and time window. Do not infer a Codex transcript location from Cursor paths or scan unrelated account history. Preserve the producer's original records and provenance. If the required corpus is unavailable or incomplete, report that scope rather than fabricate a summary or silently narrow it.",
+          "count": 1
+        }
+      ]
+    },
+    "skills/show-me-your-work/SKILL.md": {
+      "source_sha256": "ec29326ac20515f2941198205bec615320a55b21659692e19650530dbf217bde",
+      "edits": [
+        {
+          "id": "original-history-producer",
+          "before": "Read this run's transcript under the active workspace's `agent-transcripts/` directory (the system prompt names the path). Don't glob across `~/.cursor/projects/*/`. That reads unrelated private chats.",
+          "after": "Read this native run's original transcript from a supported authorized producer, including its prefix before capture activation, with the required cutoff available before handoff. Do not substitute a managed child transcript or assistant-authored journal, and do not read unrelated private chats. If the required original interval is unavailable, mark that audit incomplete.",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-mode/playbooks/eval.md": {
+      "source_sha256": "369bfda8bf305fb57bf4cabada7862c41dc21f1dc0ad7993cfcd29d0a4d99a68",
+      "edits": [
+        {
+          "id": "original-history-producer",
+          "before": "Read each candidate's local transcript under the active workspace's `agent-transcripts/` directory (the system prompt names this path). Do not glob across `~/.cursor/projects/*/`. That crosses workspace boundaries and reads private chats from unrelated projects.",
+          "after": "Read each candidate's original execution transcript through its actual supported provider, scoped to the candidate identity and allowed workspace. Preserve independently recorded file/tool activity. Do not substitute self-reported JSON or glob unrelated private chats. Missing activity evidence leaves chain-following unverified.",
+          "count": 1
+        },
+        {
+          "id": "blind-trial-loading",
+          "before": "4. **Spawn N parallel candidates**",
+          "after": "4. **Codex trial boundary.** Use a generic trial role with a neutral standalone worker.md first-read path, not poteto-agent or the full mode/router. Enforce the declared candidate file/tool/context closure, keeping evaluator provenance and forbidden metadata outside it. Freeze the declared treatment: if it itself requires forbidden full-mode content, report the conflict and explicitly redesign the comparison; do not silently change the treatment to claim blinding.\n\n4. **Spawn N parallel candidates**",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-mode/playbooks/session-pickup.md": {
+      "source_sha256": "15a6b61eeb89e2dd66ab8254f7c6807694a06eb103342983a7620f10c942ecf9",
+      "edits": [
+        {
+          "id": "original-history-producer",
+          "before": "A local transcript under the active workspace's `agent-transcripts/` directory (the system prompt names the path. Do not glob across `~/.cursor/projects/*/`, that crosses workspace boundaries and reads private chats from unrelated projects), a cloud-agent URL, or a pushed branch.",
+          "after": "An original transcript from a supported producer scoped to the active workspace and actual prior conversation, a cloud-agent URL, or a pushed branch. Do not guess a Cursor path or read unrelated private chats; preserve this playbook's alternatives without treating them as a whole-transcript audit.",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-mode/playbooks/authoring-a-skill.md": {
+      "source_sha256": "f6a13a445c360b48d6cd72780ac01955f45b82826476efe0e67c7559329407aa",
+      "edits": [
+        {
+          "id": "portable-skill-authoring",
+          "before": "Use the **create-skill** skill (Cursor's built-in for authoring SKILL.md files).",
+          "after": "Use the actually available Codex skill-authoring capability and target schema. If no authoring skill is installed, produce the source-required SKILL.md structure directly and validate it through the actual target loader; do not invent a built-in create-skill tool.",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-mode/scripts/worktree-audit.sh": {
+      "source_sha256": "06be04b38346ded24ce761d373726f98cd9b9737f20ec98214e88b5f08f521b8",
+      "edits": [
+        {
+          "id": "explicit-transcript-directory",
+          "before": "# Transcripts dir: ~/.cursor/projects/<slugified-repo-path>/agent-transcripts.\nslug=$(printf '%s' \"$main_wt\" | sed 's#^/##; s#/#-#g')\ntranscripts=\"$HOME/.cursor/projects/$slug/agent-transcripts\"",
+          "after": "# Optional authorized original transcript directory for this workspace.\ntranscripts=\"${PSTACK_TRANSCRIPTS_DIR:-}\"",
+          "count": 1
+        },
+        {
+          "id": "literal-worktree-paths",
+          "before": "awk '/^worktree /{print $2}'",
+          "after": "awk '/^worktree /{print substr($0, 10)}'",
+          "count": 1
+        },
+        {
+          "id": "literal-worktree-paths",
+          "before": "awk '/^worktree /{print $2; exit}'",
+          "after": "awk '/^worktree /{print substr($0, 10); exit}'",
+          "count": 1
+        },
+        {
+          "id": "literal-transcript-search",
+          "before": "rg -l -e \"${wt}/\" -e \"${wt}\\\"\"",
+          "after": "rg -0 -F -l -e \"${wt}/\" -e \"${wt}\\\"\"",
+          "count": 1
+        },
+        {
+          "id": "literal-transcript-search",
+          "before": "| xargs stat \"${stat_fmt[@]}\"",
+          "after": "| xargs -0 stat \"${stat_fmt[@]}\"",
+          "count": 1
+        },
+        {
+          "id": "missing-history-conservative-cleanup",
+          "before": "\tprintf \"%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n\"",
+          "after": "\tif [ ! -d \"$transcripts\" ] && [ \"$bucket\" = safe ]; then\n\t\tbucket=review-missing-history\n\tfi\n\n\tprintf \"%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n\"",
+          "count": 1
+        }
+      ]
+    },
+    "docs/guide/07-overnight.md": {
+      "source_sha256": "5bd1a4336b09947832d3b58afb22bcdfbe698ff76c1bdaab23af545f04cf8e60",
+      "edits": [
+        {
+          "id": "owning-show-me-vendor-contract",
+          "before": "different model family",
+          "after": "different originating model vendor",
+          "count": 1
+        }
+      ]
+    },
+    "skills/make-bot-ui/SKILL.md": {
+      "source_sha256": "ad19d0bc6764287ec08c2521701974e7dac941f72e4d0fe81a24f4614494586f",
+      "edits": [
+        {
+          "id": "configured-webhook-integration",
+          "before": "Call `update_state` with target `routine` and action `create`. Set these fields:",
+          "after": "Use an actually configured authenticated routine/webhook integration. `update_state` is a source host term, not a native Codex API; if no supported route exists, report this setup prerequisite and stop before creating a routine. Through that actual integration, request a draft routine with these source-required fields:",
+          "count": 1
+        },
+        {
+          "id": "configured-webhook-integration",
+          "before": "The URL looks like `https://api2.cursor.sh/automations/webhook/<id>` with no query string. Copy the URL from the routine. Do not guess the id.",
+          "after": "Copy the actual authenticated ingress URL returned by the configured integration. Do not construct a Cursor API URL, guess a routine id or place the sender secret in a query string.",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-mode/scripts/watch-pr/github.ts": {
+      "source_sha256": "7ba193190d488c8ce0982c85234ebea026e9a595703e99a3c3df0fcd640ddd18",
+      "edits": [
+        {
+          "id": "bounded-watcher-transport",
+          "before": "import { spawn } from \"node:child_process\";",
+          "after": "import { runBounded, parseRevisionIdentity } from \"./codex-transport.ts\";",
+          "count": 1
+        },
+        {
+          "id": "bounded-watcher-transport",
+          "before": "function run(argv: readonly [string, ...string[]]): Promise<CommandResult> {\n  return new Promise((resolve, reject) => {\n    const child = spawn(argv[0], argv.slice(1), {\n      stdio: [\"ignore\", \"pipe\", \"pipe\"],\n    });\n    let stdout = \"\";\n    let stderr = \"\";\n    child.stdout.setEncoding(\"utf8\");\n    child.stderr.setEncoding(\"utf8\");\n    child.stdout.on(\"data\", (chunk: string) => {\n      stdout += chunk;\n    });\n    child.stderr.on(\"data\", (chunk: string) => {\n      stderr += chunk;\n    });\n    child.on(\"error\", reject);\n    child.on(\"close\", (code) => resolve({ code: code ?? -1, stdout, stderr }));\n  });\n}\n",
+          "after": "const run = runBounded;\n",
+          "count": 1
+        },
+        {
+          "id": "revision-bound-watcher-observation",
+          "before": "export class GhGitHubReader implements T.GitHubReader {",
+          "after": "export class GhGitHubReader implements T.GitHubReader {\n  async snapshotIdentity(context: T.PrContext) {\n    return parseRevisionIdentity(await runJson([\n      \"gh\", \"pr\", \"view\", String(context.number), \"--repo\",\n      `${context.owner}/${context.repo}`, \"--json\",\n      \"headRefOid,baseRefOid,headRefName,baseRefName,state,mergedAt\",\n    ]));\n  }",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-mode/scripts/watch-pr/policy.ts": {
+      "source_sha256": "2d4823aeea788acab258ec60eb52e7b9e3a23a6649850af128d6ada5c33d7778",
+      "edits": [
+        {
+          "id": "revision-bound-watcher-observation",
+          "before": "import type * as T from \"./types.ts\";",
+          "after": "import type * as T from \"./types.ts\";\nimport { beginSnapshot, checkSnapshotFacts, endSnapshot } from \"./codex-transport.ts\";",
+          "count": 1
+        },
+        {
+          "id": "revision-bound-watcher-observation",
+          "before": "  const facts = await args.reader.pullRequest(args.context);\n  if (facts.state === \"MERGED\" || facts.mergedAt !== null)\n    return { kind: \"merged\", context: args.context, facts };\n  if (facts.state === \"CLOSED\")\n    return { kind: \"closed\", context: args.context, facts };",
+          "after": "  const identity = await beginSnapshot(args.reader, args.context);\n  const facts = await args.reader.pullRequest(args.context);\n  checkSnapshotFacts(identity, facts);\n  if (facts.state === \"MERGED\" || facts.mergedAt !== null) {\n    await endSnapshot(args.reader, args.context, identity);\n    return { kind: \"merged\", context: args.context, facts };\n  }\n  if (facts.state === \"CLOSED\") {\n    await endSnapshot(args.reader, args.context, identity);\n    return { kind: \"closed\", context: args.context, facts };\n  }",
+          "count": 1
+        },
+        {
+          "id": "revision-bound-watcher-observation",
+          "before": "  return {\n    kind: \"open\",\n    context: args.context,",
+          "after": "  await endSnapshot(args.reader, args.context, identity);\n  return {\n    kind: \"open\",\n    context: args.context,",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-mode/scripts/watch-pr/cli.ts": {
+      "source_sha256": "89c08863089181a232be782c4b2ed90a1552f44aeecb0dcb7aac2c623620e680",
+      "edits": [
+        {
+          "id": "supervised-watcher-runtime",
+          "before": "function realRuntime(): CliRuntime {",
+          "after": "export function realRuntime(): CliRuntime {",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-mode/scripts/watch-pr/watch-pr": {
+      "source_sha256": "d955603be6cc0e8b8ffcec722f635192b2261410b1f2929abea94480e47eb5d4",
+      "edits": [
+        {
+          "id": "whole-attempt-watcher-supervision",
+          "before": "#!/usr/bin/env bun\nimport { ensureDependenciesInstalled } from \"../bootstrap.ts\";\n\nensureDependenciesInstalled();\nconst { main } = await import(\"./cli.ts\");\nprocess.exitCode = await main(process.argv.slice(2));\n",
+          "after": "#!/usr/bin/env python3\n\"\"\"Run the Codex watcher with one bounded, revision-bound attempt.\"\"\"\nimport os\nfrom pathlib import Path\nimport sys\n\nroot = Path(__file__).resolve().parents[4]\nsupervisor = root / \"adapters/codex/watch_pr/supervisor.py\"\nos.execv(sys.executable, [sys.executable, str(supervisor), *sys.argv[1:]])\n",
+          "count": 1
+        }
+      ]
+    },
+    "skills/poteto-mode/playbooks/babysit.md": {
+      "source_sha256": "06fed1fa997c8899d7365fb0f21c0177084fcb8d0561841d2eca753660f63a85",
+      "edits": [
+        {
+          "id": "babysit-queued-merge-ready",
+          "before": "In `check` mode pass `--status-only`.",
+          "after": "In `check` mode pass `--status-only`. For a Codex queued `drive` attempt, pass `--until-merge-ready` with `--queued-stack` and the frozen `--stack-prs` list. The wrapper stops at a freshly verified blocker-free merge-queue wait and preserves the raw WAITING record; MERGE_READY is an adapter result, not upstream READY or an observed merge. Deadline, interruption, output-limit and stale-snapshot outcomes remain incomplete.",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "dependencies": [
+    {
+      "source": "cursor-team-kit/skills/deslop/SKILL.md",
+      "output": "dependencies/cursor-team-kit/deslop.md",
+      "sha256": "2f7b7def74af7ed11f5b44b4d32f0f91fca8c5d1f92bf2171e8d12fd33a0f810"
+    },
+    {
+      "source": "cursor-team-kit/skills/control-ui/SKILL.md",
+      "output": "dependencies/cursor-team-kit/control-ui.md",
+      "sha256": "410cae25bdb1e5d2323b126abc5047b0213be7fdb0195710213fa8de8a751871"
+    },
+    {
+      "source": "cursor-team-kit/skills/control-cli/SKILL.md",
+      "output": "dependencies/cursor-team-kit/control-cli.md",
+      "sha256": "13ac93e595bbda2000849bdb815d5f2ca03f7c2ca63788c8335f9212b9b422a2"
+    },
+    {
+      "source": "cursor-team-kit/LICENSE",
+      "output": "dependencies/cursor-team-kit/LICENSE",
+      "sha256": "702f5f331b56aff0e33d8c7826df5202559f894145eb70355c6477b55b5bb8a0"
+    }
+  ],
+  "adapter_files": [
+    {
+      "source": "watch_pr/codex-transport.ts",
+      "output": "skills/poteto-mode/scripts/watch-pr/codex-transport.ts",
+      "reason": "Bounded git/gh transport and revision observations; source policy types unchanged."
+    },
+    {
+      "source": "watch_pr/codex-main.ts",
+      "output": "skills/poteto-mode/scripts/watch-pr/codex-main.ts",
+      "reason": "Keep upstream wire verdicts nested; verify readiness before handoff and implement explicit Babysit stop outcome."
+    }
+  ]
+}

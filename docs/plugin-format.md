@@ -1,7 +1,10 @@
 # Plugin format
 
-Every Charms package conforms to Agent Plugins v1 and contains exactly one
-Agent Skill with the same name.
+Native Charms packages conform to Agent Plugins v1 and contain exactly one
+Agent Skill with the same name. These rules continue to apply to watch-video
+and x-bookmarks. Pstack has a separate trusted [bundle profile](pstack.md):
+the container selects an exact upstream Claude root or generated Codex root,
+each with 58 skills. The container is not a plugin.
 
 ## Manifest
 

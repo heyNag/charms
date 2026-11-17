@@ -1,0 +1,4 @@
+# Optional trusted Anthropic driver environment only; never task-worker dependencies.
+claude-agent-sdk==0.2.182
+anthropic==2.8.0
+jsonschema==4.26.0

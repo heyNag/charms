@@ -1,0 +1,411 @@
+{
+  "schema_version": 1,
+  "skills": {
+    "architect": {
+      "descriptor": "skills/architect/SKILL.md",
+      "instructions": "skills/architect/instructions.md",
+      "source_path": "pstack/skills/architect/SKILL.md",
+      "source_sha256": "aea83d7aa109eb73402182701b14c289844663ad9c8f959fedbef2df66787ce0",
+      "allow_implicit_invocation": false
+    },
+    "arena": {
+      "descriptor": "skills/arena/SKILL.md",
+      "instructions": "skills/arena/instructions.md",
+      "source_path": "pstack/skills/arena/SKILL.md",
+      "source_sha256": "04f79ee8239251bc0c8a9e92f895ebe7bff42e785a5f6ef8ed2dc34dae18e85d",
+      "allow_implicit_invocation": false
+    },
+    "automate-me": {
+      "descriptor": "skills/automate-me/SKILL.md",
+      "instructions": "skills/automate-me/instructions.md",
+      "source_path": "pstack/skills/automate-me/SKILL.md",
+      "source_sha256": "ffdb2db6d56b29518f50837d4e5d9194034bb3a767d77eb76efe82351ab1489c",
+      "allow_implicit_invocation": false
+    },
+    "benchmark-checklist": {
+      "descriptor": "skills/benchmark-checklist/SKILL.md",
+      "instructions": "skills/benchmark-checklist/instructions.md",
+      "source_path": "pstack/skills/benchmark-checklist/SKILL.md",
+      "source_sha256": "5efd79495e3eebf3b53814861330fe812458212958f8f009492e866c329161f6",
+      "allow_implicit_invocation": false
+    },
+    "blast-radius": {
+      "descriptor": "skills/blast-radius/SKILL.md",
+      "instructions": "skills/blast-radius/instructions.md",
+      "source_path": "pstack/skills/blast-radius/SKILL.md",
+      "source_sha256": "4248d03e22365207d2e5f90c9542720f80a88a6b42fd542ef88dde3cf9f9223f",
+      "allow_implicit_invocation": false
+    },
+    "bro": {
+      "descriptor": "skills/bro/SKILL.md",
+      "instructions": "skills/bro/instructions.md",
+      "source_path": "pstack/skills/bro/SKILL.md",
+      "source_sha256": "aa329d0ceeeecb6822a7174ad76bb07a7826a3c52ceb6a588dec4138815084bb",
+      "allow_implicit_invocation": false
+    },
+    "correct": {
+      "descriptor": "skills/correct/SKILL.md",
+      "instructions": "skills/correct/instructions.md",
+      "source_path": "pstack/skills/correct/SKILL.md",
+      "source_sha256": "e347045d00c967a0b831ef883cc6ac79d21329aa10b5968637df95de7febf0ba",
+      "allow_implicit_invocation": false
+    },
+    "create-formal-verification-skill": {
+      "descriptor": "skills/create-formal-verification-skill/SKILL.md",
+      "instructions": "skills/create-formal-verification-skill/instructions.md",
+      "source_path": "pstack/skills/create-formal-verification-skill/SKILL.md",
+      "source_sha256": "30ef0ac27612ecd16fdc081112113221d673053cef3f8603db11932193861211",
+      "allow_implicit_invocation": false
+    },
+    "create-verification-skill": {
+      "descriptor": "skills/create-verification-skill/SKILL.md",
+      "instructions": "skills/create-verification-skill/instructions.md",
+      "source_path": "pstack/skills/create-verification-skill/SKILL.md",
+      "source_sha256": "d353973547bf8ad8977eca645f4cd4feaed0d32f4b43d1448f906b0a76c4d694",
+      "allow_implicit_invocation": false
+    },
+    "figure-it-out": {
+      "descriptor": "skills/figure-it-out/SKILL.md",
+      "instructions": "skills/figure-it-out/instructions.md",
+      "source_path": "pstack/skills/figure-it-out/SKILL.md",
+      "source_sha256": "30693f2510b111128a6bae0d0ac35f97d972a30c0b84364dc87290b9fdc3b699",
+      "allow_implicit_invocation": false
+    },
+    "how": {
+      "descriptor": "skills/how/SKILL.md",
+      "instructions": "skills/how/instructions.md",
+      "source_path": "pstack/skills/how/SKILL.md",
+      "source_sha256": "23d5cc79a449b9838242e7af5563aa8a4f0417bab136bbcc054b4bebc7284680",
+      "allow_implicit_invocation": false
+    },
+    "in-your-own-words": {
+      "descriptor": "skills/in-your-own-words/SKILL.md",
+      "instructions": "skills/in-your-own-words/instructions.md",
+      "source_path": "pstack/skills/in-your-own-words/SKILL.md",
+      "source_sha256": "fa8ba74e27d7be371dc270ec78bbf816411477d0dfab185356c861ac8dd413ad",
+      "allow_implicit_invocation": false
+    },
+    "interrogate": {
+      "descriptor": "skills/interrogate/SKILL.md",
+      "instructions": "skills/interrogate/instructions.md",
+      "source_path": "pstack/skills/interrogate/SKILL.md",
+      "source_sha256": "3f3c2e9b8cf6b180dba9f32a4aff85e5691b09805232468e37a0ba45437a9984",
+      "allow_implicit_invocation": false
+    },
+    "ketchup": {
+      "descriptor": "skills/ketchup/SKILL.md",
+      "instructions": "skills/ketchup/instructions.md",
+      "source_path": "pstack/skills/ketchup/SKILL.md",
+      "source_sha256": "f2923ffd14f6fc778f75a47aaed1f317fb5fd00b5701ca769d6446c74106dead",
+      "allow_implicit_invocation": false
+    },
+    "ketchup-video": {
+      "descriptor": "skills/ketchup-video/SKILL.md",
+      "instructions": "skills/ketchup-video/instructions.md",
+      "source_path": "pstack/skills/ketchup-video/SKILL.md",
+      "source_sha256": "027aed9a01adf208aeac3a134f47d12f7c1e42d6fea03095aedc2bae58cdcfd1",
+      "allow_implicit_invocation": false
+    },
+    "maintain-formal-verification-skill": {
+      "descriptor": "skills/maintain-formal-verification-skill/SKILL.md",
+      "instructions": "skills/maintain-formal-verification-skill/instructions.md",
+      "source_path": "pstack/skills/maintain-formal-verification-skill/SKILL.md",
+      "source_sha256": "0c96f54293542d3818b68754562b338073958781a9684454611dca37592e2d2c",
+      "allow_implicit_invocation": false
+    },
+    "maintain-verification-skill": {
+      "descriptor": "skills/maintain-verification-skill/SKILL.md",
+      "instructions": "skills/maintain-verification-skill/instructions.md",
+      "source_path": "pstack/skills/maintain-verification-skill/SKILL.md",
+      "source_sha256": "515c0eaa054b3f6be1b1fb06f2c2f173c80fddb58bbcac57576f89c479bc68e8",
+      "allow_implicit_invocation": false
+    },
+    "make-bot-ui": {
+      "descriptor": "skills/make-bot-ui/SKILL.md",
+      "instructions": "skills/make-bot-ui/instructions.md",
+      "source_path": "pstack/skills/make-bot-ui/SKILL.md",
+      "source_sha256": "ad19d0bc6764287ec08c2521701974e7dac941f72e4d0fe81a24f4614494586f",
+      "allow_implicit_invocation": false
+    },
+    "no-comments": {
+      "descriptor": "skills/no-comments/SKILL.md",
+      "instructions": "skills/no-comments/instructions.md",
+      "source_path": "pstack/skills/no-comments/SKILL.md",
+      "source_sha256": "054a46f2662c725add02d9e0440d8dcb4351f3bd0afcf797acc22a501b527b54",
+      "allow_implicit_invocation": false
+    },
+    "poteto-help": {
+      "descriptor": "skills/poteto-help/SKILL.md",
+      "instructions": "skills/poteto-help/instructions.md",
+      "source_path": "pstack/skills/poteto-help/SKILL.md",
+      "source_sha256": "d6d72057e5cdfa5cebeec88ee50d1ebf8f46f2e64788f5580968a73a16aba08d",
+      "allow_implicit_invocation": false
+    },
+    "poteto-mode": {
+      "descriptor": "skills/poteto-mode/SKILL.md",
+      "instructions": "skills/poteto-mode/instructions.md",
+      "source_path": "pstack/skills/poteto-mode/SKILL.md",
+      "source_sha256": "67fd2c54fd25ebfae1e46db62c4b2e54f806a7ea9dfb6c83922de37e9b9635ea",
+      "allow_implicit_invocation": false
+    },
+    "principle-attack-the-premise": {
+      "descriptor": "skills/principle-attack-the-premise/SKILL.md",
+      "instructions": "skills/principle-attack-the-premise/instructions.md",
+      "source_path": "pstack/skills/principle-attack-the-premise/SKILL.md",
+      "source_sha256": "831e916c540f4b6b720b7472aeea6e6ef93996655e36cc2517221f6f2081b480",
+      "allow_implicit_invocation": false
+    },
+    "principle-boundary-discipline": {
+      "descriptor": "skills/principle-boundary-discipline/SKILL.md",
+      "instructions": "skills/principle-boundary-discipline/instructions.md",
+      "source_path": "pstack/skills/principle-boundary-discipline/SKILL.md",
+      "source_sha256": "c02c26cca3906bfd57829535f8fa7ee9e00df037b4dbb24e5f85ec9e12710b48",
+      "allow_implicit_invocation": false
+    },
+    "principle-build-the-lever": {
+      "descriptor": "skills/principle-build-the-lever/SKILL.md",
+      "instructions": "skills/principle-build-the-lever/instructions.md",
+      "source_path": "pstack/skills/principle-build-the-lever/SKILL.md",
+      "source_sha256": "753d81cf9ca2a4e9d1f057429f0c63c9c622e6022dd877ec97ec15f442076aac",
+      "allow_implicit_invocation": false
+    },
+    "principle-encode-lessons-in-structure": {
+      "descriptor": "skills/principle-encode-lessons-in-structure/SKILL.md",
+      "instructions": "skills/principle-encode-lessons-in-structure/instructions.md",
+      "source_path": "pstack/skills/principle-encode-lessons-in-structure/SKILL.md",
+      "source_sha256": "228963799189f481827d6f28065f278bc2008ffa37030b1234cbd5814d36b9e9",
+      "allow_implicit_invocation": false
+    },
+    "principle-exhaust-the-design-space": {
+      "descriptor": "skills/principle-exhaust-the-design-space/SKILL.md",
+      "instructions": "skills/principle-exhaust-the-design-space/instructions.md",
+      "source_path": "pstack/skills/principle-exhaust-the-design-space/SKILL.md",
+      "source_sha256": "2de83d99f93f60ec6313455b0bc9aa9f0bfb93dd59f414f403691322db00d4db",
+      "allow_implicit_invocation": false
+    },
+    "principle-experience-first": {
+      "descriptor": "skills/principle-experience-first/SKILL.md",
+      "instructions": "skills/principle-experience-first/instructions.md",
+      "source_path": "pstack/skills/principle-experience-first/SKILL.md",
+      "source_sha256": "58903529d733b1c1a7c9ccf127d45ef3c7d0d9f0b81164a4dc6b80efe6f2912b",
+      "allow_implicit_invocation": false
+    },
+    "principle-explain-the-number": {
+      "descriptor": "skills/principle-explain-the-number/SKILL.md",
+      "instructions": "skills/principle-explain-the-number/instructions.md",
+      "source_path": "pstack/skills/principle-explain-the-number/SKILL.md",
+      "source_sha256": "e6a3f00991f4949cf18a0b5c77dd3126ca4402b8553f88c9c7905e577512676e",
+      "allow_implicit_invocation": false
+    },
+    "principle-fix-root-causes": {
+      "descriptor": "skills/principle-fix-root-causes/SKILL.md",
+      "instructions": "skills/principle-fix-root-causes/instructions.md",
+      "source_path": "pstack/skills/principle-fix-root-causes/SKILL.md",
+      "source_sha256": "79afd7e67d8951203231f6f1ccfc7b4a1f30d8d6cdb68e92755c80012414dbeb",
+      "allow_implicit_invocation": false
+    },
+    "principle-foundational-thinking": {
+      "descriptor": "skills/principle-foundational-thinking/SKILL.md",
+      "instructions": "skills/principle-foundational-thinking/instructions.md",
+      "source_path": "pstack/skills/principle-foundational-thinking/SKILL.md",
+      "source_sha256": "5c63eecf4b83ea5a99eda7a95a96cac0929d2dce7393d7089c83917bc12cf820",
+      "allow_implicit_invocation": false
+    },
+    "principle-guard-the-context-window": {
+      "descriptor": "skills/principle-guard-the-context-window/SKILL.md",
+      "instructions": "skills/principle-guard-the-context-window/instructions.md",
+      "source_path": "pstack/skills/principle-guard-the-context-window/SKILL.md",
+      "source_sha256": "af0b9dd70b43628ce4a59a4d332e9d9ad055084e460f430e7a757495c627e81a",
+      "allow_implicit_invocation": false
+    },
+    "principle-laziness-protocol": {
+      "descriptor": "skills/principle-laziness-protocol/SKILL.md",
+      "instructions": "skills/principle-laziness-protocol/instructions.md",
+      "source_path": "pstack/skills/principle-laziness-protocol/SKILL.md",
+      "source_sha256": "1be6e7a435f26a75a76eb848b9c3d611b9977d0f5822361753244da25ca3ca45",
+      "allow_implicit_invocation": false
+    },
+    "principle-make-operations-idempotent": {
+      "descriptor": "skills/principle-make-operations-idempotent/SKILL.md",
+      "instructions": "skills/principle-make-operations-idempotent/instructions.md",
+      "source_path": "pstack/skills/principle-make-operations-idempotent/SKILL.md",
+      "source_sha256": "76ad0a99b6ff2a05a159accfeee48412d62f62774eb8d05bbff26a1f3aa3eab5",
+      "allow_implicit_invocation": false
+    },
+    "principle-migrate-callers-then-delete-legacy-apis": {
+      "descriptor": "skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
+      "instructions": "skills/principle-migrate-callers-then-delete-legacy-apis/instructions.md",
+      "source_path": "pstack/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
+      "source_sha256": "580ad9bb1a0994ecb924321ba49efc38a2f85c64e22c76fb133f57a78272a2e6",
+      "allow_implicit_invocation": false
+    },
+    "principle-minimize-reader-load": {
+      "descriptor": "skills/principle-minimize-reader-load/SKILL.md",
+      "instructions": "skills/principle-minimize-reader-load/instructions.md",
+      "source_path": "pstack/skills/principle-minimize-reader-load/SKILL.md",
+      "source_sha256": "22d27deffb0a3726858d0d4b02d71acd4a3eb4d44e218bc89b66e49dc9823937",
+      "allow_implicit_invocation": false
+    },
+    "principle-model-the-domain": {
+      "descriptor": "skills/principle-model-the-domain/SKILL.md",
+      "instructions": "skills/principle-model-the-domain/instructions.md",
+      "source_path": "pstack/skills/principle-model-the-domain/SKILL.md",
+      "source_sha256": "97c6214dc6a18b93177dda6429185a8640878b36ddee6ec9400c23a0eb9be2d8",
+      "allow_implicit_invocation": false
+    },
+    "principle-never-block-on-the-human": {
+      "descriptor": "skills/principle-never-block-on-the-human/SKILL.md",
+      "instructions": "skills/principle-never-block-on-the-human/instructions.md",
+      "source_path": "pstack/skills/principle-never-block-on-the-human/SKILL.md",
+      "source_sha256": "05030a7a083c337676f793881b4e93cd218e8f1dd676529f56e6ac1d3efb8d1f",
+      "allow_implicit_invocation": false
+    },
+    "principle-outcome-oriented-execution": {
+      "descriptor": "skills/principle-outcome-oriented-execution/SKILL.md",
+      "instructions": "skills/principle-outcome-oriented-execution/instructions.md",
+      "source_path": "pstack/skills/principle-outcome-oriented-execution/SKILL.md",
+      "source_sha256": "10eb91633aa570355ba4bb37088fcade2b22e498df7a58edc749e65bc5a78e2d",
+      "allow_implicit_invocation": false
+    },
+    "principle-prove-it-works": {
+      "descriptor": "skills/principle-prove-it-works/SKILL.md",
+      "instructions": "skills/principle-prove-it-works/instructions.md",
+      "source_path": "pstack/skills/principle-prove-it-works/SKILL.md",
+      "source_sha256": "3d6c482e341974cfcb8d19ebf66fb1d4274d8673af35e36d3c231a6aa9e03f25",
+      "allow_implicit_invocation": false
+    },
+    "principle-redesign-from-first-principles": {
+      "descriptor": "skills/principle-redesign-from-first-principles/SKILL.md",
+      "instructions": "skills/principle-redesign-from-first-principles/instructions.md",
+      "source_path": "pstack/skills/principle-redesign-from-first-principles/SKILL.md",
+      "source_sha256": "170e0a658783e43fee8ec5a8c2422a4abb8f69cef621dd1819a95910b8207034",
+      "allow_implicit_invocation": false
+    },
+    "principle-separate-before-serializing-shared-state": {
+      "descriptor": "skills/principle-separate-before-serializing-shared-state/SKILL.md",
+      "instructions": "skills/principle-separate-before-serializing-shared-state/instructions.md",
+      "source_path": "pstack/skills/principle-separate-before-serializing-shared-state/SKILL.md",
+      "source_sha256": "2e5625d686b657e0b607c329fd8043bf50261b808239308fe4c6776e2817e95a",
+      "allow_implicit_invocation": false
+    },
+    "principle-sequence-verifiable-units": {
+      "descriptor": "skills/principle-sequence-verifiable-units/SKILL.md",
+      "instructions": "skills/principle-sequence-verifiable-units/instructions.md",
+      "source_path": "pstack/skills/principle-sequence-verifiable-units/SKILL.md",
+      "source_sha256": "ab0cc331cf317c07bb0ed6dd13ee9f618338b36e4e851521977bc5c4a8d429e1",
+      "allow_implicit_invocation": false
+    },
+    "principle-subtract-before-you-add": {
+      "descriptor": "skills/principle-subtract-before-you-add/SKILL.md",
+      "instructions": "skills/principle-subtract-before-you-add/instructions.md",
+      "source_path": "pstack/skills/principle-subtract-before-you-add/SKILL.md",
+      "source_sha256": "8c93bb9d1a7f38e2ef37655d93f0e790fa59903105af3d500cc8a663ebe45f3f",
+      "allow_implicit_invocation": false
+    },
+    "principle-test-behavior-not-implementation": {
+      "descriptor": "skills/principle-test-behavior-not-implementation/SKILL.md",
+      "instructions": "skills/principle-test-behavior-not-implementation/instructions.md",
+      "source_path": "pstack/skills/principle-test-behavior-not-implementation/SKILL.md",
+      "source_sha256": "42afc1a2c7176363b6410cfde06a9fd3e96f5022ba86bdb8de4838ad65c2442d",
+      "allow_implicit_invocation": false
+    },
+    "principle-type-system-discipline": {
+      "descriptor": "skills/principle-type-system-discipline/SKILL.md",
+      "instructions": "skills/principle-type-system-discipline/instructions.md",
+      "source_path": "pstack/skills/principle-type-system-discipline/SKILL.md",
+      "source_sha256": "9cd1ce345bc9d666c73c64c89c89164217b659aa4c4dde5600cbbe6f6e775461",
+      "allow_implicit_invocation": false
+    },
+    "recall": {
+      "descriptor": "skills/recall/SKILL.md",
+      "instructions": "skills/recall/instructions.md",
+      "source_path": "pstack/skills/recall/SKILL.md",
+      "source_sha256": "1f4eda450650a7bd3948f44489a94f6c692f6a14ab9ce56ab9ed6f60c50e2258",
+      "allow_implicit_invocation": false
+    },
+    "reflect": {
+      "descriptor": "skills/reflect/SKILL.md",
+      "instructions": "skills/reflect/instructions.md",
+      "source_path": "pstack/skills/reflect/SKILL.md",
+      "source_sha256": "6f6952f91514dc86257830da93a446c732a1af906f6acd5e5783dc587a29031e",
+      "allow_implicit_invocation": false
+    },
+    "setup-pstack": {
+      "descriptor": "skills/setup-pstack/SKILL.md",
+      "instructions": "skills/setup-pstack/instructions.md",
+      "source_path": "pstack/skills/setup-pstack/SKILL.md",
+      "source_sha256": "54ff000a23b5c7e2277be11a0ee1d6a2049a64fb1f59027288cf87ffc8759415",
+      "allow_implicit_invocation": true
+    },
+    "sharpen": {
+      "descriptor": "skills/sharpen/SKILL.md",
+      "instructions": "skills/sharpen/instructions.md",
+      "source_path": "pstack/skills/sharpen/SKILL.md",
+      "source_sha256": "aac4f8e6a1ffd70e3763314db37d3c2eb0cfea08bc63e98907aca6dae0343031",
+      "allow_implicit_invocation": false
+    },
+    "show-me-your-work": {
+      "descriptor": "skills/show-me-your-work/SKILL.md",
+      "instructions": "skills/show-me-your-work/instructions.md",
+      "source_path": "pstack/skills/show-me-your-work/SKILL.md",
+      "source_sha256": "ec29326ac20515f2941198205bec615320a55b21659692e19650530dbf217bde",
+      "allow_implicit_invocation": false
+    },
+    "statechart": {
+      "descriptor": "skills/statechart/SKILL.md",
+      "instructions": "skills/statechart/instructions.md",
+      "source_path": "pstack/skills/statechart/SKILL.md",
+      "source_sha256": "010b7b4532406739b1c3a426d1a45f02bb618a42561fc96b3976e064a7f8384d",
+      "allow_implicit_invocation": false
+    },
+    "swarm": {
+      "descriptor": "skills/swarm/SKILL.md",
+      "instructions": "skills/swarm/instructions.md",
+      "source_path": "pstack/skills/swarm/SKILL.md",
+      "source_sha256": "8558089df5320e4ddf61126ca3d638404341584c8307dd6d20f8984e5ae3bbd1",
+      "allow_implicit_invocation": false
+    },
+    "tdd": {
+      "descriptor": "skills/tdd/SKILL.md",
+      "instructions": "skills/tdd/instructions.md",
+      "source_path": "pstack/skills/tdd/SKILL.md",
+      "source_sha256": "eeb868e2dfebee528d730a67d7b17498fac4bb85dec2e38bc5c5176aca4d5d2f",
+      "allow_implicit_invocation": false
+    },
+    "teach": {
+      "descriptor": "skills/teach/SKILL.md",
+      "instructions": "skills/teach/instructions.md",
+      "source_path": "pstack/skills/teach/SKILL.md",
+      "source_sha256": "2c17f3c0a79536ca2fa3c20983def027ffd8abb4063d9bb3c97778b77557600d",
+      "allow_implicit_invocation": false
+    },
+    "technical-writing": {
+      "descriptor": "skills/technical-writing/SKILL.md",
+      "instructions": "skills/technical-writing/instructions.md",
+      "source_path": "pstack/skills/technical-writing/SKILL.md",
+      "source_sha256": "0a620885599cdde5a0a31fa39878144c10f61c894b56bf4a9ff779496e718b14",
+      "allow_implicit_invocation": false
+    },
+    "typescript-best-practices": {
+      "descriptor": "skills/typescript-best-practices/SKILL.md",
+      "instructions": "skills/typescript-best-practices/instructions.md",
+      "source_path": "pstack/skills/typescript-best-practices/SKILL.md",
+      "source_sha256": "ec1dac086d3708e5940d45d250c30a37dd953b4e3cb2ca0692f5851d7a039e27",
+      "allow_implicit_invocation": false
+    },
+    "unslop": {
+      "descriptor": "skills/unslop/SKILL.md",
+      "instructions": "skills/unslop/instructions.md",
+      "source_path": "pstack/skills/unslop/SKILL.md",
+      "source_sha256": "2b823fd069e031c1420180be8e0d4f5e2fd25bf2c428049e5c835c59a489b5e0",
+      "allow_implicit_invocation": false
+    },
+    "why": {
+      "descriptor": "skills/why/SKILL.md",
+      "instructions": "skills/why/instructions.md",
+      "source_path": "pstack/skills/why/SKILL.md",
+      "source_sha256": "6b65b3180f1f1bd3b696d7933daf900747410c82931d220a3f57a98addb1c0fd",
+      "allow_implicit_invocation": false
+    }
+  }
+}

@@ -9,8 +9,9 @@ python3 -m pip install -r requirements-dev.txt
 make check
 ```
 
-The plugins themselves support Python 3.9, so code under `packages/` stays
-within Python 3.9's syntax and standard library. See
+The native plugins support Python 3.9. Pstack's Codex adapter and repository
+tooling use Python 3.11+, while its unchanged upstream helpers retain their
+Node/Bun/Java requirements. See
 [Python versions](#python-versions).
 
 `requirements-dev.txt` pins the development tools (Ruff, ShellCheck,
@@ -129,6 +130,15 @@ To raise the floor, change `MIN_PYTHON` in each plugin, the `compatibility`
 line of each `SKILL.md`, the Ruff target in `pyproject.toml`, the Python
 version of the `python-floor` CI job, and the documented requirement in the
 package READMEs and [Compatibility](compatibility.md).
+
+## Maintain pstack
+
+Edit `integrations/pstack/codex/` and the sync/projection tooling, then regenerate.
+Never edit the generated bundle or patch the retained upstream snapshots.
+The [pstack guide](pstack.md) describes exact-input checks, reviewed upstream
+updates, focused tests, and native Cloud capabilities that remain unqualified.
+The separate `make test-pstack-upstream` target installs pinned test tools
+only in temporary storage and runs unchanged helpers in disposable copies.
 
 ## Add a plugin
 

@@ -1,0 +1,35 @@
+{
+  "name": "charms",
+  "owner": {
+    "name": "Nagarjuna Boddu"
+  },
+  "metadata": {
+    "description": "Agent Skills plugins by heyNag, pinned to immutable release commits."
+  },
+  "plugins": [
+    {
+      "name": "watch-video",
+      "description": "Analyze videos with Gemini or local models, original-audio transcription, matching transcripts, and timestamped frames.",
+      "version": "1.3.2",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/heyNag/charms.git",
+        "path": "packages/watch-video",
+        "ref": "watch-video--v1.3.2",
+        "sha": "7a7d5f49f42941df3c0fbf990a9943a0aeabee00"
+      }
+    },
+    {
+      "name": "x-bookmarks",
+      "description": "Fetch, search, and digest X/Twitter bookmarks using Bird or the optional X API v2 backend.",
+      "version": "1.1.0",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/heyNag/charms.git",
+        "path": "packages/x-bookmarks",
+        "ref": "x-bookmarks--v1.1.0",
+        "sha": "faec5d321bac7b5cf699f778a286593e616ecc3b"
+      }
+    }
+  ]
+}

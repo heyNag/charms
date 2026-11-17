@@ -35,10 +35,18 @@ def load_marketplace(path: pathlib.Path) -> dict:
     return data
 
 
-def update_marketplace(root: pathlib.Path, plugin: str, sha: str) -> tuple[dict, bool]:
+def update_marketplace(
+    root: pathlib.Path, plugin: str, sha: str, *, archive_sha256: str | None = None
+) -> tuple[dict, bool]:
     """Return the new entry and whether the marketplace file changed."""
 
     validate_plugin_name(plugin)
+    if plugin == "pstack":
+        from pstack_release import promote_bundle
+
+        if archive_sha256 is None:
+            raise ValueError("pstack promotion requires the verified archive SHA-256")
+        return promote_bundle(root, sha, archive_sha256)
     if GIT_SHA_RE.fullmatch(sha) is None:
         raise ValueError(f"release commit must be a full 40-character SHA: {sha!r}")
     manifest = manifest_at(root, sha, plugin)
@@ -55,32 +63,67 @@ def update_marketplace(root: pathlib.Path, plugin: str, sha: str) -> tuple[dict,
         raise ValueError(f"release tag {tag} is missing or does not point at {sha}")
     entry = marketplace_entry(plugin, version, description, sha)
 
-    path = root / MARKETPLACE_PATH
-    marketplace = load_marketplace(path)
-    plugins = marketplace["plugins"]
-    current = next((item for item in plugins if item.get("name") == plugin), None)
-    if current == entry:
-        return entry, False
-    if current is not None:
-        current_version = current.get("version")
-        if parse_version(version) <= parse_version(current_version):
-            raise ValueError(
-                f"marketplace already lists {plugin} {current_version}; "
-                f"refusing to move it to {version}"
-            )
-
-    marketplace["plugins"] = sorted(
-        [item for item in plugins if item.get("name") != plugin] + [entry],
-        key=lambda item: item["name"],
+    from pstack_release import (
+        CODEX_MARKETPLACE_PATH,
+        _read_catalog,
+        _regular_path,
+        catalog_transaction,
+        expected_pstack_catalog_entries,
+        write_catalog_transaction,
     )
-    path.write_text(json.dumps(marketplace, indent=2) + "\n", encoding="utf-8")
-    return entry, True
+
+    with catalog_transaction(root) as journal:
+        marketplace = _read_catalog(root, MARKETPLACE_PATH)
+        plugins = marketplace["plugins"]
+        current = next((item for item in plugins if item.get("name") == plugin), None)
+        if current is not None and current != entry:
+            current_version = current.get("version")
+            if parse_version(version) <= parse_version(current_version):
+                raise ValueError(
+                    f"marketplace already lists {plugin} {current_version}; "
+                    f"refusing to move it to {version}"
+                )
+        codex_path = _regular_path(root, CODEX_MARKETPLACE_PATH, missing=True)
+        codex = _read_catalog(root, CODEX_MARKETPLACE_PATH) if codex_path.exists() else None
+        if codex is not None:
+            original_native = sorted(
+                [item for item in plugins if item["name"] != "pstack"], key=lambda item: item["name"]
+            )
+            other_native = sorted(
+                [item for item in codex["plugins"] if item["name"] != "pstack"],
+                key=lambda item: item["name"],
+            )
+            if original_native != other_native:
+                raise ValueError("existing native catalogs differ; reconcile before release update")
+            expected = expected_pstack_catalog_entries(root)
+            for host, catalog in [("claude-code", marketplace), ("codex", codex)]:
+                actual = next((item for item in catalog["plugins"] if item["name"] == "pstack"), None)
+                if actual != expected.get(host):
+                    raise ValueError("pstack catalog entry differs from its published record")
+        marketplace["plugins"] = sorted(
+            [item for item in plugins if item.get("name") != plugin] + [entry],
+            key=lambda item: item["name"],
+        )
+        updates = {MARKETPLACE_PATH: marketplace}
+        if codex is not None:
+            codex["plugins"] = sorted(
+                [item for item in marketplace["plugins"] if item["name"] != "pstack"]
+                + [item for item in codex["plugins"] if item["name"] == "pstack"],
+                key=lambda item: item["name"],
+            )
+            updates[CODEX_MARKETPLACE_PATH] = codex
+        return entry, write_catalog_transaction(root, journal, updates)
+
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("plugin", help="Plugin package name under packages/")
     parser.add_argument("--sha", required=True, help="Full SHA of the tagged release commit.")
+    parser.add_argument(
+        "--archive-sha256",
+        help="Verified immutable archive digest; required for pstack bundle promotion.",
+    )
     parser.add_argument(
         "--root",
         type=pathlib.Path,
@@ -90,7 +133,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        entry, changed = update_marketplace(args.root.resolve(), args.plugin, args.sha)
+        entry, changed = update_marketplace(
+            args.root.resolve(), args.plugin, args.sha, archive_sha256=args.archive_sha256
+        )
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

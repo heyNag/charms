@@ -32,6 +32,7 @@ jobs:
     timeout-minutes: 30
     outputs:
       archive_sha256: ${{ steps.archive_check.outputs.archive_sha256 }}
+      archive_name: ${{ steps.archive_check.outputs.archive_name }}
       commit_sha: ${{ steps.plan.outputs.commit_sha }}
       previous_tag: ${{ steps.plan.outputs.previous_tag }}
       tag: ${{ steps.plan.outputs.tag }}
@@ -127,9 +128,14 @@ jobs:
           (cd "$(dirname "${ARCHIVE}")" && sha256sum --check "$(basename "${CHECKSUM}")")
           python3 -m zipfile --test "${ARCHIVE}"
           extract_dir="$(mktemp -d)"
-          python3 -m zipfile --extract "${ARCHIVE}" "${extract_dir}"
-          python3 scripts/validate_plugins.py "${extract_dir}/${PLUGIN}"
+          python3 scripts/extract-plugin-archive.py "${ARCHIVE}" "${extract_dir}"
+          if [ "${PLUGIN}" = pstack ]; then
+            python3 scripts/validate_plugins.py --pstack-bundle "${extract_dir}/pstack"
+          else
+            python3 scripts/validate_plugins.py "${extract_dir}/${PLUGIN}"
+          fi
           echo "archive_sha256=$(sha256sum "${ARCHIVE}" | cut -d ' ' -f 1)" >> "${GITHUB_OUTPUT}"
+          echo "archive_name=$(basename "${ARCHIVE}")" >> "${GITHUB_OUTPUT}"
 
   publish:
     needs: [ci, validate]
@@ -200,7 +206,11 @@ jobs:
           PLUGIN: ${{ inputs.plugin }}
         run: |
           source_tree="$(mktemp -d)"
-          git archive "${COMMIT_SHA}" -- "packages/${PLUGIN}" | tar -x -C "${source_tree}"
+          if [ "${PLUGIN}" = "pstack" ]; then
+            git archive "${COMMIT_SHA}" -- packages/pstack integrations/pstack | tar -x -C "${source_tree}"
+          else
+            git archive "${COMMIT_SHA}" -- "packages/${PLUGIN}" | tar -x -C "${source_tree}"
+          fi
           python3 scripts/build-plugin-archive.py "${PLUGIN}" --root "${source_tree}" \
             --output-dir "${RUNNER_TEMP}/agent-plugins" >> "${GITHUB_OUTPUT}"
 
@@ -232,7 +242,7 @@ jobs:
           with zipfile.ZipFile(archive) as handle:
               names = handle.namelist()
           required = {
-              f"{plugin}/plugin.json",
+              f"{plugin}/{'bundle.json' if plugin == 'pstack' else 'plugin.json'}",
               f"{plugin}/README.md",
               f"{plugin}/LICENSE",
           }
@@ -276,8 +286,8 @@ jobs:
           ${changes}
 
           Install it from the Charms marketplace in Claude Code or Codex; see the
-          repository README. The attached ZIP is the same plugin as a portable
-          directory. This release is immutable, so verify the ZIP with
+          repository README. The attached ZIP preserves the package layout; a
+          bundle exposes its named host roots. This release is immutable, so verify the ZIP with
           \`gh release verify-asset ${TAG} <zip> --repo ${GITHUB_REPOSITORY}\`.
           EOF
 
@@ -304,6 +314,7 @@ jobs:
 
       - name: Verify the published immutable release
         env:
+          ARCHIVE_NAME: ${{ needs.validate.outputs.archive_name }}
           COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
           EXPECTED_SHA256: ${{ needs.validate.outputs.archive_sha256 }}
           GH_TOKEN: ${{ github.token }}
@@ -320,7 +331,7 @@ jobs:
 
           release_dir="${RUNNER_TEMP}/release"
           gh release download "${TAG}" --repo "${GITHUB_REPOSITORY}" --dir "${release_dir}"
-          archive="${release_dir}/${PLUGIN}-agent-plugin-v${VERSION}.zip"
+          archive="${release_dir}/${ARCHIVE_NAME}"
           release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")"
           python3 - "${release_json}" "${release_dir}" "${archive}" "${EXPECTED_SHA256}" <<'PY'
           import hashlib
@@ -387,6 +398,7 @@ jobs:
       - name: Point the marketplace at the release
         env:
           COMMIT_SHA: ${{ needs.validate.outputs.commit_sha }}
+          ARCHIVE_SHA256: ${{ needs.validate.outputs.archive_sha256 }}
           GH_TOKEN: ${{ github.token }}
           PLUGIN: ${{ inputs.plugin }}
           VERSION: ${{ needs.validate.outputs.version }}
@@ -399,22 +411,35 @@ jobs:
           for attempt in 1 2 3; do
             git fetch origin "${GITHUB_REF_NAME}"
             git checkout --quiet --detach "origin/${GITHUB_REF_NAME}"
-            python3 scripts/update-marketplace.py "${PLUGIN}" --sha "${COMMIT_SHA}"
+            if [ "${PLUGIN}" = "pstack" ]; then
+              python3 scripts/update-marketplace.py "${PLUGIN}" --sha "${COMMIT_SHA}" \
+                --archive-sha256 "${ARCHIVE_SHA256}"
+            else
+              python3 scripts/update-marketplace.py "${PLUGIN}" --sha "${COMMIT_SHA}"
+            fi
             changed="$(git status --porcelain)"
             if [ -z "${changed}" ]; then
               exit 0
             fi
-            if [ "${changed}" != " M ${marketplace}" ]; then
-              echo "Marketplace update changed unexpected paths:" >&2
-              echo "${changed}" >&2
-              exit 1
-            fi
-            # The commit changes this one file, so this is the whole check for
-            # it. It needs no dependency, which keeps third-party code out of a
-            # job that can push.
+            # Publish both catalogs and the pstack record in one Git commit.
+            python3 - "${PLUGIN}" <<'PY'
+          import subprocess
+          import sys
+
+          allowed = {".claude-plugin/marketplace.json", ".agents/plugins/marketplace.json"}
+          if sys.argv[1] == "pstack":
+              allowed.add("integrations/pstack/published.json")
+          status = subprocess.check_output(["git", "status", "--porcelain", "-z"])
+          changed = [item.decode()[3:] for item in status.split(b"\0") if item]
+          if any(path not in allowed for path in changed):
+              raise SystemExit(f"Marketplace update changed unexpected paths: {changed}")
+          PY
             python3 scripts/validate_plugins.py --marketplace
             git diff --check
             git add "${marketplace}"
+            for path in .agents/plugins/marketplace.json integrations/pstack/published.json; do
+              if [ -f "${path}" ]; then git add "${path}"; fi
+            done
             git commit --quiet -m "Point marketplace at ${PLUGIN} ${VERSION}"
             if git push origin "HEAD:${GITHUB_REF_NAME}"; then
               exit 0

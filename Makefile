@@ -1,5 +1,5 @@
 .PHONY: dev-deps test test-tooling test-plugins syntax lint shellcheck links validate whitespace \
-	check coverage ci doctor groq-test omlx-test agent-evals
+	check coverage ci doctor groq-test omlx-test agent-evals test-pstack-upstream
 
 AUDIO ?=
 PYTHON ?= python3
@@ -31,7 +31,7 @@ test-plugins:
 	done
 
 syntax:
-	@files="$$(find packages scripts tests -path '*/__pycache__' -prune -o -name '*.py' -print)"; \
+	@files="$$(find packages scripts tests integrations -path '*/__pycache__' -prune -o -name '*.py' -print)"; \
 	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) scripts/check-python-syntax.py $$files
 	bash -n $(SHELL_SCRIPTS)
 
@@ -77,6 +77,11 @@ coverage:
 	@$(PYTHON) -m coverage report
 
 ci: check
+
+# Network dependency installation and upstream TypeScript suites run in a
+# disposable copy. Neither the canonical input nor either bundle root is edited.
+test-pstack-upstream:
+	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) scripts/test-pstack-upstream.py --install
 
 doctor:
 	$(PYTHON) packages/watch-video/skills/watch-video/scripts/doctor.py

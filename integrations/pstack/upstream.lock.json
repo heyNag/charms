@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/cursor/plugins",
+  "commit": "2f87c854fe3e2fcda44ca86b46ede35aad3c46b7",
+  "version": "0.15.43",
+  "canonical_path": "pstack",
+  "canonical_tree": "71d8e1d1d718e2149dc43b2535618064f29cba6b",
+  "claude_path": "harness/pstack/claude-code",
+  "claude_tree": "9f63e68efd0e0de310d8164d7d43b00c549a839f",
+  "generator": {
+    "path": "scripts/generate-pstack-harness-trees.mjs",
+    "git_blob": "83335a116b670afd69b2eb586af63afb75d84bdd",
+    "command": [
+      "node",
+      "scripts/generate-pstack-harness-trees.mjs",
+      "--check"
+    ]
+  },
+  "inputs": {
+    "canonical": {
+      "path": "pstack",
+      "git_tree": "71d8e1d1d718e2149dc43b2535618064f29cba6b",
+      "manifest": "source-manifests/canonical.json",
+      "files": 551
+    },
+    "claude": {
+      "path": "harness/pstack/claude-code",
+      "git_tree": "9f63e68efd0e0de310d8164d7d43b00c549a839f",
+      "manifest": "source-manifests/claude.json",
+      "files": 537
+    },
+    "support": {
+      "path": ".",
+      "manifest": "source-manifests/support.json",
+      "files": 6
+    }
+  }
+}

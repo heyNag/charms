@@ -1,0 +1,30 @@
+# pstack for Codex
+
+This is the Codex root of the Charms pstack bundle. The sibling `claude-code/`
+is the exact committed upstream Claude target; this root is generated directly
+from canonical pstack plus the maintained Codex adapter. Register only this
+root with Codex. Desktop, native Cloud and CLI use this same content.
+
+There are 58 registered skills; only setup-pstack is eligible for implicit
+invocation. The three Benny automation procedures are dormant resources,
+not extra registered skills. The full Statechart runtime and fixtures are
+retained. Do not edit generated files or the installed cache.
+
+Use the actual host-supported local/repository import route to select this
+plugin root. A host requiring a single-root ZIP needs the Codex transport ZIP,
+not the combined two-root bundle. Provision the complete runtime and an
+externally pinned locator when Cloud exposes only individual instruction
+resources. Metadata import alone does not prove runtime activation.
+
+The [adapter guide](adapters/codex/adapter.md) explains dispatch, configuration,
+model and capability boundaries. The runtime's `--help` documents its concrete
+CLI. [Compatibility status](adapters/codex/compatibility.json) distinguishes
+implemented local mechanisms from integrations needing actual-host evidence.
+Native Cloud original-history access remains unresolved; no full support
+claim is made for history-dependent workflows. No services or credentials
+are installed by copying this package.
+
+The canonical guide below describes upstream Cursor behavior. Its external
+marketplace, model slugs and host UI references remain source documentation;
+Codex installation and execution use the adapter routes above. Every source
+path and named change is recorded in [projection provenance](adapters/codex/projection.json).

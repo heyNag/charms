@@ -7,6 +7,7 @@ target-version = "py311"
 # The plugins and their tests run on Python 3.9 or newer, so newer syntax
 # there is an error.
 "packages/**" = "py39"
+"packages/pstack/codex/adapters/**" = "py311"
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]
@@ -15,8 +16,10 @@ select = ["E4", "E7", "E9", "F"]
 branch = true
 # Several tests start a script in a child process. This measures those too.
 patch = ["subprocess"]
-source = ["scripts", "packages"]
-omit = ["*/tests/*"]
+source = ["scripts", "packages", "integrations"]
+# The maintained adapter is measured under integrations/. Its generated copy
+# is verified byte-for-byte and must not count as a second untested implementation.
+omit = ["*/tests/*", "packages/pstack/codex/adapters/*"]
 
 [tool.coverage.report]
 # `make coverage` fails below this. The total was 89.9% when the floor was set.
