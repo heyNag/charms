@@ -121,6 +121,30 @@ def _descriptor(name: str, description: str, template: str, context: dict) -> st
     return f"---\nname: {name}\ndescription: {json.dumps(description, ensure_ascii=False)}\n---\n\n{template}"
 
 
+def _plugin_interface(interface: dict, description: str, context: dict) -> dict:
+    values = {"description": description, "upstream_version": context["upstream_version"],
+              "bundle_version": context["bundle_version"]}
+    variable = re.compile(r"\{\{([^{}]+)\}\}")
+
+    def substitute(match: re.Match) -> str:
+        name = match.group(1)
+        if name not in values:
+            raise ValueError(f"unknown plugin interface template variable: {name}")
+        return values[name]
+
+    rendered = dict(interface)
+    for field in ("shortDescription", "longDescription"):
+        if field not in interface:
+            continue
+        template = interface[field]
+        if not isinstance(template, str) or "{{" in variable.sub("", template):
+            raise ValueError(f"invalid plugin interface template: {field}")
+        rendered[field] = variable.sub(substitute, template)
+    if len(rendered.get("shortDescription", "")) > 30:
+        raise ValueError("plugin interface shortDescription must be at most 30 characters")
+    return rendered
+
+
 def project_codex(source_root: Path, output_root: Path, adapter_root: Path, context: dict) -> dict:
     """Generate into an empty staging root; never mutate canonical or adapter inputs.
 
@@ -181,7 +205,7 @@ def project_codex(source_root: Path, output_root: Path, adapter_root: Path, cont
             if interface := rules.get("plugin_interface"):
                 manifest.setdefault("extensions", {}).setdefault("com.openai", {}).setdefault(
                     "interface", {}
-                ).update(interface)
+                ).update(_plugin_interface(interface, manifest["description"], context))
             _write_json(output_root / relative, manifest)
             native = {key: manifest[key] for key in ("name", "version", "description", "keywords")}
             native["skills"] = "./skills"

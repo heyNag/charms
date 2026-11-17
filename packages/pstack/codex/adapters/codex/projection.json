@@ -2,7 +2,7 @@
   "schema_version": 1,
   "source_commit": "2f87c854fe3e2fcda44ca86b46ede35aad3c46b7",
   "source_version": "0.15.43",
-  "bundle_version": "2026.11.0",
+  "bundle_version": "2026.11.1",
   "registered_skills": [
     "architect",
     "arena",

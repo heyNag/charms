@@ -1,6 +1,6 @@
 # pstack for Claude Code and Codex
 
-Bundle 2026.11.0, based on canonical [pstack 0.15.43](https://github.com/cursor/plugins/tree/2f87c854fe3e2fcda44ca86b46ede35aad3c46b7/pstack).
+Bundle 2026.11.1, based on canonical [pstack 0.15.43](https://github.com/cursor/plugins/tree/2f87c854fe3e2fcda44ca86b46ede35aad3c46b7/pstack).
 
 Select `claude-code/` for Claude Code or `codex/` for Codex. The bundle root is not a plugin. Desktop, Cloud and CLI share the Codex payload; each host needs separate activation and capability validation.
 

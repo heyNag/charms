@@ -1,6 +1,6 @@
 {
   "name": "pstack",
-  "version": "2026.11.0",
+  "version": "2026.11.1",
   "description": "if you want to go fast, go deep first. pstack helps you write less, but higher quality code. rigorous agent workflows you can parallelize with confidence.",
   "keywords": [
     "pstack",
@@ -13,6 +13,9 @@
   ],
   "skills": "./skills",
   "interface": {
+    "displayName": "pstack",
+    "shortDescription": "Upstream 0.15.43",
+    "longDescription": "if you want to go fast, go deep first. pstack helps you write less, but higher quality code. rigorous agent workflows you can parallelize with confidence.\n\nUpstream pstack: 0.15.43\nCharms bundle: 2026.11.1",
     "logo": "./assets/pstack.png",
     "composerIcon": "./assets/pstack.png"
   }

@@ -6,7 +6,7 @@ description: "Apply when tempted to ask 'should I do X?' on reversible work."
 # principle-never-block-on-the-human for Codex
 
 This is the entry descriptor for pstack 0.15.43 at upstream commit
-`2f87c854fe3e2fcda44ca86b46ede35aad3c46b7`, adapter bundle `2026.11.0`.
+`2f87c854fe3e2fcda44ca86b46ede35aad3c46b7`, adapter bundle `2026.11.1`.
 Its operative instructions include the original description and frontmatter.
 
 Before following the workflow, resolve it through the installed runtime:
@@ -23,7 +23,7 @@ Before following the workflow, resolve it through the installed runtime:
    for a provisioned environment, and `--surface cloud` on native Cloud:
 
    ```sh
-   python3 "<CODEX_ROOT>/adapters/codex/runtime/pstack_runtime.py" resolve principle-never-block-on-the-human --root "<CODEX_ROOT>" --expected-upstream 2f87c854fe3e2fcda44ca86b46ede35aad3c46b7 --expected-version 2026.11.0
+   python3 "<CODEX_ROOT>/adapters/codex/runtime/pstack_runtime.py" resolve principle-never-block-on-the-human --root "<CODEX_ROOT>" --expected-upstream 2f87c854fe3e2fcda44ca86b46ede35aad3c46b7 --expected-version 2026.11.1
    ```
 
 4. Read `<CODEX_ROOT>/adapters/codex/adapter.md`, then read the complete effective
