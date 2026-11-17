@@ -10,22 +10,18 @@ import os
 import pathlib
 import stat
 import sys
-import unicodedata
 import zipfile
 from dataclasses import dataclass
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from plugin_release import parse_version, validate_plugin_name  # noqa: E402
+from pstack_bundle import bundle_archive_inputs  # noqa: E402
+from plugin_archive import normalized_archive_key  # noqa: E402
 
 
 FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
-WINDOWS_INVALID_CHARACTERS = frozenset('<>:"|?*')
-WINDOWS_RESERVED_NAMES = frozenset(
-    {"con", "prn", "aux", "nul"}
-    | {f"com{number}" for number in range(1, 10)}
-    | {f"lpt{number}" for number in range(1, 10)}
-)
+
 
 
 @dataclass(frozen=True)
@@ -89,26 +85,18 @@ def regular_tree_files(root: pathlib.Path) -> list[pathlib.Path]:
     return files
 
 
-def normalized_archive_key(archive_name: str) -> str:
-    if "\\" in archive_name:
-        raise ValueError(f"backslashes are not allowed in archive paths: {archive_name!r}")
-    components = archive_name.split("/")
-    if any(component in {"", ".", ".."} for component in components):
-        raise ValueError(f"invalid archive path component: {archive_name!r}")
-    if any(unicodedata.category(character) in {"Cc", "Cf"} for character in archive_name):
-        raise ValueError(f"control characters are not allowed in archive paths: {archive_name!r}")
-    for component in components:
-        if any(character in WINDOWS_INVALID_CHARACTERS for character in component):
-            raise ValueError(f"Windows-invalid character in archive path: {archive_name!r}")
-        if component.endswith((".", " ")):
-            raise ValueError(f"archive path component ends with a dot or space: {archive_name!r}")
-        if component.split(".", 1)[0].casefold() in WINDOWS_RESERVED_NAMES:
-            raise ValueError(f"Windows-reserved archive path component: {archive_name!r}")
-    return unicodedata.normalize("NFC", archive_name).casefold()
-
-
-def archive_inputs(root: pathlib.Path, plugin: str) -> tuple[str, list[tuple[pathlib.Path, str]]]:
+def archive_inputs(
+    root: pathlib.Path, plugin: str, target: str | None = None,
+) -> tuple[str, list[tuple[pathlib.Path, str]]]:
     validate_plugin_name(plugin)
+    if plugin == "pstack":
+        version, selected = bundle_archive_inputs(root, target)
+        normalized_names = [normalized_archive_key(name) for _, name in selected]
+        if len(normalized_names) != len(set(normalized_names)):
+            raise ValueError("portable archive path collision")
+        return version, selected
+    if target is not None:
+        raise ValueError("--target is only supported for the trusted pstack bundle")
     require_real_directory(root / "packages")
     package_dir = root / "packages" / plugin
     require_real_directory(package_dir)
@@ -156,15 +144,19 @@ def zip_info(archive_name: str, source_mode: int) -> zipfile.ZipInfo:
     return info
 
 
-def build_archive(root: pathlib.Path, plugin: str, output_dir: pathlib.Path) -> ArchiveResult:
+def build_archive(
+    root: pathlib.Path, plugin: str, output_dir: pathlib.Path, target: str | None = None,
+) -> ArchiveResult:
     root = root.resolve()
-    version, selected = archive_inputs(root, plugin)
+    version, selected = archive_inputs(root, plugin, target)
     output_dir = output_dir.resolve()
     package_dir = (root / "packages" / plugin).resolve()
     if output_dir.is_relative_to(package_dir):
         raise ValueError("archive output directory must be outside the plugin root")
     output_dir.mkdir(parents=True, exist_ok=True)
-    archive = output_dir / f"{plugin}-agent-plugin-v{version}.zip"
+    suffix = f"-{target}" if target is not None else ""
+    kind = "bundle" if plugin == "pstack" and target is None else "agent-plugin"
+    archive = output_dir / f"{plugin}{suffix}-{kind}-v{version}.zip"
     checksum = archive.with_suffix(archive.suffix + ".sha256")
 
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as handle:
@@ -196,12 +188,16 @@ def main(argv: list[str] | None = None) -> int:
         type=pathlib.Path,
         help="Artifact directory. Defaults to .dist/agent-plugins under the repository root.",
     )
+    parser.add_argument(
+        "--target", choices=["codex", "claude-code"],
+        help="Create a selected-root transport ZIP from the trusted pstack bundle.",
+    )
     args = parser.parse_args(argv)
     root = args.root.resolve()
     output_dir = args.output_dir or root / ".dist" / "agent-plugins"
 
     try:
-        result = build_archive(root, args.plugin, output_dir)
+        result = build_archive(root, args.plugin, output_dir, args.target)
     except Exception as exc:
         parser.exit(1, f"error: {exc}\n")
 

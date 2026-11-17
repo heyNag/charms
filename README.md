@@ -1,23 +1,27 @@
 # Charms
 
-Charms is a monorepo of two independent, portable
-[Agent Plugins v1](https://agent-plugins.org/specification). Each plugin has a
-root `plugin.json` manifest and one
-[Agent Skill](https://agentskills.io/specification) under `skills/`.
+Charms is a collection of independently released
+[Agent Plugins v1](https://agent-plugins.org/specification) and plugin bundles.
+The pstack bundle contains separate Claude Code and Codex plugin roots.
 
 | Plugin | Purpose | Plugin root |
 | --- | --- | --- |
 | `watch-video` | Analyze videos with Gemini or local models, original-audio transcription, matching transcripts, and timestamped frames. | [`packages/watch-video/`](packages/watch-video/) |
 | `x-bookmarks` | Fetch, search, and digest X/Twitter bookmarks using Bird or the optional X API v2 backend. | [`packages/x-bookmarks/`](packages/x-bookmarks/) |
+| `pstack` | if you want to go fast, go deep first. pstack helps you write less, but higher quality code. rigorous agent workflows you can parallelize with confidence. | [`packages/pstack/`](packages/pstack/) |
 
 The repository root holds the shared `charms` marketplace and the development
-and release tooling; it is not itself a plugin. Every directory in `packages/`
-is its own installation, version, security, and release boundary.
+and release tooling; it is not itself a plugin. Each product has its own release
+boundary. The pstack container is not an installation root: select its
+`claude-code/` or `codex/` child. See [pstack integration](docs/pstack.md) for
+the pinned baseline, local development, and current capability limits.
+A plugin becomes available through the marketplace only after its release is
+published, verified, and added to the host catalog.
 
 ## Install a plugin
 
 Claude Code and Codex install plugins from the `charms` marketplace in this
-repository. Replace `watch-video` with any plugin from the table.
+repository. Replace `watch-video` with another released plugin.
 
 Claude Code:
 
@@ -47,7 +51,7 @@ skillshare install github.com/heyNag/charms/packages/watch-video/skills/watch-vi
 npx skills add heyNag/charms
 ```
 
-Use one channel per machine. A skill installed both ways loads twice.
+Use one channel per host. A skill installed both ways in the same host loads twice.
 
 Each GitHub release also carries the plugin as a ZIP with a SHA-256 checksum
 for archival or offline use.

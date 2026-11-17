@@ -1,15 +1,19 @@
 # Installation
 
-Charms publishes one marketplace, `charms`, at
-`.claude-plugin/marketplace.json` in this repository. Claude Code and Codex both
-install from it.
+Charms publishes one marketplace, `charms`, through two complete catalogs:
+`.claude-plugin/marketplace.json` for Claude Code and
+`.agents/plugins/marketplace.json` for Codex. Both contain the same released
+native plugins.
 
 Each marketplace entry pins one released plugin to its release tag and full
 release commit SHA. Marketplace installs therefore only receive released,
 immutable content; unreleased commits on `main` never reach them. A plugin
-appears in the marketplace after its first release.
+becomes installable through the marketplace after a published release is
+verified and added to the selected host catalog.
 
-The examples use `watch-video`. Replace it with any plugin under `packages/`.
+The examples use the native plugin `watch-video`; substitute another plugin
+listed in the selected host catalog. The [pstack bundle](pstack.md) uses
+separate host roots, with local validation and capability limits described there.
 
 ## Claude Code
 
@@ -48,12 +52,13 @@ Codex re-checks Git marketplaces at session start. To refresh on demand:
 codex plugin marketplace upgrade charms
 ```
 
-Codex reads the Claude-format `.claude-plugin/marketplace.json` directly, so
-Charms has no `.agents/plugins/marketplace.json`.
+Codex prefers `.agents/plugins/marketplace.json`. Charms keeps this catalog
+complete, including every released native entry from the Claude catalog.
 
 ## Install only the skill
 
-Hosts without a plugin system can install a package's skill directory directly.
+Hosts without a plugin system can install a native package's skill directory
+directly.
 These channels follow `main`, not releases: an install or update brings
 whatever `main` holds at that moment. Changes reach `main` through pull
 requests that passed CI, but they have not been through a release.
@@ -80,7 +85,7 @@ you already use the plugin.
 
 ## Release ZIP
 
-Each GitHub release carries the plugin as a portable directory for archival or
+Each native plugin release carries a portable directory for archival or
 offline use. Releases are tagged `<name>--v<version>` and attach two assets:
 
 ```text
@@ -118,10 +123,18 @@ The archive expands to one directory:
 Load that `<name>/` directory using the selected client's documented Agent
 Plugin flow. See [Compatibility](compatibility.md) for client support.
 
+Pstack uses a different combined archive, `pstack-bundle-v<version>.zip`,
+containing `pstack/claude-code/` and `pstack/codex/`. Select one of those child
+roots. A locally built transport archive can instead contain just the selected
+host subtree inside one `pstack/` folder. See
+[pstack generation and inspection](pstack.md#generate-and-inspect) for the build
+commands. Check the verified release and host catalog before using a
+marketplace installation command for pstack.
+
 ## Use a local checkout
 
 For clients that accept a local plugin directory, clone the repository and
-select one package directory:
+select a native package directory or a pstack host root:
 
 ```sh
 git clone https://github.com/heyNag/charms.git
@@ -136,6 +149,11 @@ charms/packages/watch-video/
 Do not select `charms/` or `charms/packages/`; neither is a plugin root. A
 checkout contains whatever commit you have, released or not.
 
+For pstack, the roots are `charms/packages/pstack/claude-code/` and
+`charms/packages/pstack/codex/`; `charms/packages/pstack/` is a release
+container. Selecting a root does not establish Desktop or Cloud capability
+support; read the [pstack support boundary](pstack.md#support-boundary).
+
 ## Verify a package locally
 
 Repository contributors can run:
@@ -146,8 +164,11 @@ PLUGIN=watch-video
 python3 scripts/validate_plugins.py "packages/${PLUGIN}"
 ```
 
-The validator checks the v1 manifest schema, Agent Skills conformance,
-Charms package invariants, path containment, and source hygiene.
+For native plugins, the validator checks the v1 manifest schema, Agent Skills
+conformance, Charms package invariants, path containment, and source hygiene.
+`python3 scripts/validate_plugins.py packages/pstack` selects the repository's
+dedicated bundle checks, including exact Claude source identity and Codex
+payload provenance.
 
 ## Runtime setup
 

@@ -1,0 +1,10 @@
+{
+  "name": "charms-pstack-test-toolchain",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Pinned tools for testing unchanged pstack helpers in disposable copies.",
+  "dependencies": {
+    "bun": "1.3.13",
+    "fast-check": "4.5.3"
+  }
+}

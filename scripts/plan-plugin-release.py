@@ -21,6 +21,7 @@ from plugin_release import (  # noqa: E402
     BUMP_HELPER,
     check_next_version,
     manifest_at,
+    known_releases,
     parse_version,
     release_tag,
     released_versions,
@@ -39,14 +40,20 @@ def plan_release(
     validate_plugin_name(plugin)
     manifest = manifest_at(root, revision, plugin)
     if manifest.get("name") != plugin:
-        raise ValueError(f"packages/{plugin}/plugin.json name is {manifest.get('name')!r}")
+        raise ValueError(f"release manifest for {plugin} names {manifest.get('name')!r}")
     version = manifest.get("version")
     parse_version(version)
+    if plugin == "pstack":
+        from pstack_release import bundle_at, check_native_transition, read_published
+        from plugin_release import run_git
+
+        commit = run_git(root, ["rev-parse", "--verify", f"{revision}^{{commit}}"]).stdout.strip()
+        check_native_transition(read_published(root), bundle_at(root, commit))
 
     tag = release_tag(plugin, version)
     if tag_commit(root, tag) is not None:
         raise ValueError(f"{tag} already exists; bump the version with {BUMP_HELPER} first")
-    previous = released_versions(root, plugin)
+    previous = known_releases(root, plugin) if plugin == "pstack" else released_versions(root, plugin)
     try:
         check_next_version(version, previous, today or utc_today())
     except ValueError as exc:

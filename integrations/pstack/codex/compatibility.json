@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "upstream": {
+    "repository": "https://github.com/cursor/plugins",
+    "commit": "2f87c854fe3e2fcda44ca86b46ede35aad3c46b7",
+    "version": "0.15.43"
+  },
+  "surfaces": [
+    "desktop",
+    "cloud",
+    "cli"
+  ],
+  "payloads": 1,
+  "registered_skills": 58,
+  "manual_only_skills": 57,
+  "implicit_skills": [
+    "setup-pstack"
+  ],
+  "claude_policy": "Exact separate upstream target at the same commit; no Codex transform applies.",
+  "certification": "No actual desktop, native Cloud or provider qualification is implied by packaging or local tests.",
+  "mechanisms": {
+    "resource_dispatch": {
+      "implementation": "runtime/pstack_runtime.py resolve",
+      "qualification": "Complete package activation and invocation-policy transport must be checked on the actual host."
+    },
+    "deployment_profiles": {
+      "implementation": "runtime/profiles.py",
+      "default_profile": "default",
+      "qualification": "A configuration name does not establish account entitlement, native capabilities or authority."
+    },
+    "role_models": {
+      "implementation": "runtime/models.py",
+      "source_defaults_revision": 3,
+      "roles": 9,
+      "qualification": "Use actual observed model catalogs and supported effort/speed mappings; preserve source-specific fallback."
+    },
+    "native_original_history": {
+      "implementation": "runtime/history.py evidence validation and explicit unavailable outcomes",
+      "status": "unavailable_until_applicable_producer_is_established",
+      "affected": [
+        "reflect",
+        "show-me-your-work",
+        "recall",
+        "automate-me",
+        "dependent autonomous audit branches"
+      ],
+      "qualification": "Requires genuine current and historical native records in scope before required handoff. Managed child traces and model-authored journals do not substitute."
+    },
+    "durable_execution": {
+      "implementation": "bridge/ and providers/",
+      "qualification": "External deployment, real provider access, lifecycle/stop, ownership and evidence export need independent acceptance. No service is provisioned by plugin generation."
+    },
+    "independent_review": {
+      "implementation": "Observed provider/model identity and source-specific review rules",
+      "qualification": "Another originating vendor is mandatory only where the caller requires it. Shipping requires a non-author verifier; Arena's unavailable-judge outcome cannot satisfy show-me."
+    },
+    "blind_trials": {
+      "implementation": "runtime/workers.py and the explicit Eval trial-role binding",
+      "qualification": "Actual files, tools, history, credentials and treatment identity must be isolated. A prompt or no-history flag alone does not prove the boundary."
+    },
+    "authoring_overrides": {
+      "implementation": "Effective body resolution outside immutable plugin caches",
+      "qualification": "A description/discovery change additionally needs a supported host-visible replacement or precedence path."
+    },
+    "watcher": {
+      "implementation": "watch_pr/supervisor.py plus guarded transport/snapshot transforms",
+      "qualification": "Local fake-GitHub tests do not certify native host permissions or authorize merging. Linux uses a dedicated child subreaper; other POSIX hosts provide group cleanup and require separate descendant qualification."
+    }
+  },
+  "retired_source_obligations": [
+    "Orchestrate-specific topology and distinct-family per-PR gate",
+    "old check-plan helper and ten-live-lane recipe",
+    "Architect mandatory panel and deleted templates",
+    "Reflect panel and digest fallback",
+    "oversized poteto-mode exception"
+  ],
+  "codex_deviations": [
+    {
+      "id": "codex-upstream-guide-context",
+      "reason": "Label inherited Cursor and Claude guides as upstream references and route Codex readers to the adapter without mixing host-specific installation paths."
+    },
+    {
+      "id": "codex-benny-trigger-contract",
+      "reason": "Serialize the source message timestamp as ts so dormant operational procedures retain the trigger root when thread_ts is empty."
+    },
+    {
+      "id": "codex-benny-host-context",
+      "reason": "Bind dormant automation resources to qualified Codex capabilities while preserving source review, approval, readiness and handoff requirements."
+    },
+    {
+      "id": "operative-body-dispatch",
+      "reason": "Separate host-discoverable descriptor from complete effective instructions and use one resolver for direct/internal calls."
+    },
+    {
+      "id": "native-invocation-policy",
+      "reason": "Codex agents/openai.yaml enforces the 57 manual-only entries; unsupported source frontmatter alone is insufficient."
+    },
+    {
+      "id": "host-manifest-overlay",
+      "reason": "Portable and native Codex manifests select one root; source author/license remain intact, downstream version differs from unchanged Claude."
+    },
+    {
+      "id": "dormant-automation-resource",
+      "reason": "Benny's three internal bodies use instructions.md so recursive scanning cannot register them."
+    },
+    {
+      "id": "supported-project-activation",
+      "reason": "Cursor settings JSON cannot activate Codex; require actual supported project-scoped installation/runtime provisioning."
+    },
+    {
+      "id": "external-model-preferences",
+      "reason": "Keep source nine-role rule outside the payload and explicitly load it; do not assume native MDC application."
+    },
+    {
+      "id": "bound-runtime-no-cache-scan",
+      "reason": "Use the selected verified payload; never mix revisions through highest-version cache discovery."
+    },
+    {
+      "id": "original-history-producer",
+      "reason": "Bind real scoped source records rather than guessing Cursor transcript locations."
+    },
+    {
+      "id": "blind-trial-loading",
+      "reason": "Ordinary full-mode loading conflicts with Eval blinding; isolate the declared treatment without silently changing it."
+    },
+    {
+      "id": "missing-history-conservative-cleanup",
+      "reason": "The worktree audit cannot classify absent native history as no recent activity; return a review bucket."
+    },
+    {
+      "id": "literal-worktree-paths",
+      "reason": "Preserve Git-provided worktree names with spaces when inspecting exact paths."
+    },
+    {
+      "id": "literal-transcript-search",
+      "reason": "Match literal worktree paths and pass transcript filenames with NUL separators."
+    },
+    {
+      "id": "bundled-teamkit-procedures",
+      "reason": "Resolve the three exact procedures at the same upstream pin without depending on another host plugin install."
+    },
+    {
+      "id": "codex-installation-introduction",
+      "reason": "Explain the selected-root install and unresolved capabilities without altering upstream Claude documentation."
+    },
+    {
+      "id": "codex-help-host-guidance",
+      "reason": "Adapt the primary help workflow to Codex marketplace installation, explicit skill selection and worker resources; distinguish the implicit catalog from picker discovery and avoid promising Cursor-only UI or persistence."
+    },
+    {
+      "id": "actual-model-catalog",
+      "reason": "Use actual tool/provider model entitlement and verified effort/speed mappings rather than Cursor model availability."
+    },
+    {
+      "id": "actual-project-activation-record",
+      "reason": "Refer to the real supported Codex project binding rather than treating Cursor settings as portable activation."
+    },
+    {
+      "id": "codex-benny-project-resource",
+      "reason": "Use the Codex-owned project automation resource location while preserving the source pack lifecycle."
+    },
+    {
+      "id": "codex-benny-user-configuration",
+      "reason": "Keep user configuration outside the generated dormant pack in the project-owned Codex scope."
+    },
+    {
+      "id": "codex-owned-skill-destination",
+      "reason": "Write approved project/user skills to Codex-supported .agents/skills scopes, subject to actual host activation."
+    },
+    {
+      "id": "configured-webhook-integration",
+      "reason": "Bind webhook actions to an actual configured integration; never invent native update_state or Cursor URLs."
+    },
+    {
+      "id": "dormant-resource-references",
+      "reason": "Update every pack-local reference to the ordinary instructions.md resource name."
+    },
+    {
+      "id": "explicit-model-rule-loading",
+      "reason": "Every resolver loads the external source-format rule; no native MDC auto-application is assumed."
+    },
+    {
+      "id": "explicit-transcript-directory",
+      "reason": "Require a supplied authorized workspace transcript location instead of a guessed Cursor directory."
+    },
+    {
+      "id": "model-rule-writer",
+      "reason": "Use the approved-plan writer and preserve source defaults/migration while explicitly loading the rule."
+    },
+    {
+      "id": "owning-show-me-vendor-contract",
+      "reason": "The owning show-me skill requires another vendor even though the upstream guide still says family."
+    },
+    {
+      "id": "portable-skill-authoring",
+      "reason": "Use an actually available authoring capability and loader validation instead of assuming Cursor built-ins."
+    },
+    {
+      "id": "bounded-watcher-transport",
+      "reason": "One remaining monotonic attempt budget and captured-output cap bound every Git/gh subprocess and paginated query."
+    },
+    {
+      "id": "revision-bound-watcher-observation",
+      "reason": "Re-read actual head/base OIDs around each evidence snapshot and before readiness handoff; reject mixed revisions."
+    },
+    {
+      "id": "supervised-watcher-runtime",
+      "reason": "Expose the unchanged source runtime to the bounded adapter runner while retaining source policy/render/types."
+    },
+    {
+      "id": "whole-attempt-watcher-supervision",
+      "reason": "Start budget before locked external production dependency setup; verify cached file inventories and clean owned processes before accepting a result, with Linux descendant reaping and explicit POSIX host limits."
+    },
+    {
+      "id": "babysit-queued-merge-ready",
+      "reason": "A source-blocker-free merge-queue WAITING stops a drive attempt with a distinct wrapper result, never a fabricated merge."
+    },
+    {
+      "id": "effective-resource-root",
+      "reason": "Carry the verified resource base with relocated approved bodies and resolve direct/internal routes identically."
+    },
+    {
+      "id": "approved-reflection-activation",
+      "reason": "Register approved body edits outside cache with exact payload/base/body and approval binding; copying a descriptor alone is ineffective."
+    },
+    {
+      "id": "authored-native-invocation-policy",
+      "reason": "New authored modes need native Codex policy metadata, not only an unsupported source Markdown flag."
+    }
+  ]
+}

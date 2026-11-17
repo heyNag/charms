@@ -6,25 +6,34 @@ data. Inspect the selected plugin and use the host's normal approval model.
 
 ## Package trust
 
-Each Charms plugin is an independent trust boundary. Install only the plugin
-you need, and inspect `plugin.json`, `SKILL.md`, and bundled scripts before
-execution.
+Each installed Charms plugin is an independent trust boundary. Install only
+the plugin you need, and inspect its manifest, skills, and bundled scripts
+before execution. For pstack, inspect the selected host root inside the bundle.
 
 Charms validation enforces:
 
-- fixed Agent Plugins v1 component locations;
+- fixed Agent Plugins v1 component locations for native packages;
 - filesystem containment inside each plugin root;
-- strict Agent Skills frontmatter;
+- strict Agent Skills frontmatter for native packages;
 - no package symlinks in release artifacts;
 - an allowlisted deterministic archive;
 - marketplace entries pinned to an existing release tag and commit;
 - scans for secrets and runtime artifacts in every file Git can see, with
   `.gitignore` held to the same list of artifacts.
 
+Pstack uses a repository-owned validation profile rather than rewriting its
+upstream manifests to the native Charms schema. It requires the complete Claude
+tree to match the locked upstream bytes and modes, verifies Codex provenance
+and payload identities, and scans the whole bundle. The narrowly allowed
+upstream Statechart report fixtures must match their pinned hashes. These
+checks establish artifact identity, not that upstream code or a provider is
+safe to execute. See the [pstack support boundary](pstack.md#support-boundary).
+
 ## Release integrity
 
-Every Charms GitHub release is immutable: once published, its assets cannot
-change and its tag name cannot be reused, even after the release is deleted.
+Marketplace entries must reference verified, immutable GitHub releases. Once
+an immutable release is published, its assets cannot change and its tag name
+cannot be reused, even after the release is deleted.
 The release workflow fails, and leaves the marketplace unchanged, unless the
 release is immutable and its attestation verifies. With an optional read-only
 token it also refuses to publish while immutability is turned off. A tag
@@ -33,8 +42,10 @@ ruleset also blocks updates and deletions of `<name>--v<version>` tags; see
 
 Marketplace entries pin the release tag and the full release commit SHA, and
 Claude Code and Codex install from that SHA. The release workflow writes an
-entry only after the release is published and verified, and validates the
-marketplace file before pushing it. `scripts/update-marketplace.py` refuses a
+entry only after the release is published and verified, and validates both
+complete catalogs before pushing them together. Pstack additionally binds both
+host roots and the verified archive digest in its publication record.
+`scripts/update-marketplace.py` refuses a
 tag that does not point at the pinned commit. Skill-only installs through
 Skillshare or the skills CLI follow `main` instead and are not release
 content.
@@ -74,6 +85,16 @@ files gets mode 700. A folder that already exists, including one named by an
 override, keeps its permissions.
 
 ## Plugin-specific boundaries
+
+### pstack
+
+Claude remains the exact upstream distribution; Codex-specific controls live
+in the adapter. Installing either root does not
+provision providers, supply credentials, or certify Desktop or Cloud
+activation. Missing original-history access or provider capabilities must
+remain explicit unavailable or incomplete outcomes, not successful
+verification. See [pstack runtime configuration](pstack.md#runtime-and-configuration) and the
+[support boundary](pstack.md#support-boundary).
 
 ### watch-video
 

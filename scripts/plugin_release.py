@@ -25,7 +25,28 @@ BUMP_HELPER = "scripts/bump-plugin-version.py"
 
 MARKETPLACE_PATH = pathlib.PurePosixPath(".claude-plugin/marketplace.json")
 MARKETPLACE_NAME = "charms"
+MARKETPLACE_KEYS = {"name", "owner", "metadata", "plugins"}
 REPOSITORY_URL = "https://github.com/heyNag/charms.git"
+
+
+def catalog_metadata_errors(data: object) -> list[str]:
+    """Apply the same named marketplace contract to both host catalogs."""
+    if not isinstance(data, dict):
+        return ["marketplace manifest must be a JSON object"]
+    errors = []
+    if set(data) != MARKETPLACE_KEYS:
+        errors.append(f"top-level keys must be exactly {sorted(MARKETPLACE_KEYS)}")
+    if data.get("name") != MARKETPLACE_NAME:
+        errors.append(f"name must be {MARKETPLACE_NAME!r}")
+    owner = data.get("owner")
+    if (not isinstance(owner, dict) or set(owner) != {"name"}
+            or not isinstance(owner.get("name"), str) or not owner["name"].strip()):
+        errors.append("owner must contain only a non-empty name")
+    metadata = data.get("metadata")
+    if (not isinstance(metadata, dict) or set(metadata) != {"description"}
+            or not isinstance(metadata.get("description"), str) or not metadata["description"].strip()):
+        errors.append("metadata must contain only a non-empty description")
+    return errors
 
 
 def validate_plugin_name(plugin: str) -> None:
@@ -150,6 +171,14 @@ def released_versions(root: pathlib.Path, plugin: str) -> list[str]:
 def marketplace_version(root: pathlib.Path, plugin: str) -> str | None:
     """Return the version the marketplace lists for a plugin, or None."""
 
+    if plugin == "pstack":
+        # Claude's native version is not the bundle's release version. This
+        # record also supplies the released version in a tagless checkout.
+        from pstack_release import read_published
+
+        published = read_published(root)
+        return published["version"] if published else None
+
     try:
         data = json.loads((root / MARKETPLACE_PATH).read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
@@ -193,7 +222,7 @@ def manifest_at(root: pathlib.Path, revision: str, plugin: str) -> dict:
     validate_plugin_name(plugin)
     if not revision or revision.startswith("-"):
         raise ValueError(f"invalid revision: {revision!r}")
-    path = f"packages/{plugin}/plugin.json"
+    path = f"packages/{plugin}/{'bundle.json' if plugin == 'pstack' else 'plugin.json'}"
     result = run_git(root, ["show", f"{revision}:{path}"], check=False)
     if result.returncode != 0:
         raise ValueError(f"cannot read {path} at {revision}: {result.stderr.strip()}")

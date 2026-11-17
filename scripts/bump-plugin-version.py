@@ -32,18 +32,22 @@ def package_plugin_path(root: pathlib.Path, package: str) -> pathlib.Path:
     return root / "packages" / package / "plugin.json"
 
 
-def load_plugin(path: pathlib.Path) -> dict:
+def load_plugin_bytes(path: pathlib.Path) -> tuple[dict, bytes]:
     try:
         mode = path.lstat().st_mode
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"missing Agent Plugin manifest: {path}") from exc
     if stat.S_ISLNK(mode) or not stat.S_ISREG(mode):
         raise ValueError(f"Agent Plugin manifest must be a regular file, not a symlink: {path}")
-    with path.open(encoding="utf-8") as handle:
-        data = json.load(handle)
+    encoded = path.read_bytes()
+    data = json.loads(encoded)
     if not isinstance(data, dict):
         raise ValueError(f"Agent Plugin manifest must be a JSON object: {path}")
-    return data
+    return data, encoded
+
+
+def load_plugin(path: pathlib.Path) -> dict:
+    return load_plugin_bytes(path)[0]
 
 
 def write_plugin(path: pathlib.Path, data: dict) -> None:
@@ -51,6 +55,26 @@ def write_plugin(path: pathlib.Path, data: dict) -> None:
 
 
 def update_package(root: pathlib.Path, package: str, today: datetime.date, dry_run: bool) -> str:
+    if package == "pstack":
+        from pstack_sync import generate
+        from hashlib import sha256
+
+        projection_path = root / "integrations/pstack/projection.json"
+        for directory in (root / "integrations", projection_path.parent):
+            mode = directory.lstat().st_mode
+            if stat.S_ISLNK(mode) or not stat.S_ISDIR(mode):
+                raise ValueError(f"integration directory must be a real directory: {directory}")
+        projection, projection_bytes = load_plugin_bytes(projection_path)
+        if projection.get("schema_version") != 1 or projection.get("package", {}).get("name") != package:
+            raise ValueError("invalid pstack projection identity")
+        version = next_version(known_releases(root, package), today)
+        if not dry_run and projection["package"].get("version") != version:
+            projection["package"]["version"] = version
+            # Generation owns one rollback transaction for input and output.
+            generate(root, projection_override=projection,
+                     expected_projection_sha256=sha256(projection_bytes).hexdigest())
+        return version
+
     path = package_plugin_path(root, package)
     for directory in (root / "packages", path.parent):
         try:

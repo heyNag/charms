@@ -1,7 +1,11 @@
 # Plugin format
 
-Every Charms package conforms to Agent Plugins v1 and contains exactly one
-Agent Skill with the same name.
+Native Charms packages conform to Agent Plugins v1 and contain exactly one
+Agent Skill with the same name. These rules continue to apply to watch-video
+and x-bookmarks. Pstack has a separate trusted [bundle profile](pstack.md):
+the container holds an exact upstream Claude root and a generated Codex root,
+each with its upstream skill inventory. Select the root for your host; the
+container is not a plugin.
 
 ## Manifest
 
@@ -29,8 +33,8 @@ The v1 manifest schema is closed. Portable fields are limited to `$schema`,
 `license`, `keywords`, and `extensions`. Component locations are fixed,
 so the manifest does not declare a skill path.
 
-Charms requires `version` to be a calendar version, `YEAR.MONTH.RELEASE`:
-three plain numbers with no leading zeros and no suffix, such as `2026.11.0`
+Native Charms packages require `version` to be a calendar version,
+`YEAR.MONTH.RELEASE`: three plain numbers with no leading zeros and no suffix, such as `2026.11.0`
 for a plugin's first release of November 2026. See
 [Releasing](releasing.md#versions-and-tags) for what the numbers mean and how
 versions advance.
@@ -85,15 +89,18 @@ plugin package in the locations documented by the skill.
 ## MCP
 
 Agent Plugins v1 defines bundled MCP connections through a root `mcp.json`.
-The current Charms package contract is skill-only, so Charms validation does
-not accept `mcp.json`.
+The native Charms package contract is skill-only, so native package validation
+does not accept `mcp.json`. Pstack provider services are configured separately;
+its bundled adapter code does not provision an MCP service.
 
 ## Client extensions
 
-No current Charms plugin declares client-specific extension data. Both
-packages depend only on the portable Agent Plugins manifest and fixed Agent
-Skills component location.
+Native packages use the portable Agent Plugins manifest and fixed Agent Skills
+component location, without client-specific extension data or surfaces such as
+`.claude-plugin/`, `commands/`, or `tool.json`. Claude Code and Codex discover
+their released entries through the repository's `.claude-plugin/marketplace.json`
+and `.agents/plugins/marketplace.json` respectively.
 
-Packages contain no client-specific surfaces such as `.claude-plugin/`,
-`commands/`, or `tool.json`. Claude Code and Codex install them through the
-repository's `.claude-plugin/marketplace.json`.
+Pstack preserves the upstream Claude manifest and client surfaces. Its generated
+Codex root carries `.codex-plugin/plugin.json` and skill invocation policies.
+Those host-specific files are checked by the repository-owned bundle profile.

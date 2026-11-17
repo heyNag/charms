@@ -1,8 +1,12 @@
 # Releasing
 
-Each Charms plugin is versioned and released independently from its
+Each native Charms plugin is versioned and released independently from its
 `packages/<name>/plugin.json`. A release publishes one immutable GitHub release
-and then points that plugin's entry in `.claude-plugin/marketplace.json` at it.
+and then points that plugin's entries in `.claude-plugin/marketplace.json` and
+`.agents/plugins/marketplace.json` at it in one commit. The two complete
+catalogs preserve the same native plugin entries.
+The [pstack bundle](#pstack-bundle-releases) has two host roots
+and separate upstream/native and downstream release versions.
 
 ## Versions and tags
 
@@ -37,8 +41,9 @@ Release tags follow Claude Code's plugin tag convention:
 <name>--v<version>
 ```
 
-For example, `watch-video--v2026.11.0`. Each release attaches
+For example, `watch-video--v2026.11.0`. Each native release attaches
 `<name>-agent-plugin-v<version>.zip` and its `.sha256` checksum.
+Pstack instead attaches `pstack-bundle-v<version>.zip` and its checksum.
 
 Only the `Release Plugin` workflow creates these tags. Do not run
 `claude plugin tag` or push a `*--v*` tag by hand: a pushed tag uses up that
@@ -55,8 +60,8 @@ git fetch --tags
 python3 scripts/bump-plugin-version.py watch-video
 ```
 
-The helper takes the package name. It reads the plugin's releases from the
-release tags and from the marketplace, works out the version for today's date
+For native plugins, the helper takes the package name. It reads releases from
+the release tags and marketplace, works out the version for today's date
 in UTC, rewrites only that `plugin.json`, and prints the version. `--dry-run`
 prints the version without changing the file. A new plugin gets its first
 version the same way.
@@ -71,6 +76,61 @@ CI is green, as for any other change. `make check` and the release workflow
 both refuse a version that breaks the rules above, with a message that names
 the helper, so do not type a version by hand. The marketplace does not change
 until the release runs.
+
+## Pstack bundle releases
+
+`pstack` releases contain the complete Claude Code and Codex host roots.
+Its downstream version is owned by
+`integrations/pstack/projection.json` and generated into
+`packages/pstack/bundle.json`. Codex uses that downstream version. Claude keeps
+its exact upstream native version, currently `0.15.43`; it must never be
+rewritten to match the bundle's calendar version.
+
+After preparing the pinned upstream source in the sync cache, use the same
+bump command and verify the generated output:
+
+```sh
+python3 scripts/bump-plugin-version.py pstack
+python3 scripts/sync-pstack.py --check
+python3 scripts/build-plugin-archive.py pstack
+```
+
+The bump sends the new projection to the sync generator, which replaces the
+projection and generated bundle in one rollback transaction. It does not edit
+Claude's manifest. A missing retained source cache or failed generation leaves
+the previous inputs and output unchanged. `--dry-run` does not generate.
+
+The combined release ZIP retains `pstack/claude-code/` and `pstack/codex/`.
+For a host API that takes a single plugin root, use
+`build-plugin-archive.py pstack --target codex` or `--target claude-code`.
+Those deterministic transport ZIPs contain one `pstack/` folder with the
+selected `plugin.json` and complete host subtree. They have checksums distinct
+from the combined release archive and are not additional release assets.
+
+Only a verified tagged release is promoted. The release workflow supplies the
+verified archive digest to `update-marketplace.py`; the helper verifies each
+committed target's bytes and modes against the bundle record, then updates
+both complete catalogs and `integrations/pstack/published.json` together.
+Claude's entry selects `packages/pstack/claude-code` at its native version;
+Codex selects `packages/pstack/codex`. Both reference the same bundle tag and
+commit. Existing native entries retain their pins. Before the first verified
+release, the published record is empty and neither catalog lists pstack.
+
+Tagless version lookup reads the published bundle record, not Claude's native
+version. Adapter-only releases may keep Claude's bytes and native version
+unchanged. Changed Claude bytes at the same native version, or a native
+version downgrade, block promotion because no supported host cache transition
+has been established. Recovery uses a new downstream release; it does not
+rewrite an immutable release or patch Claude's metadata. Repeated identical
+promotion is a no-op; failed/interrupted local catalog writes are rolled back
+before the next attempt. The repository commit publishes the three-file set
+as one change.
+
+Artifact checks do not certify live Codex host capabilities. Desktop workflows
+beyond the recorded smoke checks, native Cloud activation, original-history
+access and configured provider integrations require actual qualification
+before claiming those workflows are supported. See the
+[pstack support boundary](pstack.md#support-boundary).
 
 ## Record what the release was tested with
 
@@ -159,8 +219,9 @@ The workflow runs six jobs:
    `gh release verify-asset` to pass.
 5. `marketplace` runs `scripts/update-marketplace.py` against the latest
    `main`, checks the result with `scripts/validate_plugins.py --marketplace`,
-   and pushes one commit that changes only `.claude-plugin/marketplace.json`,
-   retrying if `main` moved. The job installs nothing: that check needs only
+   and pushes one commit containing both complete catalogs. A pstack release
+   also includes `integrations/pstack/published.json`; other paths are refused.
+   It retries if `main` moved. The job installs nothing: that check needs only
    Git and the standard library.
 6. `ci-on-main` starts a CI run on `main`. A push made with `GITHUB_TOKEN`
    starts no workflow, so the marketplace commit would otherwise have no CI
@@ -169,14 +230,17 @@ The workflow runs six jobs:
 `verify` and `marketplace` are separate jobs so that **Re-run failed jobs**
 can finish an interrupted release without publishing it again.
 
-The marketplace entry takes its version and description from `plugin.json` at
-the release commit and pins the release tag and full commit SHA. It only moves
-to a newer version.
+A native marketplace entry takes its version and description from `plugin.json`
+at the release commit and pins the release tag and full commit SHA. It only
+moves to a newer version. Pstack uses the selected host's native manifest
+version and description while both entries pin the same downstream bundle
+tag and commit.
 
-The archive contains one top-level plugin directory with `plugin.json`,
+The native archive contains one top-level plugin directory with `plugin.json`,
 `LICENSE`, `README.md`, and the complete `skills/` tree. It excludes tests and
 repository tooling, rejects symlinks and special files, and uses stable
-timestamps and modes.
+timestamps and modes. Pstack archives retain the complete validated host trees,
+including upstream fixtures; they follow the bundle layout described above.
 
 ## Verify a release
 
@@ -187,8 +251,9 @@ After the run succeeds, confirm:
 - `gh release verify <tag> --repo heyNag/charms` passes;
 - `gh release verify-asset <tag> <zip> --repo heyNag/charms` passes for the
   downloaded ZIP;
-- the marketplace entry on `main` names the new version, tag, and release
-  commit;
+- the entries in both catalogs on `main` name the expected native version,
+  release tag, and commit; pstack's publication record also matches the verified
+  bundle and archive;
 - after `git pull` and `git fetch --tags`, `make check` passes locally.
 
 ## Repair a release
@@ -208,10 +273,16 @@ After the run succeeds, confirm:
   git pull
   git fetch --tags
   python3 scripts/update-marketplace.py watch-video --sha <release-commit-sha>
+  python3 scripts/validate_plugins.py --marketplace
   git commit -m "Point marketplace at watch-video <version>" \
-    .claude-plugin/marketplace.json
+    .claude-plugin/marketplace.json .agents/plugins/marketplace.json
   git push
   ```
+
+  This example repairs a native release. For pstack, prefer rerunning the
+  workflow so the verified archive digest is carried forward. A manual repair
+  additionally requires `--archive-sha256 <verified-archive-sha256>` and must
+  commit `integrations/pstack/published.json` together with both catalogs.
 
 - `marketplace` refused the new entry: its log has an `error:` line from the
   marketplace check, and nothing was pushed. Fix what the line names on

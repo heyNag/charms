@@ -30,8 +30,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from plugin_release import (  # noqa: E402
     BUMP_HELPER,
     GIT_SHA_RE,
-    MARKETPLACE_NAME,
     MARKETPLACE_PATH,
+    catalog_metadata_errors,
     check_next_version,
     known_releases,
     manifest_at,
@@ -41,6 +41,9 @@ from plugin_release import (  # noqa: E402
     tag_commit,
     utc_today,
 )
+
+
+from pstack_bundle import approved_fixture, validate_bundle  # noqa: E402
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -56,8 +59,8 @@ EXTENSION_NAMESPACE_RE = re.compile(
     r"(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$"
 )
 
-# The one shared marketplace lives at .claude-plugin/marketplace.json. Codex reads
-# .agents/plugins/marketplace.json first, so a second manifest there would shadow it.
+# Native entries remain shared. The trusted pstack integration additionally owns
+# a complete Codex catalog, whose native entries must mirror the Claude catalog.
 DISALLOWED_ROOT_SURFACES = (
     ".agents",
     ".codex-plugin",
@@ -359,7 +362,7 @@ def _scan_file_artifact(path: Path, report_root: Path, errors: list[str]) -> Non
             errors.append(message)
         return
 
-    if _is_forbidden_file_name(name):
+    if _is_forbidden_file_name(name) and not approved_fixture(report_root, path):
         errors.append(f"{_display(path, report_root)}: forbidden local artifact file")
         return
     if path.is_symlink() or not path.is_file():
@@ -577,6 +580,10 @@ def validate_plugin_root(
     report_root = (report_root or plugin_root.parent).absolute()
     errors: list[str] = []
 
+    if (plugin_root == report_root / "packages/pstack"
+            and (report_root / "integrations/pstack/upstream.lock.json").is_file()):
+        return validate_bundle(report_root, plugin_root)
+
     if not _lexists(plugin_root):
         return [f"{_display(plugin_root, report_root)}: plugin root does not exist"]
     try:
@@ -745,20 +752,7 @@ def _validate_marketplace(root: Path, plugin_roots: list[Path]) -> list[str]:
     if not isinstance(data, dict):
         return errors + [f"{display}: marketplace manifest must be a JSON object"]
 
-    if set(data) != MARKETPLACE_KEYS:
-        errors.append(f"{display}: top-level keys must be exactly {sorted(MARKETPLACE_KEYS)}")
-    if data.get("name") != MARKETPLACE_NAME:
-        errors.append(f"{display}: name must be {MARKETPLACE_NAME!r}")
-    owner = data.get("owner")
-    if not isinstance(owner, dict) or set(owner) != {"name"} or not _non_empty_string(owner["name"]):
-        errors.append(f"{display}: owner must contain only a non-empty name")
-    metadata = data.get("metadata")
-    if (
-        not isinstance(metadata, dict)
-        or set(metadata) != {"description"}
-        or not _non_empty_string(metadata["description"])
-    ):
-        errors.append(f"{display}: metadata must contain only a non-empty description")
+    errors.extend(f"{display}: {problem}" for problem in catalog_metadata_errors(data))
     plugins = data.get("plugins")
     if not isinstance(plugins, list):
         return errors + [f"{display}: plugins must be an array"]
@@ -766,7 +760,8 @@ def _validate_marketplace(root: Path, plugin_roots: list[Path]) -> list[str]:
     package_versions: dict[str, Any] = {}
     for plugin_root in plugin_roots:
         try:
-            manifest = json.loads((plugin_root / "plugin.json").read_text(encoding="utf-8"))
+            filename = "bundle.json" if _is_pstack(root, plugin_root) else "plugin.json"
+            manifest = json.loads((plugin_root / filename).read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError):
             continue  # The plugin root check reports the broken manifest.
         if isinstance(manifest, dict):
@@ -783,9 +778,13 @@ def _validate_marketplace(root: Path, plugin_roots: list[Path]) -> list[str]:
             errors.append(f"{label}: {name!r} is not a plugin under packages/")
             continue
         names.append(name)
-        errors.extend(_validate_marketplace_entry(root, entry, label, package_versions[name]))
+        if name != "pstack" or not _is_pstack(root, root / "packages/pstack"):
+            errors.extend(_validate_marketplace_entry(root, entry, label, package_versions[name]))
     if names != sorted(set(names)):
         errors.append(f"{display}: plugins must be sorted by name without duplicates")
+    if _is_pstack(root, root / "packages/pstack"):
+        from pstack_release import validate_pstack_catalogs
+        errors.extend(validate_pstack_catalogs(root))
     return errors
 
 
@@ -802,8 +801,9 @@ def _validate_versions(root: Path, plugin_roots: list[Path]) -> list[str]:
     today = utc_today()
     errors: list[str] = []
     for plugin_root in plugin_roots:
+        filename = "bundle.json" if _is_pstack(root, plugin_root) else "plugin.json"
         try:
-            manifest = json.loads((plugin_root / "plugin.json").read_text(encoding="utf-8"))
+            manifest = json.loads((plugin_root / filename).read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError):
             continue  # The plugin root check reports the broken manifest.
         version = manifest.get("version") if isinstance(manifest, dict) else None
@@ -823,7 +823,7 @@ def _validate_versions(root: Path, plugin_roots: list[Path]) -> list[str]:
             check_next_version(version, released, today)
         except ValueError as exc:
             errors.append(
-                f"{_display(plugin_root / 'plugin.json', root)}: {exc}; "
+                f"{_display(plugin_root / filename, root)}: {exc}; "
                 f"run `python3 {BUMP_HELPER} {name}`"
             )
     return errors
@@ -851,8 +851,9 @@ def _validate_readme(root: Path, plugin_roots: list[Path]) -> list[str]:
 
     errors: list[str] = []
     for plugin_root in plugin_roots:
+        filename = "codex/plugin.json" if _is_pstack(root, plugin_root) else "plugin.json"
         try:
-            manifest = json.loads((plugin_root / "plugin.json").read_text(encoding="utf-8"))
+            manifest = json.loads((plugin_root / filename).read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError):
             continue  # The plugin root check reports the broken manifest.
         description = manifest.get("description") if isinstance(manifest, dict) else None
@@ -893,6 +894,24 @@ def _plugin_directories(packages_path: Path) -> list[Path]:
     )
 
 
+def _is_pstack(root: Path, package: Path) -> bool:
+    return (package == root / "packages/pstack"
+            and (root / "integrations/pstack/upstream.lock.json").is_file())
+
+
+def _validate_codex_catalog_surface(root: Path) -> list[str]:
+    directory = root / ".agents"
+    if not directory.exists():
+        return [".agents/plugins/marketplace.json: missing complete Codex catalog"]
+    if directory.is_symlink() or not directory.is_dir():
+        return [".agents: the Codex catalog must use real directories"]
+    paths = list(directory.rglob("*"))
+    allowed = {directory / "plugins", directory / "plugins/marketplace.json"}
+    return [f"{_display(path, root)}: only the complete plugins/marketplace.json "
+            "catalog is allowed under .agents" for path in paths
+            if path not in allowed or path.is_symlink()]
+
+
 def validate_repository(root: Path) -> tuple[list[Path], list[str]]:
     """Validate the complete Charms repository."""
 
@@ -904,6 +923,9 @@ def validate_repository(root: Path) -> tuple[list[Path], list[str]]:
 
     for relative in DISALLOWED_ROOT_SURFACES:
         path = root / relative
+        if relative == ".agents" and _is_pstack(root, root / "packages/pstack"):
+            errors.extend(_validate_codex_catalog_surface(root))
+            continue
         if _lexists(path):
             errors.append(
                 f"{_display(path, root)}: root plugin or client surface is not part of the "
@@ -958,6 +980,12 @@ def validate_repository(root: Path) -> tuple[list[Path], list[str]]:
     errors.extend(_validate_readme(root, plugin_roots))
 
     expected_manifests = {plugin_root / "plugin.json" for plugin_root in plugin_roots}
+    pstack = root / "packages/pstack"
+    if pstack in plugin_roots and (root / "integrations/pstack/upstream.lock.json").is_file():
+        expected_manifests.discard(pstack / "plugin.json")
+        for host, overlay in [("claude-code", ".claude-plugin"), ("codex", ".codex-plugin")]:
+            expected_manifests.add(pstack / host / "plugin.json")
+            expected_manifests.add(pstack / host / overlay / "plugin.json")
     for current, directories, files in _walk_without_following_symlinks(root):
         if current == root:
             directories[:] = [name for name in directories if name != ".git"]
@@ -986,7 +1014,10 @@ def validate_explicit_plugins(paths: Iterable[Path]) -> tuple[list[Path], list[s
             continue
         seen.add(absolute)
         plugin_roots.append(absolute)
-        errors.extend(validate_plugin_root(absolute, validator, report_root=Path.cwd().absolute()))
+        if absolute == REPOSITORY_ROOT / "packages/pstack":
+            errors.extend(validate_bundle(REPOSITORY_ROOT, absolute))
+        else:
+            errors.extend(validate_plugin_root(absolute, validator, report_root=Path.cwd().absolute()))
     return plugin_roots, sorted(dict.fromkeys(errors))
 
 
@@ -1003,7 +1034,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Validate only the marketplace manifest. Needs no development dependency.",
     )
+    parser.add_argument(
+        "--pstack-bundle", type=Path,
+        help="Validate an extracted pstack bundle against this repository's locked integration.",
+    )
     args = parser.parse_args(argv)
+
+    if args.pstack_bundle is not None:
+        if args.plugin_roots or args.marketplace:
+            parser.error("--pstack-bundle takes no plugin roots or --marketplace")
+        errors = validate_bundle(REPOSITORY_ROOT, args.pstack_bundle)
+        for error in errors:
+            print(f"error: {error}", file=sys.stderr)
+        if not errors:
+            print("validated the staged pstack bundle against repository-owned inputs")
+        return 1 if errors else 0
 
     if args.marketplace:
         if args.plugin_roots:

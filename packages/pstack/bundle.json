@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "name": "pstack",
+  "version": "2026.11.0",
+  "upstream": {
+    "repository": "https://github.com/cursor/plugins",
+    "version": "0.15.43",
+    "commit": "2f87c854fe3e2fcda44ca86b46ede35aad3c46b7",
+    "canonical_tree": "71d8e1d1d718e2149dc43b2535618064f29cba6b",
+    "claude_tree": "9f63e68efd0e0de310d8164d7d43b00c549a839f"
+  },
+  "adapter": {
+    "sha256": "0bdb8a37cfd2e99f0860a51258f01f587badd25e260d8aa3668783d06d06b749"
+  },
+  "targets": {
+    "claude-code": {
+      "path": "claude-code",
+      "version": "0.15.43",
+      "tree_sha256": "7a1f519d5b537cac6e25c56ca35a66c98fa06e8956eee0aff0782974a379ca94"
+    },
+    "codex": {
+      "path": "codex",
+      "version": "2026.11.0",
+      "tree_sha256": "bd4f0cc7bbb8b9d4194d28547859a2ec305ed8c4928691c8ec9d6bea1b8defd4",
+      "payload_manifest_sha256": "67e85b5270fdb283288b47550def46e1f93039b57a0f88e846c4bdb98c62f380"
+    }
+  }
+}

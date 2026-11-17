@@ -9,8 +9,9 @@ python3 -m pip install -r requirements-dev.txt
 make check
 ```
 
-The plugins themselves support Python 3.9, so code under `packages/` stays
-within Python 3.9's syntax and standard library. See
+The native plugins support Python 3.9. Pstack's Codex adapter and repository
+tooling use Python 3.11+, while its unchanged upstream helpers retain their
+Node/Bun/Java requirements. See
 [Python versions](#python-versions).
 
 `requirements-dev.txt` pins the development tools (Ruff, ShellCheck,
@@ -40,8 +41,9 @@ after reading the watch-video skill. See
 [Check what an agent does with the skill](releasing.md#check-what-an-agent-does-with-the-skill).
 `make check` still tests that the eval cases are well formed.
 
-`make check` also validates `.claude-plugin/marketplace.json` against the
-release tags, so it needs them locally. Fetch them if your clone lacks them:
+`make check` also validates `.claude-plugin/marketplace.json` and
+`.agents/plugins/marketplace.json` against the release tags, so it needs them
+locally. Fetch them if your clone lacks them:
 
 ```sh
 git fetch --tags
@@ -49,7 +51,8 @@ git fetch --tags
 
 ## Change a plugin
 
-Edit only the plugin root that owns the behavior:
+For a native plugin, edit only the root that owns the behavior. For pstack,
+follow [Maintain pstack](#maintain-pstack) instead of editing generated files:
 
 ```text
 packages/<name>/
@@ -108,27 +111,37 @@ for what enforcing it would take.
 
 ## Python versions
 
-Each plugin states its oldest supported Python once, as `MIN_PYTHON` in
+Each native plugin states its oldest supported Python once, as `MIN_PYTHON` in
 `skills/<name>/scripts/python_floor.py`. Every script that can be run directly
 imports `python_floor` before any other module of the skill, so an older
 `python3` stops with one line instead of a traceback. A package test starts
 each script that way and fails if a new one skips the import.
 
-Three checks keep the plugins inside that floor:
+These checks keep native plugins inside that floor:
 
-- Ruff treats `packages/` as Python 3.9 code and reports newer syntax as an
-  error. The rest of the repository targets Python 3.11.
-- `make test-plugins` runs only the plugin tests. They need no development
+- Ruff treats native plugin code and tests as Python 3.9 code and reports
+  newer syntax as an error. The pstack Codex adapter, including its generated
+  copy, and repository tooling target Python 3.11.
+- `make test-plugins` runs only the native plugin tests. They need no development
   dependencies, so they also run on a bare Python 3.9:
   `make test-plugins PYTHON=python3.9`. Without `jsonschema`, one schema
   cross-check is skipped.
-- CI runs the plugin tests on Python 3.9 and the complete check on Python 3.11
-  and the newest release.
+- CI runs the native plugin tests on Python 3.9 and the complete check on
+  Python 3.11 and the newest release.
 
-To raise the floor, change `MIN_PYTHON` in each plugin, the `compatibility`
-line of each `SKILL.md`, the Ruff target in `pyproject.toml`, the Python
+To raise the native floor, change `MIN_PYTHON` in each native plugin, the
+`compatibility` line of each `SKILL.md`, the Ruff target in `pyproject.toml`, the Python
 version of the `python-floor` CI job, and the documented requirement in the
 package READMEs and [Compatibility](compatibility.md).
+
+## Maintain pstack
+
+Edit `integrations/pstack/codex/` and the sync/projection tooling, then regenerate.
+Never edit the generated bundle or patch the retained upstream snapshots.
+The [pstack guide](pstack.md) describes exact-input checks, reviewed upstream
+updates, focused tests, and native Cloud capabilities that remain unqualified.
+The separate `make test-pstack-upstream` target installs pinned test tools
+only in temporary storage and runs unchanged helpers in disposable copies.
 
 ## Add a plugin
 
@@ -164,12 +177,15 @@ Update the root README, `packages/README.md`, and compatibility table so the
 repository presents a complete current inventory. The plugin's row in the root
 README's table repeats the `description` of its `plugin.json` word for word,
 and validation fails when the two differ. Do not add a marketplace entry; the
-first release adds it.
+first verified release adds it.
 
 ## Versions
 
-Each plugin uses calendar versions, `YEAR.MONTH.RELEASE`: the year and month
-in UTC, then the number of releases the plugin has already made in that
+Pstack has a separate bundle version and preserves Claude's upstream version;
+see [Pstack bundle releases](releasing.md#pstack-bundle-releases).
+
+Each native plugin uses calendar versions, `YEAR.MONTH.RELEASE`: the year and
+month in UTC, then the number of releases the plugin has already made in that
 month, such as `2026.11.0`. Set the next version in a normal commit when the
 plugin is ready to release:
 
@@ -182,8 +198,8 @@ The helper works the version out from today's date and the plugin's releases,
 so there is no part to choose. Add `--dry-run` to print the version without
 changing `plugin.json`.
 
-`plugin.json` is the only place a version is written. The scripts read it
-through `skills/<name>/scripts/plugin_version.py`, which supplies what
+For native plugins, `plugin.json` is the only place a version is written. The
+scripts read it through `skills/<name>/scripts/plugin_version.py`, which supplies what
 `--version` prints, the `User-Agent` on requests and, for watch-video, the
 doctor header and the `plugin_version` saved in a run's `metadata.json`. A
 copy of a skill without its plugin folder has no manifest and reports
@@ -202,6 +218,10 @@ newer push to a pull request cancels the run of the older one. The release
 workflow reuses CI on the commit being released, and starts it once more on
 `main` after it pushes the marketplace commit:
 
+- the pstack job verifies exact pinned generation and runs the unchanged
+  upstream helper suites with the pinned TLC jar, plus the Codex watcher
+  integration tests. It runs when pstack, integration, script, test, or CI inputs
+  changed, or when no comparison base is available;
 - the Ubuntu job runs `make ci` on Python 3.11 and on the newest Python
   release, with the FFmpeg that its runner image packages, and requires the
   checks to leave the working tree clean. On Python 3.11 it also runs
@@ -221,6 +241,10 @@ version in `.github/workflows/ci.yml`.
 
 ## Review checklist
 
+The manifest, single-skill and Python-floor rules above apply to native plugins.
+For pstack, review maintained inputs and regenerated output with its dedicated
+bundle checks.
+
 - `plugin.json` validates against the vendored v1 schema.
 - The manifest, package directory, and skill names match.
 - `SKILL.md` passes the official Agent Skills validator.
@@ -231,5 +255,6 @@ version in `.github/workflows/ci.yml`.
 - A version bump, when needed, uses `scripts/bump-plugin-version.py`.
 - The change is on a branch, and CI is green on its pull request before the
   merge.
-- `.claude-plugin/marketplace.json` is unchanged; only releases update it.
+- Both marketplace catalogs and `integrations/pstack/published.json` are
+  unchanged; only verified release promotion updates them.
 - `make check` passes from a clean checkout with release tags fetched.

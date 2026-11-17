@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "package": {
+    "name": "pstack",
+    "version": "2026.11.0"
+  },
+  "targets": {
+    "claude-code": {
+      "source": "claude",
+      "path": "claude-code",
+      "transform": "exact-copy"
+    },
+    "codex": {
+      "source": "canonical",
+      "path": "codex",
+      "transform": "canonical-to-codex"
+    }
+  },
+  "transforms": [
+    "canonical-to-codex",
+    "codex-dispatch-descriptors",
+    "manual-invocation-policy",
+    "dormant-benny-resources",
+    "canonical-teamkit-dependencies",
+    "codex-runtime-adapters"
+  ],
+  "reviewed_upstream_commit": "2f87c854fe3e2fcda44ca86b46ede35aad3c46b7"
+}

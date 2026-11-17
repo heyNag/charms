@@ -1,25 +1,27 @@
 # Compatibility
 
-Every Charms package targets Agent Plugins v1.0.0 and currently provides one
-Agent Skill. A client must support the Agent Plugins manifest and Agent Skills
-component type to discover it.
+Native Charms packages target Agent Plugins v1.0.0 and provide one Agent Skill.
+The client table below describes those existing native plugins. Pstack uses
+a separate multi-skill bundle. Its local Desktop smoke checks do not certify
+every workflow, native Cloud activation, or provider deployment. See the
+[pstack support boundary](pstack.md#support-boundary).
 
 ## Clients
 
-Claude Code and Codex are the first-class clients. Both install from the
-`charms` marketplace at `.claude-plugin/marketplace.json` and fetch
+Claude Code and Codex are the first-class clients for the native plugins. Both
+install from the `charms` marketplace through their complete catalogs and fetch
 `packages/<name>/` at the pinned release commit SHA.
 
 | Client | Support | Minimum version | How it installs a package |
 | --- | --- | --- | --- |
 | Claude Code | First-class, tested | No documented minimum; tested with 2.1.307 | Reads the marketplace entry, fetches the package at the pinned `sha`, and loads the skill from `skills/<name>/`. |
-| Codex | First-class, tested | CLI 0.147.0 | Reads the Claude-format marketplace natively, fetches the package at the pinned `sha`, and loads its root Agent Plugins `plugin.json` and skill. |
+| Codex | First-class, tested | CLI 0.147.0 | Reads the complete `.agents/plugins/marketplace.json` catalog, fetches the package at the pinned `sha`, and loads its root Agent Plugins `plugin.json` and skill. |
 | Other Agent Plugins clients, such as VS Code, GitHub Copilot CLI, and Cursor | Best-effort, not tested | Client-specific | Load a release ZIP or a `packages/<name>/` checkout through the client's own flow. |
 | Agent Skills hosts without plugins | Skill only | Client-specific | Install `packages/<name>/skills/<name>/` from `main` with Skillshare or the skills CLI. |
 
 Codex 0.147.0 is the first release that installs root Agent Plugins
-`plugin.json` packages from a marketplace. The marketplace entry and the
-package's `plugin.json` at the release commit always carry the same name,
+`plugin.json` packages from a marketplace. For native packages, the marketplace
+entry and the package's `plugin.json` at the release commit carry the same name,
 version, and description; validation enforces it.
 See [Installation](installing.md) for commands.
 
@@ -35,9 +37,10 @@ filesystem access, or approval interface.
 | --- | --- |
 | `watch-video` | macOS or Linux, Python 3.9+. Local files need `ffmpeg` and `ffprobe` for local extraction; local URL runs also need `yt-dlp`, which needs a JavaScript runtime such as Deno for YouTube. Gemini needs network access and environment-supplied `GEMINI_API_KEY`, with no local binaries for supported YouTube URLs or local files; other URLs need the downloader toolkit. Remote media and hosted transcription need network access. Optional local ASR/VLM needs a separately configured loopback OpenAI-compatible server. |
 | `x-bookmarks` | Python 3.9+ and either Bird with browser-cookie access or X API v2 OAuth credentials. Live retrieval requires network access. |
+| `pstack` | The Codex adapter and repository tooling require Python 3.11+. Individual skills need their own host tools and configured providers. Generation also needs Node for the upstream harness check. See the [pstack support boundary](pstack.md#support-boundary); these prerequisites do not certify Desktop or Cloud workflows. |
 
-These requirements are also declared in each skill's `compatibility`
-frontmatter and explained in its package README. Each plugin's scripts check
+For the native plugins, these requirements are also declared in each skill's
+`compatibility` frontmatter and explained in its package README. Their scripts check
 the Python version before anything else and stop with one line on an older
 `python3`.
 
@@ -128,5 +131,7 @@ safety and evidence requirements. Otherwise it should explain the missing
 capability and offer a user-mediated step.
 
 Host-specific tool names and permission grants are intentionally absent from
-the portable packages. The host remains responsible for authorization,
+the native portable packages. Pstack retains upstream Claude instructions and
+translates host behavior in its Codex adapter. The host remains responsible for
+authorization,
 sandboxing, confirmations, and credential access.

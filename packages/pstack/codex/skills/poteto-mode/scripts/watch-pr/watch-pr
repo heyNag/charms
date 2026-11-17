@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+"""Run the Codex watcher with one bounded, revision-bound attempt."""
+import os
+from pathlib import Path
+import sys
+
+root = Path(__file__).resolve().parents[4]
+supervisor = root / "adapters/codex/watch_pr/supervisor.py"
+os.execv(sys.executable, [sys.executable, str(supervisor), *sys.argv[1:]])
